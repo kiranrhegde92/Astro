@@ -5,6 +5,7 @@ import {
   ViewStyle,
   StyleProp,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 
 interface AnimatedPressableProps {
   children: React.ReactNode;
@@ -12,6 +13,7 @@ interface AnimatedPressableProps {
   style?: StyleProp<ViewStyle>;
   scaleTo?: number;
   disabled?: boolean;
+  haptic?: boolean;
 }
 
 export function AnimatedPressable({
@@ -20,10 +22,14 @@ export function AnimatedPressable({
   style,
   scaleTo = 0.96,
   disabled = false,
+  haptic = true,
 }: AnimatedPressableProps) {
   const scale = useRef(new Animated.Value(1)).current;
 
   const onPressIn = () => {
+    if (haptic) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
     Animated.spring(scale, {
       toValue: scaleTo,
       tension: 100,

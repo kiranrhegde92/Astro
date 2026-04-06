@@ -1,5 +1,5 @@
-import React, { useMemo, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Dimensions, Animated } from 'react-native';
+import React, { useMemo, useRef, useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Dimensions, Animated, TouchableOpacity } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -31,16 +31,89 @@ function getCosmicEnergy(date: Date): number {
   return 0.62 + (x - Math.floor(x)) * 0.33;
 }
 
+// ── Shimmer skeleton block ──────────────────────────────────────────────────
+function SkeletonBlock({ width: w, height: h, style }: { width: number | string; height: number; style?: any }) {
+  const shimmer = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmer, { toValue: 1, duration: 900, useNativeDriver: true }),
+        Animated.timing(shimmer, { toValue: 0, duration: 900, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, []);
+  const opacity = shimmer.interpolate({ inputRange: [0, 1], outputRange: [0.06, 0.18] });
+  return (
+    <Animated.View style={[{ width: w as any, height, borderRadius: 8, backgroundColor: '#ffffff', opacity }, style]} />
+  );
+}
+
+function TodaySkeleton() {
+  return (
+    <StarField>
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false} scrollEnabled={false}>
+        {/* Hero */}
+        <View style={[styles.hero, { gap: 12 }]}>
+          <SkeletonBlock width={92} height={92} style={{ borderRadius: 46 }} />
+          <SkeletonBlock width={140} height={13} />
+          <SkeletonBlock width={220} height={22} />
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <SkeletonBlock width={90} height={40} style={{ borderRadius: 20 }} />
+            <SkeletonBlock width={90} height={40} style={{ borderRadius: 20 }} />
+          </View>
+        </View>
+        {/* Energy card */}
+        <SkeletonBlock width="100%" height={84} style={{ borderRadius: 16 }} />
+        {/* Affirmation */}
+        <View style={{ gap: 8 }}>
+          <SkeletonBlock width="90%" height={17} />
+          <SkeletonBlock width="70%" height={17} />
+        </View>
+        {/* System cards */}
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+          <SkeletonBlock width={CARD_W} height={255} style={{ borderRadius: 16 }} />
+          <SkeletonBlock width={40} height={255} style={{ borderRadius: 16 }} />
+        </View>
+      </ScrollView>
+    </StarField>
+  );
+}
+
+// ── Error state ─────────────────────────────────────────────────────────────
+function TodayError({ onRetry }: { onRetry: () => void }) {
+  return (
+    <StarField>
+      <View style={styles.center}>
+        <Ionicons name="alert-circle-outline" size={48} color="rgba(255,255,255,0.35)" />
+        <Text style={styles.errorTitle}>Reading Unavailable</Text>
+        <Text style={styles.errorSub}>Your cosmic data couldn't be loaded right now.</Text>
+        <TouchableOpacity onPress={onRetry} activeOpacity={0.75} style={styles.retryBtn}>
+          <Text style={styles.retryText}>Try Again</Text>
+        </TouchableOpacity>
+      </View>
+    </StarField>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+
 export default function TodayScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const user = useUserStore((s) => s.user);
   const today = new Date();
+  const [retryKey, setRetryKey] = useState(0);
 
   const reading = useMemo(() => {
     if (!user?.western?.sun || !user?.vedic?.rashi || !user?.chinese?.animal) return null;
-    return generateDailyReading(today, user.western.sun, user.vedic.rashi, user.chinese.animal);
-  }, [today.toDateString(), user?.western?.sun]);
+    try {
+      return generateDailyReading(today, user.western.sun, user.vedic.rashi, user.chinese.animal);
+    } catch {
+      return 'error' as const;
+    }
+  }, [today.toDateString(), user?.western?.sun, retryKey]);
 
   const cosmicEnergy = useMemo(() => getCosmicEnergy(today), [today.toDateString()]);
 
@@ -67,16 +140,9 @@ export default function TodayScreen() {
     return t('common.evening');
   })();
 
-  if (!reading || !user) {
-    return (
-      <StarField>
-        <View style={styles.center}>
-          <CosmicOrb size={110} />
-          <Text style={styles.loadingText}>{t('common.loading')}</Text>
-        </View>
-      </StarField>
-    );
-  }
+  if (!user) return <TodaySkeleton />;
+  if (reading === 'error') return <TodayError onRetry={() => setRetryKey(k => k + 1)} />;
+  if (!reading) return <TodaySkeleton />;
 
   const systemReadings = [
     user.activeSystems.includes('western') && reading.western && {
@@ -309,8 +375,36 @@ export default function TodayScreen() {
 
 const styles = StyleSheet.create({
   container: { paddingHorizontal: SPACING.lg, paddingTop: 58, gap: SPACING.lg },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: SPACING.md },
-  loadingText: { color: COLORS.textMuted, fontSize: 12, fontFamily: 'Cinzel_400Regular', letterSpacing: 2 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: SPACING.md, paddingHorizontal: SPACING.xl },
+  errorTitle: {
+    color: COLORS.white,
+    fontSize: 18,
+    fontFamily: 'Cinzel_700Bold',
+    letterSpacing: 0.5,
+    textAlign: 'center',
+  },
+  errorSub: {
+    color: COLORS.textSecondary,
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  retryBtn: {
+    marginTop: SPACING.sm,
+    paddingVertical: 14,
+    paddingHorizontal: SPACING.xl,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.22)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    minHeight: 44,
+  },
+  retryText: {
+    color: COLORS.white,
+    fontSize: 14,
+    fontFamily: 'Cinzel_700Bold',
+    letterSpacing: 1,
+  },
 
   hero: { alignItems: 'center', gap: SPACING.sm },
   dateText: {

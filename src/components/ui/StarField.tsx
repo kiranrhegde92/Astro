@@ -3,8 +3,8 @@
  * Pure black cosmos: white star particles, silver nebula sweep,
  * perspective grid, chrome halo stars
  */
-import React, { useMemo, useEffect, useRef } from 'react';
-import { View, StyleSheet, Dimensions, Animated } from 'react-native';
+import React, { useMemo, useEffect, useRef, useState } from 'react';
+import { View, StyleSheet, Dimensions, Animated, AccessibilityInfo } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, Defs, RadialGradient, Stop, Line } from 'react-native-svg';
 
@@ -15,11 +15,12 @@ function seed(s: number) {
   return x - Math.floor(x);
 }
 
-function TwinkleStar({ x, y, size, peak, delay, duration }: {
-  x: number; y: number; size: number; peak: number; delay: number; duration: number;
+function TwinkleStar({ x, y, size, peak, delay, duration, reduced }: {
+  x: number; y: number; size: number; peak: number; delay: number; duration: number; reduced: boolean;
 }) {
-  const op = useRef(new Animated.Value(peak * 0.1)).current;
+  const op = useRef(new Animated.Value(reduced ? peak * 0.45 : peak * 0.1)).current;
   useEffect(() => {
+    if (reduced) return;
     const loop = Animated.loop(
       Animated.sequence([
         Animated.delay(delay),
@@ -29,7 +30,7 @@ function TwinkleStar({ x, y, size, peak, delay, duration }: {
     );
     loop.start();
     return () => loop.stop();
-  }, []);
+  }, [reduced]);
   return (
     <Animated.View style={{
       position: 'absolute', left: x, top: y,
@@ -59,6 +60,14 @@ function ChromeStar({ x, y, r, id }: { x: number; y: number; r: number; id: stri
 }
 
 export function StarField({ children }: { children: React.ReactNode }) {
+  const [reducedMotion, setReducedMotion] = useState(false);
+
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled().then(setReducedMotion);
+    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', setReducedMotion);
+    return () => sub.remove();
+  }, []);
+
   const data = useMemo(() => {
     // 90 static white-to-blue-white dim stars
     const staticStars = Array.from({ length: 90 }).map((_, i) => ({
@@ -147,7 +156,7 @@ export function StarField({ children }: { children: React.ReactNode }) {
 
       {/* ── Layer 4: Twinkling stars ── */}
       {data.twinkle.map((s) => (
-        <TwinkleStar key={s.id} {...s} />
+        <TwinkleStar key={s.id} {...s} reduced={reducedMotion} />
       ))}
 
       {/* ── Content ── */}
