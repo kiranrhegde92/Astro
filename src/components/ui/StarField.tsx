@@ -35,7 +35,7 @@ function TwinkleStar({ x, y, size, peak, delay, duration, reduced }: {
     <Animated.View style={{
       position: 'absolute', left: x, top: y,
       width: size, height: size, borderRadius: size / 2,
-      backgroundColor: '#fff', opacity: op,
+      backgroundColor: '#ffffff', opacity: op,
     }} />
   );
 }
@@ -48,8 +48,8 @@ function ChromeStar({ x, y, r, id }: { x: number; y: number; r: number; id: stri
         <Defs>
           <RadialGradient id={id} cx="38%" cy="35%" r="60%">
             <Stop offset="0%"   stopColor="#ffffff" stopOpacity={0.95} />
-            <Stop offset="20%"  stopColor="#dde2ff" stopOpacity={0.70} />
-            <Stop offset="55%"  stopColor="#8888aa" stopOpacity={0.18} />
+            <Stop offset="20%"  stopColor="#e0d8ff" stopOpacity={0.65} />
+            <Stop offset="55%"  stopColor="#9080cc" stopOpacity={0.18} />
             <Stop offset="100%" stopColor="#000000" stopOpacity={0} />
           </RadialGradient>
         </Defs>
@@ -69,13 +69,13 @@ export function StarField({ children }: { children: React.ReactNode }) {
   }, []);
 
   const data = useMemo(() => {
-    // 90 static white-to-blue-white dim stars
+    // 90 soft dust-mote stars — purple/teal on pale bg
     const staticStars = Array.from({ length: 90 }).map((_, i) => ({
       x: seed(i * 7 + 1) * width,
       y: seed(i * 13 + 3) * height,
-      s: seed(i * 3 + 5) * 2.2 + 0.4,
-      o: seed(i * 11 + 7) * 0.45 + 0.18,
-      warm: seed(i * 17 + 9) > 0.7,
+      s: seed(i * 3 + 5) * 2.2 + 0.5,
+      o: seed(i * 11 + 7) * 0.35 + 0.12,
+      warm: seed(i * 17 + 9) > 0.5,
     }));
 
     // 22 twinkling stars
@@ -102,40 +102,47 @@ export function StarField({ children }: { children: React.ReactNode }) {
 
   return (
     <View style={styles.root}>
-      {/* ── Layer 0: Midnight navy base ── */}
+      {/* ── Layer 0: Deep amethyst — rich purple, not black ── */}
       <LinearGradient
-        colors={['#1c1b33', '#181730', '#1e1c38', '#16152c']}
+        colors={['#2d2860', '#26225a', '#302a68', '#221e52']}
         locations={[0, 0.3, 0.65, 1]}
         style={StyleSheet.absoluteFillObject}
       />
 
-      {/* ── Layer 1: Nebula sweeps ── */}
-      {/* Top-left: vivid indigo mist */}
+      {/* ── Layer 1: Strong nebula washes ── */}
+      {/* Top-left: bright violet cloud */}
       <LinearGradient
-        colors={['rgba(120,100,255,0.32)', 'rgba(90,80,200,0.16)', 'transparent']}
+        colors={['rgba(160,120,255,0.55)', 'rgba(130,100,240,0.28)', 'transparent']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[styles.nebula, { width: width * 1.2, height: height * 0.50, top: -height * 0.05, left: -width * 0.1 }]}
+        style={[styles.nebula, { width: width * 1.2, height: height * 0.55, top: -height * 0.05, left: -width * 0.1 }]}
       />
-      {/* Bottom-right: teal mist */}
+      {/* Bottom-right: electric teal bloom */}
       <LinearGradient
-        colors={['rgba(40,180,180,0.26)', 'rgba(30,130,160,0.12)', 'transparent']}
+        colors={['rgba(0,220,200,0.38)', 'rgba(0,180,200,0.18)', 'transparent']}
         start={{ x: 1, y: 1 }}
         end={{ x: 0, y: 0 }}
-        style={[styles.nebula, { width: width * 1.0, height: height * 0.45, bottom: -height * 0.05, right: -width * 0.1 }]}
+        style={[styles.nebula, { width: width * 1.1, height: height * 0.50, bottom: -height * 0.05, right: -width * 0.1 }]}
       />
-      {/* Center: warm violet bloom */}
+      {/* Center: rose-pink cosmic bloom */}
       <LinearGradient
-        colors={['rgba(180,140,240,0.18)', 'rgba(200,160,255,0.09)', 'transparent']}
-        start={{ x: 0.5, y: 0.3 }}
+        colors={['rgba(255,150,200,0.22)', 'rgba(220,120,180,0.10)', 'transparent']}
+        start={{ x: 0.5, y: 0.25 }}
         end={{ x: 0.5, y: 0.85 }}
-        style={[styles.nebula, { width: width * 0.8, height: height * 0.4, top: height * 0.3, left: width * 0.1 }]}
+        style={[styles.nebula, { width: width * 0.9, height: height * 0.45, top: height * 0.28, left: width * 0.05 }]}
       />
-      {/* Galaxy arm diagonal sweep */}
+      {/* Galaxy arm: strong white diagonal sweep */}
       <LinearGradient
-        colors={['transparent', 'rgba(180,180,255,0.12)', 'rgba(210,210,255,0.20)', 'rgba(180,180,255,0.10)', 'transparent']}
+        colors={['transparent', 'rgba(255,255,255,0.14)', 'rgba(255,255,255,0.28)', 'rgba(255,255,255,0.12)', 'transparent']}
         start={{ x: 0, y: 0.25 }}
         end={{ x: 1, y: 0.75 }}
+        style={StyleSheet.absoluteFillObject}
+      />
+      {/* White frosted veil — lifts the overall brightness */}
+      <LinearGradient
+        colors={['rgba(255,255,255,0.16)', 'rgba(255,255,255,0.06)', 'rgba(255,255,255,0.12)']}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
         style={StyleSheet.absoluteFillObject}
       />
 
@@ -150,7 +157,7 @@ export function StarField({ children }: { children: React.ReactNode }) {
           position: 'absolute', left: s.x, top: s.y,
           width: s.s, height: s.s, borderRadius: s.s / 2,
           opacity: s.o,
-          backgroundColor: s.warm ? '#ffffff' : '#dde2ff',
+          backgroundColor: s.warm ? '#ffffff' : '#c8c0ff',
         }} />
       ))}
 
