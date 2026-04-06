@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { useRouter } from 'expo-router';
 import { StarField } from '../../src/components/ui/StarField';
 import { GlowText } from '../../src/components/ui/GlowText';
 import { GradientCard } from '../../src/components/ui/GradientCard';
@@ -11,6 +12,7 @@ import { getCosmicDNASummary } from '../../src/engines/unified';
 
 export default function ProfileScreen() {
   const { t } = useTranslation();
+  const router = useRouter();
   const user = useUserStore((s) => s.user);
 
   if (!user) return null;
@@ -49,6 +51,31 @@ export default function ProfileScreen() {
             <Text style={styles.dnaValue}>{cosmicDNA}</Text>
           </GradientCard>
         )}
+
+        {/* Quick Actions */}
+        <View style={styles.quickActions}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => router.push('/share/card')}
+          >
+            <Text style={styles.actionEmoji}>{'\u{1F4E4}'}</Text>
+            <Text style={styles.actionLabel}>Share Cards</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => router.push('/qr/my-code')}
+          >
+            <Text style={styles.actionEmoji}>{'\u{1F4F1}'}</Text>
+            <Text style={styles.actionLabel}>My QR Code</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => router.push('/qr/scan')}
+          >
+            <Text style={styles.actionEmoji}>{'\u{1F4F7}'}</Text>
+            <Text style={styles.actionLabel}>Scan QR</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* Western Profile */}
         {user.western && user.activeSystems.includes('western') && (
@@ -183,6 +210,26 @@ const styles = StyleSheet.create({
   statEmoji: { fontSize: 24 },
   statValue: { color: COLORS.starGold, fontSize: 20, fontWeight: '700' },
   statLabel: { color: COLORS.textMuted, fontSize: 11 },
+  quickActions: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+  },
+  actionButton: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+    padding: SPACING.md,
+    alignItems: 'center',
+    gap: 4,
+  },
+  actionEmoji: { fontSize: 24 },
+  actionLabel: {
+    color: COLORS.textSecondary,
+    fontSize: 11,
+    fontWeight: '600',
+  },
   dnaLabel: {
     color: COLORS.textSecondary,
     fontSize: 12,
