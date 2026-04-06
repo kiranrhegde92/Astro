@@ -74,7 +74,7 @@ export function StarField({ children }: { children: React.ReactNode }) {
       x: seed(i * 7 + 1) * width,
       y: seed(i * 13 + 3) * height,
       s: seed(i * 3 + 5) * 2.2 + 0.4,
-      o: seed(i * 11 + 7) * 0.38 + 0.10,
+      o: seed(i * 11 + 7) * 0.45 + 0.18,
       warm: seed(i * 17 + 9) > 0.7,
     }));
 
@@ -102,38 +102,38 @@ export function StarField({ children }: { children: React.ReactNode }) {
 
   return (
     <View style={styles.root}>
-      {/* ── Layer 0: Deep charcoal base — not pure black ── */}
+      {/* ── Layer 0: Midnight navy base ── */}
       <LinearGradient
-        colors={['#12121e', '#0e0e18', '#181824', '#0c0c16']}
+        colors={['#1c1b33', '#181730', '#1e1c38', '#16152c']}
         locations={[0, 0.3, 0.65, 1]}
         style={StyleSheet.absoluteFillObject}
       />
 
-      {/* ── Layer 1: Nebula sweeps — more visible ── */}
-      {/* Top-left: soft indigo mist */}
+      {/* ── Layer 1: Nebula sweeps ── */}
+      {/* Top-left: vivid indigo mist */}
       <LinearGradient
-        colors={['rgba(100,90,200,0.22)', 'rgba(80,70,180,0.10)', 'transparent']}
+        colors={['rgba(120,100,255,0.32)', 'rgba(90,80,200,0.16)', 'transparent']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={[styles.nebula, { width: width * 1.2, height: height * 0.50, top: -height * 0.05, left: -width * 0.1 }]}
       />
-      {/* Bottom-right: teal/blue mist */}
+      {/* Bottom-right: teal mist */}
       <LinearGradient
-        colors={['rgba(40,120,160,0.18)', 'rgba(30,90,130,0.08)', 'transparent']}
+        colors={['rgba(40,180,180,0.26)', 'rgba(30,130,160,0.12)', 'transparent']}
         start={{ x: 1, y: 1 }}
         end={{ x: 0, y: 0 }}
         style={[styles.nebula, { width: width * 1.0, height: height * 0.45, bottom: -height * 0.05, right: -width * 0.1 }]}
       />
-      {/* Center: warm silver-rose bloom */}
+      {/* Center: warm violet bloom */}
       <LinearGradient
-        colors={['rgba(160,120,200,0.10)', 'rgba(180,140,220,0.05)', 'transparent']}
+        colors={['rgba(180,140,240,0.18)', 'rgba(200,160,255,0.09)', 'transparent']}
         start={{ x: 0.5, y: 0.3 }}
         end={{ x: 0.5, y: 0.85 }}
         style={[styles.nebula, { width: width * 0.8, height: height * 0.4, top: height * 0.3, left: width * 0.1 }]}
       />
       {/* Galaxy arm diagonal sweep */}
       <LinearGradient
-        colors={['transparent', 'rgba(180,180,240,0.07)', 'rgba(200,200,255,0.12)', 'rgba(180,180,240,0.06)', 'transparent']}
+        colors={['transparent', 'rgba(180,180,255,0.12)', 'rgba(210,210,255,0.20)', 'rgba(180,180,255,0.10)', 'transparent']}
         start={{ x: 0, y: 0.25 }}
         end={{ x: 1, y: 0.75 }}
         style={StyleSheet.absoluteFillObject}

@@ -72,20 +72,20 @@ export default function SplashScreen() {
     <Animated.View style={[styles.container, { opacity: containerOpacity }]}>
       {/* Deep charcoal background */}
       <LinearGradient
-        colors={['#12121e', '#0e0e18', '#181824', '#0c0c16']}
+        colors={['#1c1b33', '#181730', '#1e1c38', '#16152c']}
         locations={[0, 0.3, 0.65, 1]}
         style={StyleSheet.absoluteFillObject}
       />
       {/* Nebula hints */}
       <LinearGradient
-        colors={['rgba(100,90,200,0.18)', 'rgba(80,70,180,0.08)', 'transparent']}
+        colors={['rgba(120,100,255,0.32)', 'rgba(90,80,200,0.16)', 'transparent']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={[StyleSheet.absoluteFillObject]}
       />
       {/* Galaxy arm diagonal sweep */}
       <LinearGradient
-        colors={['transparent', 'rgba(180,180,240,0.07)', 'rgba(200,200,255,0.12)', 'rgba(180,180,240,0.05)', 'transparent']}
+        colors={['transparent', 'rgba(180,180,255,0.12)', 'rgba(210,210,255,0.20)', 'rgba(180,180,255,0.10)', 'transparent']}
         start={{ x: 0, y: 0.25 }}
         end={{ x: 1, y: 0.75 }}
         style={StyleSheet.absoluteFillObject}
