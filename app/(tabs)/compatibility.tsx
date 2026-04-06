@@ -1,14 +1,17 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TextInput, Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import ViewShot from 'react-native-view-shot';
 import { StarField } from '../../src/components/ui/StarField';
 import { GlowText } from '../../src/components/ui/GlowText';
 import { CosmicButton } from '../../src/components/ui/CosmicButton';
 import { GradientCard } from '../../src/components/ui/GradientCard';
+import { CompatibilityCard } from '../../src/components/share/ShareableCard';
 import { COLORS, SPACING, BORDER_RADIUS } from '../../src/constants/theme';
 import { useUserStore } from '../../src/store/userStore';
 import { calculateCosmicProfile } from '../../src/engines/unified';
 import { calculateCrossCompatibility } from '../../src/engines/unified/crossCompatibility';
+import { captureAndShare } from '../../src/utils/shareUtils';
 import type { CompatibilityResult, CosmicProfile } from '../../src/types/astrology';
 
 export default function CompatibilityScreen() {
@@ -21,8 +24,17 @@ export default function CompatibilityScreen() {
   const [year, setYear] = useState('');
   const [result, setResult] = useState<CompatibilityResult | null>(null);
   const [partnerName, setPartnerName] = useState('');
+  const compatCardRef = useRef<ViewShot>(null);
 
   const isValid = name.trim() && day && month && year;
+
+  const handleShare = async () => {
+    try {
+      await captureAndShare(compatCardRef);
+    } catch {
+      Alert.alert('Share', 'Unable to share at this time.');
+    }
+  };
 
   const handleCheck = () => {
     if (!user?.western || !user?.vedic || !user?.chinese) return;
@@ -162,6 +174,26 @@ export default function CompatibilityScreen() {
               ))}
             </View>
 
+            {/* Share Button */}
+            <CosmicButton
+              title="Share Compatibility"
+              onPress={handleShare}
+              colors={[COLORS.chinese, '#ff4500']}
+            />
+
+            {/* Hidden shareable card for capture */}
+            <View style={styles.hiddenCard}>
+              <CompatibilityCard
+                name1={user?.name ?? ''}
+                name2={partnerName}
+                score={result.overall}
+                westernScore={result.western.score}
+                vedicScore={result.vedic.score}
+                chineseScore={result.chinese.score}
+                viewShotRef={compatCardRef}
+              />
+            </View>
+
             <View style={styles.buttonRow}>
               <CosmicButton title="Check Another" onPress={resetCheck} variant="outline" />
             </View>
@@ -275,6 +307,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xs,
   },
   sourceText: { color: COLORS.textMuted, fontSize: 11, lineHeight: 18 },
+  hiddenCard: { position: 'absolute', left: -9999, top: -9999 },
   buttonRow: { marginTop: SPACING.sm },
   bottomPad: { height: 20 },
 });

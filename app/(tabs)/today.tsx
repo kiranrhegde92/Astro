@@ -1,15 +1,18 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { useRouter } from 'expo-router';
 import { StarField } from '../../src/components/ui/StarField';
 import { GlowText } from '../../src/components/ui/GlowText';
 import { GradientCard } from '../../src/components/ui/GradientCard';
+import { CosmicButton } from '../../src/components/ui/CosmicButton';
 import { COLORS, SPACING, BORDER_RADIUS } from '../../src/constants/theme';
 import { useUserStore } from '../../src/store/userStore';
 import { generateDailyReading } from '../../src/content/dailyTemplates';
 
 export default function TodayScreen() {
   const { t } = useTranslation();
+  const router = useRouter();
   const user = useUserStore((s) => s.user);
 
   const today = new Date();
@@ -67,11 +70,27 @@ export default function TodayScreen() {
           <Text style={styles.affirmationText}>"{reading.unified.affirmation}"</Text>
         </GradientCard>
 
+        {/* Unified Reading CTA */}
+        {user.activeSystems.length >= 2 && (
+          <TouchableOpacity onPress={() => router.push('/reading/unified')} activeOpacity={0.8}>
+            <GradientCard colors={['#7b2fbe', '#00d2ff'] as unknown as readonly string[]}>
+              <View style={styles.unifiedCta}>
+                <Text style={styles.unifiedCtaEmoji}>{'\u{1F30C}'}</Text>
+                <View style={styles.unifiedCtaText}>
+                  <Text style={styles.unifiedCtaTitle}>Unified Cosmic Reading</Text>
+                  <Text style={styles.unifiedCtaDesc}>See all systems aligned into one insight {'\u2192'}</Text>
+                </View>
+              </View>
+            </GradientCard>
+          </TouchableOpacity>
+        )}
+
         {/* Western Reading */}
         {user.activeSystems.includes('western') && reading.western && (
+          <TouchableOpacity onPress={() => router.push('/reading/western')} activeOpacity={0.8}>
           <GradientCard colors={COLORS.gradientWestern as unknown as readonly string[]}>
             <Text style={styles.systemHeader}>
-              {'\u2648'} {t('today.westernReading')} - {user.western?.sun}
+              {'\u2648'} {t('today.westernReading')} - {user.western?.sun} <Text style={styles.tapHint}>Tap for details {'\u2192'}</Text>
             </Text>
             <ReadingSection label={t('reading.overall')} text={reading.western.overall} />
             <ReadingSection label={t('reading.love')} text={reading.western.love} />
@@ -82,13 +101,15 @@ export default function TodayScreen() {
               <Text style={styles.luckyValue}>{reading.western.luckyNumber}</Text>
             </View>
           </GradientCard>
+          </TouchableOpacity>
         )}
 
         {/* Vedic Reading */}
         {user.activeSystems.includes('vedic') && reading.vedic && (
+          <TouchableOpacity onPress={() => router.push('/reading/vedic')} activeOpacity={0.8}>
           <GradientCard colors={COLORS.gradientVedic as unknown as readonly string[]}>
             <Text style={styles.systemHeader}>
-              {'\u{1F549}\uFE0F'} {t('today.vedicReading')} - {user.vedic?.rashi}
+              {'\u{1F549}\uFE0F'} {t('today.vedicReading')} - {user.vedic?.rashi} <Text style={styles.tapHint}>Tap for details {'\u2192'}</Text>
             </Text>
             <ReadingSection label="Dasha Period" text={reading.vedic.dasha} />
             <ReadingSection label="Nakshatra Energy" text={reading.vedic.nakshatra} />
@@ -96,13 +117,15 @@ export default function TodayScreen() {
             <ReadingSection label={t('reading.remedy')} text={reading.vedic.remedy.description} />
             <SourceBadge source={reading.vedic.remedy.source} />
           </GradientCard>
+          </TouchableOpacity>
         )}
 
         {/* Chinese Reading */}
         {user.activeSystems.includes('chinese') && reading.chinese && (
+          <TouchableOpacity onPress={() => router.push('/reading/chinese')} activeOpacity={0.8}>
           <GradientCard colors={COLORS.gradientChinese as unknown as readonly string[]}>
             <Text style={styles.systemHeader}>
-              {'\u{1F409}'} {t('today.chineseReading')} - {user.chinese?.element} {user.chinese?.animal}
+              {'\u{1F409}'} {t('today.chineseReading')} - {user.chinese?.element} {user.chinese?.animal} <Text style={styles.tapHint}>Tap for details {'\u2192'}</Text>
             </Text>
             <ReadingSection label="Animal Energy" text={reading.chinese.animal} />
             <ReadingSection label="Element Flow" text={reading.chinese.element} />
@@ -111,19 +134,29 @@ export default function TodayScreen() {
               <Text style={styles.luckyValue}>{reading.chinese.luckyDirection}</Text>
             </View>
           </GradientCard>
+          </TouchableOpacity>
         )}
 
         {/* KP Reading */}
         {user.activeSystems.includes('kp') && reading.kp && (
+          <TouchableOpacity onPress={() => router.push('/reading/kp')} activeOpacity={0.8}>
           <GradientCard colors={COLORS.gradientKP as unknown as readonly string[]}>
             <Text style={styles.systemHeader}>
-              {'\u{1F52D}'} {t('today.kpReading')}
+              {'\u{1F52D}'} {t('today.kpReading')} <Text style={styles.tapHint}>Tap for details {'\u2192'}</Text>
             </Text>
             <ReadingSection label="Event Timing" text={reading.kp.eventTiming} />
             <ReadingSection label="Significator Insight" text={reading.kp.significatorInsight} />
             <ReadingSection label="Guidance" text={reading.kp.sublordGuidance} />
           </GradientCard>
+          </TouchableOpacity>
         )}
+
+        {/* Share Today's Reading */}
+        <CosmicButton
+          title="Share Today's Vibe"
+          onPress={() => router.push('/share/card')}
+          colors={[COLORS.starGold, COLORS.sunOrange]}
+        />
 
         {/* References */}
         <View style={styles.references}>
@@ -272,5 +305,11 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 18,
   },
+  tapHint: { color: COLORS.textMuted, fontSize: 11, fontWeight: '400' },
+  unifiedCta: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
+  unifiedCtaEmoji: { fontSize: 36 },
+  unifiedCtaText: { flex: 1 },
+  unifiedCtaTitle: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
+  unifiedCtaDesc: { color: COLORS.textSecondary, fontSize: 13, marginTop: 2 },
   bottomPad: { height: 20 },
 });
