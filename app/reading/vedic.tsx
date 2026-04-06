@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
+import ReAnimated, { FadeInDown } from 'react-native-reanimated';
 import { StarField } from '../../src/components/ui/StarField';
 import { GlowText } from '../../src/components/ui/GlowText';
 import { GradientCard } from '../../src/components/ui/GradientCard';
@@ -36,12 +37,15 @@ export default function VedicReadingScreen() {
           <Text style={styles.backText}>{'\u2190'} Back</Text>
         </TouchableOpacity>
 
-        <Text style={styles.headerEmoji}>{'\u{1F549}\uFE0F'}</Text>
-        <GlowText size="xl" align="center" color={COLORS.vedic}>
-          Vedic Astrology
-        </GlowText>
+        <ReAnimated.View entering={FadeInDown.delay(100).duration(500).springify()}>
+          <Text style={styles.headerEmoji}>{'\u{1F549}\uFE0F'}</Text>
+          <GlowText size="xl" align="center" color={COLORS.vedic}>
+            Vedic Astrology
+          </GlowText>
+        </ReAnimated.View>
 
         {/* Rashi */}
+        <ReAnimated.View entering={FadeInDown.delay(200).duration(450).springify().damping(16)}>
         <GradientCard colors={COLORS.gradientVedic as unknown as readonly string[]}>
           <Text style={styles.cardTitle}>Rashi (Moon Sign)</Text>
           <Text style={styles.mainValue}>{rashi}</Text>
@@ -52,8 +56,10 @@ export default function VedicReadingScreen() {
           </Text>
           <SourceRef text="Brihat Parashara Hora Shastra - Chapter on Rashi Characteristics" />
         </GradientCard>
+        </ReAnimated.View>
 
         {/* Nakshatra */}
+        <ReAnimated.View entering={FadeInDown.delay(320).duration(450).springify().damping(16)}>
         <GradientCard colors={COLORS.gradientVedic as unknown as readonly string[]}>
           <Text style={styles.cardTitle}>Nakshatra (Lunar Mansion)</Text>
           <Text style={styles.mainValue}>{nakshatra}</Text>
@@ -73,8 +79,10 @@ export default function VedicReadingScreen() {
           </View>
           <SourceRef text="Brihat Jataka by Varahamihira - Nakshatra Analysis" />
         </GradientCard>
+        </ReAnimated.View>
 
         {/* Dasha Timeline */}
+        <ReAnimated.View entering={FadeInDown.delay(440).duration(450).springify().damping(16)}>
         <GradientCard>
           <Text style={styles.cardTitle}>Vimshottari Dasha Timeline</Text>
           <Text style={styles.subtitleText}>
@@ -116,8 +124,10 @@ export default function VedicReadingScreen() {
           </View>
           <SourceRef text="Brihat Parashara Hora Shastra - Chapter 46, Dasha Effects" />
         </GradientCard>
+        </ReAnimated.View>
 
         {/* Remedies */}
+        <ReAnimated.View entering={FadeInDown.delay(560).duration(450).springify().damping(16)}>
         <GradientCard colors={COLORS.gradientVedic as unknown as readonly string[]}>
           <Text style={styles.cardTitle}>{'\u{1F48E}'} Cosmic Enhancements (Remedies)</Text>
           <Text style={styles.subtitleText}>
@@ -142,14 +152,17 @@ export default function VedicReadingScreen() {
             </View>
           ))}
         </GradientCard>
+        </ReAnimated.View>
 
         {/* Recommended Reading */}
+        <ReAnimated.View entering={FadeInDown.delay(680).duration(450).springify().damping(16)}>
         <GradientCard>
           <Text style={styles.cardTitle}>{'\u{1F4DA}'} Deepen Your Understanding</Text>
           <BookRef title="Brihat Parashara Hora Shastra" desc="The foundational text of Vedic astrology by Sage Parashara" />
           <BookRef title="Phaladeepika" desc="by Mantreswara - Comprehensive guide to chart interpretation" />
           <BookRef title="Saravali" desc="by Kalyana Varma - Detailed Dasha and Nakshatra effects" />
         </GradientCard>
+        </ReAnimated.View>
 
         <View style={styles.bottomPad} />
       </ScrollView>

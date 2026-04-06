@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
+import ReAnimated, { FadeInDown } from 'react-native-reanimated';
 import { StarField } from '../../src/components/ui/StarField';
 import { GlowText } from '../../src/components/ui/GlowText';
 import { GradientCard } from '../../src/components/ui/GradientCard';
@@ -29,13 +30,15 @@ export default function KPReadingScreen() {
           <Text style={styles.backText}>{'\u2190'} Back</Text>
         </TouchableOpacity>
 
-        <Text style={styles.headerEmoji}>{'\u{1F52D}'}</Text>
-        <GlowText size="xl" align="center" color={COLORS.kp}>
-          KP System
-        </GlowText>
-        <Text style={styles.headerSubtitle}>
-          Krishnamurti Paddhati - Precision Event Timing
-        </Text>
+        <ReAnimated.View entering={FadeInDown.delay(100).duration(500).springify()}>
+          <Text style={styles.headerEmoji}>{'\u{1F52D}'}</Text>
+          <GlowText size="xl" align="center" color={COLORS.kp}>
+            KP System
+          </GlowText>
+          <Text style={styles.headerSubtitle}>
+            Krishnamurti Paddhati - Precision Event Timing
+          </Text>
+        </ReAnimated.View>
 
         {/* What is KP */}
         <GradientCard colors={COLORS.gradientKP as unknown as readonly string[]}>

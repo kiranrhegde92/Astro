@@ -13,7 +13,7 @@ interface ProgressRingProps {
   value?: string;
 }
 
-export function ProgressRing({
+export const ProgressRing = React.memo(function ProgressRing({
   progress,
   size = 80,
   strokeWidth = 6,
@@ -58,7 +58,7 @@ export function ProgressRing({
       </View>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

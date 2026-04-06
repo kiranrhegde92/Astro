@@ -20,7 +20,7 @@ interface GradientCardProps {
   accentColor?: string;
 }
 
-export function GradientCard({
+export const GradientCard = React.memo(function GradientCard({
   children,
   colors = ['rgba(255,255,255,0.14)', 'rgba(255,255,255,0.04)'] as const,
   style,
@@ -65,7 +65,7 @@ export function GradientCard({
       </LinearGradient>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   shadow: {

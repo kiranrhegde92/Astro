@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
+import ReAnimated, { FadeInDown } from 'react-native-reanimated';
 import { StarField } from '../../src/components/ui/StarField';
 import { GlowText } from '../../src/components/ui/GlowText';
 import { GradientCard } from '../../src/components/ui/GradientCard';
@@ -49,10 +50,12 @@ export default function ChineseReadingScreen() {
           <Text style={styles.backText}>{'\u2190'} Back</Text>
         </TouchableOpacity>
 
-        <Text style={styles.headerEmoji}>{ANIMAL_EMOJIS[animal] ?? '\u{1F409}'}</Text>
-        <GlowText size="xl" align="center" color={COLORS.chinese}>
-          Chinese Astrology
-        </GlowText>
+        <ReAnimated.View entering={FadeInDown.delay(100).duration(500).springify()}>
+          <Text style={styles.headerEmoji}>{ANIMAL_EMOJIS[animal] ?? '\u{1F409}'}</Text>
+          <GlowText size="xl" align="center" color={COLORS.chinese}>
+            Chinese Astrology
+          </GlowText>
+        </ReAnimated.View>
 
         {/* Animal Sign */}
         <GradientCard colors={COLORS.gradientChinese as unknown as readonly string[]}>

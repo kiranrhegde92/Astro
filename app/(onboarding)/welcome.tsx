@@ -17,6 +17,7 @@ const LANGUAGES = [
   { code: 'en', native: 'English', flag: '🇬🇧' },
   { code: 'hi', native: 'हिन्दी', flag: '🇮🇳' },
   { code: 'zh', native: '中文',   flag: '🇨🇳' },
+  { code: 'kn', native: 'ಕನ್ನಡ',  flag: '🇮🇳' },
 ];
 
 const SYSTEMS = [

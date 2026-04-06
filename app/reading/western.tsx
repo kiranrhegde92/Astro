@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
+import ReAnimated, { FadeInDown } from 'react-native-reanimated';
 import { StarField } from '../../src/components/ui/StarField';
 import { GlowText } from '../../src/components/ui/GlowText';
 import { GradientCard } from '../../src/components/ui/GradientCard';
@@ -27,12 +28,15 @@ export default function WesternReadingScreen() {
           <Text style={styles.backText}>{'\u2190'} Back</Text>
         </TouchableOpacity>
 
-        <Text style={styles.headerEmoji}>{sunInfo?.emoji ?? '\u2648'}</Text>
-        <GlowText size="xl" align="center" color={COLORS.western}>
-          Western Astrology
-        </GlowText>
+        <ReAnimated.View entering={FadeInDown.delay(100).duration(500).springify()}>
+          <Text style={styles.headerEmoji}>{sunInfo?.emoji ?? '\u2648'}</Text>
+          <GlowText size="xl" align="center" color={COLORS.western}>
+            Western Astrology
+          </GlowText>
+        </ReAnimated.View>
 
         {/* Sun Sign */}
+        <ReAnimated.View entering={FadeInDown.delay(200).duration(450).springify().damping(16)}>
         <GradientCard colors={COLORS.gradientWestern as unknown as readonly string[]}>
           <Text style={styles.cardTitle}>Sun Sign - Your Core Identity</Text>
           <Text style={styles.signName}>{sun}</Text>
@@ -47,8 +51,10 @@ export default function WesternReadingScreen() {
           </View>
           <SourceRef text="Ptolemy's Tetrabiblos - Foundation of Western Astrology" />
         </GradientCard>
+        </ReAnimated.View>
 
         {/* Moon Sign */}
+        <ReAnimated.View entering={FadeInDown.delay(320).duration(450).springify().damping(16)}>
         <GradientCard>
           <Text style={styles.cardTitle}>Moon Sign - Your Emotional World</Text>
           <Text style={styles.signName}>{moon}</Text>
@@ -61,9 +67,11 @@ export default function WesternReadingScreen() {
             <InfoChip label="Ruler" value={getRulingPlanet(moon)} />
           </View>
         </GradientCard>
+        </ReAnimated.View>
 
         {/* Rising Sign */}
         {rising && (
+          <ReAnimated.View entering={FadeInDown.delay(440).duration(450).springify().damping(16)}>
           <GradientCard>
             <Text style={styles.cardTitle}>Rising Sign - Your Cosmic First Impression</Text>
             <Text style={styles.signName}>{rising}</Text>
@@ -76,9 +84,11 @@ export default function WesternReadingScreen() {
               <InfoChip label="Ruler" value={getRulingPlanet(rising)} />
             </View>
           </GradientCard>
+          </ReAnimated.View>
         )}
 
         {/* Element & Modality */}
+        <ReAnimated.View entering={FadeInDown.delay(560).duration(450).springify().damping(16)}>
         <GradientCard>
           <Text style={styles.cardTitle}>Your Cosmic Blueprint</Text>
           <View style={styles.blueprintGrid}>
@@ -92,8 +102,10 @@ export default function WesternReadingScreen() {
             <BlueprintItem label="Ruling Planet" value={getRulingPlanet(sun)} emoji="\u{2B50}" />
           </View>
         </GradientCard>
+        </ReAnimated.View>
 
         {/* Planetary Positions */}
+        <ReAnimated.View entering={FadeInDown.delay(680).duration(450).springify().damping(16)}>
         <GradientCard>
           <Text style={styles.cardTitle}>Planetary Positions</Text>
           <Text style={styles.detailSubtext}>
@@ -109,14 +121,17 @@ export default function WesternReadingScreen() {
           ))}
           <SourceRef text="Calculated using astronomical orbital mechanics - NASA Ephemeris data" />
         </GradientCard>
+        </ReAnimated.View>
 
         {/* Recommended Reading */}
+        <ReAnimated.View entering={FadeInDown.delay(800).duration(450).springify().damping(16)}>
         <GradientCard>
           <Text style={styles.cardTitle}>{'\u{1F4DA}'} Deepen Your Understanding</Text>
           <BookRef title="The Inner Sky" author="Steven Forrest" desc="The best introduction to Western natal chart interpretation" />
           <BookRef title="Planets in Transit" author="Robert Hand" desc="Understanding how current planetary movements affect your chart" />
           <BookRef title="Tetrabiblos" author="Claudius Ptolemy" desc="The foundational text of Western astrology (2nd century CE)" />
         </GradientCard>
+        </ReAnimated.View>
 
         <View style={styles.bottomPad} />
       </ScrollView>

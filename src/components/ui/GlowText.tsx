@@ -24,7 +24,7 @@ const LETTER_SPACING: Record<string, number> = {
   sm: 0, md: 0.3, lg: 1, xl: 2, hero: 4,
 };
 
-export function GlowText({
+export const GlowText = React.memo(function GlowText({
   children,
   size = 'md',
   color = COLORS.white,
@@ -53,7 +53,7 @@ export function GlowText({
       {children}
     </Text>
   );
-}
+});
 
 const styles = StyleSheet.create({
   text: { textShadowOffset: { width: 0, height: 0 } },

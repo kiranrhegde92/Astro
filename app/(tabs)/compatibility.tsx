@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -30,21 +30,21 @@ export default function CompatibilityScreen() {
 
   const isValid = name.trim() && day && month && year;
 
-  const handleShare = async () => {
+  const handleShare = useCallback(async () => {
     try { await captureAndShare(compatCardRef); }
     catch { Alert.alert('Share', 'Unable to share at this time.'); }
-  };
+  }, []);
 
-  const handleCheck = () => {
+  const handleCheck = useCallback(() => {
     if (!user?.western || !user?.vedic || !user?.chinese) return;
     const birthDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
     const partnerProfile = calculateCosmicProfile(birthDate);
     const myProfile: CosmicProfile = { western: user.western, vedic: user.vedic, chinese: user.chinese, kp: user.kp };
     setResult(calculateCrossCompatibility(myProfile, partnerProfile));
     setPartnerName(name.trim());
-  };
+  }, [user, year, month, day, name]);
 
-  const resetCheck = () => { setResult(null); setName(''); setDay(''); setMonth(''); setYear(''); };
+  const resetCheck = useCallback(() => { setResult(null); setName(''); setDay(''); setMonth(''); setYear(''); }, []);
 
   return (
     <StarField>

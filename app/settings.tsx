@@ -15,6 +15,7 @@ const LANGUAGES = [
   { code: 'en', name: 'English', native: 'English', emoji: '\u{1F1FA}\u{1F1F8}' },
   { code: 'hi', name: 'Hindi', native: '\u0939\u093F\u0928\u094D\u0926\u0940', emoji: '\u{1F1EE}\u{1F1F3}' },
   { code: 'zh', name: 'Chinese', native: '\u4E2D\u6587', emoji: '\u{1F1E8}\u{1F1F3}' },
+  { code: 'kn', name: 'Kannada', native: '\u0C95\u0CA8\u0CCD\u0CA8\u0CA1', emoji: '\u{1F1EE}\u{1F1F3}' },
 ];
 
 const NOTIFICATION_TIMES = [
