@@ -10,12 +10,18 @@ interface GlowTextProps {
   align?: 'left' | 'center' | 'right';
 }
 
-const SIZES = {
-  sm: 14,
-  md: 18,
-  lg: 24,
-  xl: 32,
-  hero: 42,
+const SIZES = { sm: 13, md: 17, lg: 23, xl: 28, hero: 42 };
+
+const FONT_FAMILY: Record<string, string | undefined> = {
+  sm:   undefined,
+  md:   undefined,
+  lg:   'Cinzel_700Bold',
+  xl:   'Cinzel_700Bold',
+  hero: 'Cinzel_900Black',
+};
+
+const LETTER_SPACING: Record<string, number> = {
+  sm: 0, md: 0.3, lg: 1, xl: 2, hero: 4,
 };
 
 export function GlowText({
@@ -25,6 +31,8 @@ export function GlowText({
   style,
   align = 'left',
 }: GlowTextProps) {
+  const font = FONT_FAMILY[size];
+
   return (
     <Text
       style={[
@@ -33,8 +41,11 @@ export function GlowText({
           fontSize: SIZES[size],
           color,
           textAlign: align,
-          textShadowColor: color === COLORS.starGold ? COLORS.starGold : COLORS.violet,
-          textShadowRadius: size === 'hero' ? 20 : 10,
+          textShadowColor: 'rgba(255,255,255,0.18)',
+          textShadowRadius: size === 'hero' ? 22 : size === 'xl' ? 16 : 10,
+          fontFamily: font,
+          fontWeight: font ? undefined : '700',
+          letterSpacing: LETTER_SPACING[size],
         },
         style,
       ]}
@@ -45,8 +56,5 @@ export function GlowText({
 }
 
 const styles = StyleSheet.create({
-  text: {
-    fontWeight: '700',
-    textShadowOffset: { width: 0, height: 0 },
-  },
+  text: { textShadowOffset: { width: 0, height: 0 } },
 });

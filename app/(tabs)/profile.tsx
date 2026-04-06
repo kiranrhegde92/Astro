@@ -1,324 +1,365 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Dimensions } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { StarField } from '../../src/components/ui/StarField';
-import { GlowText } from '../../src/components/ui/GlowText';
 import { GradientCard } from '../../src/components/ui/GradientCard';
-import { CosmicButton } from '../../src/components/ui/CosmicButton';
+import { AnimatedPressable } from '../../src/components/ui/AnimatedPressable';
+import { CosmicOrb } from '../../src/components/ui/CosmicOrb';
+import { ProgressRing } from '../../src/components/ui/ProgressRing';
 import { COLORS, SPACING, BORDER_RADIUS } from '../../src/constants/theme';
 import { useUserStore } from '../../src/store/userStore';
 import { getCosmicDNASummary } from '../../src/engines/unified';
+
+const { width } = Dimensions.get('window');
+const CARD_W = width * 0.78;
 
 export default function ProfileScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const user = useUserStore((s) => s.user);
-
   if (!user) return null;
 
   const cosmicDNA = user.western && user.vedic && user.chinese
-    ? getCosmicDNASummary({
-        western: user.western,
-        vedic: user.vedic,
-        chinese: user.chinese,
-        kp: user.kp,
-      })
+    ? getCosmicDNASummary({ western: user.western, vedic: user.vedic, chinese: user.chinese, kp: user.kp })
     : '';
+
+  const pointsProgress = Math.min(user.cosmicPoints / 1000, 1);
+  const streakProgress = Math.min(user.streak / 30, 1);
+
+  const quickActions = [
+    { icon: 'share-outline' as const,    label: 'Share',    onPress: () => router.push('/share/card') },
+    { icon: 'qr-code-outline' as const,  label: 'My QR',   onPress: () => router.push('/qr/my-code') },
+    { icon: 'camera-outline' as const,   label: 'Scan',    onPress: () => router.push('/qr/scan') },
+    { icon: 'settings-outline' as const, label: 'Settings',onPress: () => router.push('/settings') },
+  ];
+
+  const SYSTEMS = [
+    user.western && user.activeSystems.includes('western') && {
+      key: 'western',
+      icon: 'planet-outline' as const,
+      title: 'Western Astrology',
+      gradient: COLORS.gradientWestern,
+      color: COLORS.western,
+      route: '/reading/western',
+      rows: [
+        ['Sun Sign', user.western.sun],
+        ['Moon Sign', user.western.moon],
+        user.western.rising ? ['Rising', user.western.rising] : null,
+        ['Element', user.western.element],
+      ].filter(Boolean) as [string, string][],
+    },
+    user.vedic && user.activeSystems.includes('vedic') && {
+      key: 'vedic',
+      icon: 'flame-outline' as const,
+      title: 'Vedic Astrology',
+      gradient: COLORS.gradientVedic,
+      color: COLORS.vedic,
+      route: '/reading/vedic',
+      rows: [
+        ['Rashi', user.vedic.rashi],
+        ['Nakshatra', `${user.vedic.nakshatra} (Pada ${user.vedic.nakshatraPada})`],
+        ['Dasha', `${user.vedic.currentDasha.planet} Mahadasha`],
+      ],
+    },
+    user.chinese && user.activeSystems.includes('chinese') && {
+      key: 'chinese',
+      icon: 'navigate-outline' as const,
+      title: 'Chinese Astrology',
+      gradient: COLORS.gradientChinese,
+      color: COLORS.chinese,
+      route: '/reading/chinese',
+      rows: [
+        ['Animal', user.chinese.animal],
+        ['Element', user.chinese.element],
+        ['Yin/Yang', user.chinese.yinYang],
+      ],
+    },
+    user.kp && user.activeSystems.includes('kp') && {
+      key: 'kp',
+      icon: 'telescope-outline' as const,
+      title: 'KP System',
+      gradient: COLORS.gradientKP,
+      color: COLORS.kp,
+      route: '/reading/kp',
+      rows: [
+        ['Cusps', `${user.kp.cusps.length} analyzed`],
+        ['Significators', `${user.kp.significators.length} active`],
+      ],
+    },
+  ].filter(Boolean) as Array<{
+    key: string; icon: any; title: string;
+    gradient: readonly string[]; color: string; route: string; rows: [string, string][];
+  }>;
+
+  const badges = [
+    { icon: 'star-outline' as const,        name: 'Star Gazer',    earned: user.streak >= 3,             color: COLORS.gold },
+    { icon: 'moon-outline' as const,         name: 'Moon Child',    earned: user.streak >= 7,             color: COLORS.silver },
+    { icon: 'telescope-outline' as const,    name: 'Explorer',      earned: user.activeSystems.length>=4,  color: COLORS.western },
+    { icon: 'sparkles-outline' as const,     name: 'Rising Star',   earned: user.cosmicPoints >= 100,     color: COLORS.vedic },
+    { icon: 'planet-outline' as const,       name: 'Constellation', earned: user.cosmicPoints >= 500,     color: COLORS.kp },
+    { icon: 'infinite-outline' as const,     name: 'Galaxy',        earned: user.cosmicPoints >= 1000,    color: COLORS.chinese },
+  ];
 
   return (
     <StarField>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <View style={styles.spacer} />
 
-        <View style={styles.titleRow}>
-          <View style={styles.titleSpacer} />
-          <GlowText size="xl" align="center">
-            {t('profile.title')}
-          </GlowText>
-          <TouchableOpacity onPress={() => router.push('/settings')} style={styles.settingsBtn}>
-            <Text style={styles.settingsIcon}>{'\u2699\uFE0F'}</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Name & Points */}
-        <View style={styles.header}>
+        {/* ── Hero ── */}
+        <View style={styles.hero}>
+          <CosmicOrb size={100} primaryColor={COLORS.western} secondaryColor={COLORS.kp} />
+          <Text style={styles.nameLabel}>COSMIC PROFILE</Text>
           <Text style={styles.name}>{user.name}</Text>
-          <View style={styles.statsRow}>
-            <StatBadge label={t('profile.points')} value={user.cosmicPoints.toString()} emoji={'\u{1F31F}'} />
-            <StatBadge label={t('profile.streak')} value={`${user.streak}`} emoji={'\u{1F525}'} />
+          <View style={styles.ringsRow}>
+            <View style={styles.ringWrap}>
+              <ProgressRing progress={pointsProgress} size={66} strokeWidth={4}
+                color={COLORS.gold} value={`${user.cosmicPoints}`} label="POINTS" />
+            </View>
+            <View style={styles.ringDivider} />
+            <View style={styles.ringWrap}>
+              <ProgressRing progress={streakProgress} size={66} strokeWidth={4}
+                color={COLORS.vedic} value={`${user.streak}`} label="STREAK" />
+            </View>
           </View>
         </View>
 
-        {/* Cosmic DNA */}
-        {cosmicDNA && (
-          <GradientCard colors={COLORS.gradientGold as unknown as readonly string[]}>
-            <Text style={styles.dnaLabel}>{t('profile.cosmicDNA')}</Text>
+        {/* ── Cosmic DNA ── */}
+        {cosmicDNA !== '' && (
+          <GradientCard accentColor={COLORS.gold}>
+            <Text style={styles.dnaLabel}>MY COSMIC DNA</Text>
             <Text style={styles.dnaValue}>{cosmicDNA}</Text>
           </GradientCard>
         )}
 
-        {/* Quick Actions */}
-        <View style={styles.quickActions}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => router.push('/share/card')}
-          >
-            <Text style={styles.actionEmoji}>{'\u{1F4E4}'}</Text>
-            <Text style={styles.actionLabel}>Share Cards</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => router.push('/qr/my-code')}
-          >
-            <Text style={styles.actionEmoji}>{'\u{1F4F1}'}</Text>
-            <Text style={styles.actionLabel}>My QR Code</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => router.push('/qr/scan')}
-          >
-            <Text style={styles.actionEmoji}>{'\u{1F4F7}'}</Text>
-            <Text style={styles.actionLabel}>Scan QR</Text>
-          </TouchableOpacity>
+        {/* ── Quick Actions ── */}
+        <View style={styles.actionsRow}>
+          {quickActions.map((a, i) => (
+            <AnimatedPressable key={i} onPress={a.onPress} style={styles.actionItem}>
+              <View style={styles.actionCircle}>
+                <Ionicons name={a.icon} size={20} color="rgba(255,255,255,0.75)" />
+              </View>
+              <Text style={styles.actionLabel}>{a.label}</Text>
+            </AnimatedPressable>
+          ))}
         </View>
 
-        {/* Western Profile */}
-        {user.western && user.activeSystems.includes('western') && (
-          <TouchableOpacity onPress={() => router.push('/reading/western')} activeOpacity={0.8}>
-          <GradientCard colors={COLORS.gradientWestern as unknown as readonly string[]}>
-            <Text style={styles.systemHeader}>{'\u2648'} Western Astrology <Text style={styles.tapHint}>Tap for details {'\u2192'}</Text></Text>
-            <ProfileRow label="Sun Sign" value={user.western.sun} />
-            <ProfileRow label="Moon Sign" value={user.western.moon} />
-            {user.western.rising && <ProfileRow label="Rising Sign" value={user.western.rising} />}
-            <ProfileRow label="Element" value={user.western.element} />
-            <ProfileRow label="Modality" value={user.western.modality} />
-          </GradientCard>
-          </TouchableOpacity>
-        )}
-
-        {/* Vedic Profile */}
-        {user.vedic && user.activeSystems.includes('vedic') && (
-          <TouchableOpacity onPress={() => router.push('/reading/vedic')} activeOpacity={0.8}>
-          <GradientCard colors={COLORS.gradientVedic as unknown as readonly string[]}>
-            <Text style={styles.systemHeader}>{'\u{1F549}\uFE0F'} Vedic Astrology <Text style={styles.tapHint}>Tap for details {'\u2192'}</Text></Text>
-            <ProfileRow label="Rashi (Moon Sign)" value={user.vedic.rashi} />
-            <ProfileRow label="Nakshatra" value={`${user.vedic.nakshatra} (Pada ${user.vedic.nakshatraPada})`} />
-            <ProfileRow label="Current Dasha" value={`${user.vedic.currentDasha.planet} Mahadasha`} />
-            {user.vedic.remedies.length > 0 && (
-              <View style={styles.remedySection}>
-                <Text style={styles.remedyTitle}>{'\u{1F48E}'} Your Cosmic Enhancements</Text>
-                {user.vedic.remedies.slice(0, 3).map((r, i) => (
-                  <Text key={i} style={styles.remedyText}>
-                    {r.type === 'gemstone' ? '\u{1F48E}' : r.type === 'mantra' ? '\u{1F3B5}' : '\u{1F308}'} {r.name}: {r.description}
-                  </Text>
-                ))}
-              </View>
-            )}
-          </GradientCard>
-          </TouchableOpacity>
-        )}
-
-        {/* Chinese Profile */}
-        {user.chinese && user.activeSystems.includes('chinese') && (
-          <TouchableOpacity onPress={() => router.push('/reading/chinese')} activeOpacity={0.8}>
-          <GradientCard colors={COLORS.gradientChinese as unknown as readonly string[]}>
-            <Text style={styles.systemHeader}>{'\u{1F409}'} Chinese Astrology <Text style={styles.tapHint}>Tap for details {'\u2192'}</Text></Text>
-            <ProfileRow label="Zodiac Animal" value={user.chinese.animal} />
-            <ProfileRow label="Element" value={user.chinese.element} />
-            <ProfileRow label="Yin/Yang" value={user.chinese.yinYang} />
-            {user.chinese.luckyNumbers.length > 0 && (
-              <ProfileRow label="Lucky Numbers" value={user.chinese.luckyNumbers.join(', ')} />
-            )}
-            {user.chinese.luckyColors.length > 0 && (
-              <ProfileRow label="Lucky Colors" value={user.chinese.luckyColors.join(', ')} />
-            )}
-            {user.chinese.compatibleAnimals.length > 0 && (
-              <ProfileRow label="Compatible Animals" value={user.chinese.compatibleAnimals.join(', ')} />
-            )}
-          </GradientCard>
-          </TouchableOpacity>
-        )}
-
-        {/* KP Profile */}
-        {user.kp && user.activeSystems.includes('kp') && (
-          <TouchableOpacity onPress={() => router.push('/reading/kp')} activeOpacity={0.8}>
-          <GradientCard colors={COLORS.gradientKP as unknown as readonly string[]}>
-            <Text style={styles.systemHeader}>{'\u{1F52D}'} KP System <Text style={styles.tapHint}>Tap for details {'\u2192'}</Text></Text>
-            <ProfileRow label="Cusps Analyzed" value={`${user.kp.cusps.length}`} />
-            <ProfileRow label="Active Significators" value={`${user.kp.significators.length}`} />
-            {user.kp.predictions.length > 0 && (
-              <View style={styles.predictionsSection}>
-                <Text style={styles.predictionsTitle}>Cosmic Insights</Text>
-                {user.kp.predictions.slice(0, 3).map((p, i) => (
-                  <View key={i} style={styles.predictionItem}>
-                    <Text style={styles.predictionArea}>{p.area.toUpperCase()}</Text>
-                    <Text style={styles.predictionText}>{p.prediction}</Text>
-                    <Text style={styles.predictionSource}>{p.source}</Text>
+        {/* ── System Profiles ── */}
+        <Text style={styles.sectionTitle}>YOUR PROFILES</Text>
+        <ScrollView
+          horizontal showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.hScroll}
+          snapToInterval={CARD_W + SPACING.md}
+          decelerationRate="fast"
+        >
+          {SYSTEMS.map((sys) => (
+            <AnimatedPressable key={sys.key} onPress={() => router.push(sys.route as any)} style={{ width: CARD_W }}>
+              <View style={[styles.profileCardShadow, { shadowColor: sys.color }]}>
+                <LinearGradient
+                  colors={sys.gradient as [string, string]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.profileCard}
+                >
+                  <LinearGradient
+                    colors={['rgba(255,255,255,0.18)', 'rgba(255,255,255,0)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0, y: 1 }}
+                    style={[StyleSheet.absoluteFillObject, { borderRadius: BORDER_RADIUS.xl }]}
+                    pointerEvents="none"
+                  />
+                  <View style={styles.profileHeader}>
+                    <Ionicons name={sys.icon} size={26} color="rgba(255,255,255,0.90)" />
+                    <Text style={styles.profileTitle}>{sys.title}</Text>
                   </View>
-                ))}
+                  {sys.rows.map(([label, value], j) => (
+                    <View key={j} style={styles.profileRow}>
+                      <Text style={styles.profileLabel}>{label}</Text>
+                      <Text style={styles.profileValue}>{value}</Text>
+                    </View>
+                  ))}
+                  <View style={styles.profileReadMoreRow}>
+                    <Text style={styles.profileReadMore}>View details</Text>
+                    <Ionicons name="arrow-forward" size={12} color="rgba(255,255,255,0.45)" />
+                  </View>
+                </LinearGradient>
               </View>
-            )}
-          </GradientCard>
-          </TouchableOpacity>
-        )}
+            </AnimatedPressable>
+          ))}
+        </ScrollView>
 
-        {/* Badges */}
+        {/* ── Badges ── */}
+        <Text style={styles.sectionTitle}>COSMIC BADGES</Text>
         <GradientCard>
-          <Text style={styles.systemHeader}>{'\u{1F3C6}'} Cosmic Badges</Text>
-          <View style={styles.badgesGrid}>
-            {[
-              { emoji: '\u{1F31F}', name: 'Star Gazer', earned: user.streak >= 3 },
-              { emoji: '\u{1F319}', name: 'Moon Child', earned: user.streak >= 7 },
-              { emoji: '\u{1F52D}', name: 'Explorer', earned: user.activeSystems.length >= 4 },
-              { emoji: '\u{2728}', name: 'Rising Star', earned: user.cosmicPoints >= 100 },
-              { emoji: '\u{1F320}', name: 'Constellation', earned: user.cosmicPoints >= 500 },
-              { emoji: '\u{1F30C}', name: 'Galaxy', earned: user.cosmicPoints >= 1000 },
-            ].map((badge, i) => (
-              <View key={i} style={[styles.badgeItem, !badge.earned && styles.badgeLocked]}>
-                <Text style={[styles.badgeEmoji, !badge.earned && styles.badgeEmojiLocked]}>
-                  {badge.emoji}
-                </Text>
-                <Text style={[styles.badgeName, !badge.earned && styles.badgeNameLocked]}>
-                  {badge.name}
-                </Text>
+          <View style={styles.badgeGrid}>
+            {badges.map((b, i) => (
+              <View key={i} style={[styles.badge, !b.earned && styles.badgeLocked]}>
+                <Ionicons name={b.icon} size={24} color={b.earned ? b.color : 'rgba(255,255,255,0.25)'} />
+                <Text style={[styles.badgeName, !b.earned && styles.badgeNameLocked]}>{b.name}</Text>
               </View>
             ))}
           </View>
         </GradientCard>
 
-        {/* Premium Upsell */}
+        {/* ── Premium ── */}
         {user.subscription.tier === 'free' && (
-          <GradientCard>
-            <Text style={styles.premiumTitle}>{'\u2728'} {t('profile.premium')}</Text>
-            <Text style={styles.premiumDesc}>
-              Unlock unlimited compatibility checks, full natal charts, Dasha timelines,
-              remedies, premium shareable cards, and more!
-            </Text>
-            <CosmicButton
-              title={t('subscription.trial')}
-              onPress={() => {}}
-              colors={[COLORS.starGold, COLORS.sunOrange]}
-              style={styles.premiumButton}
-            />
-          </GradientCard>
+          <AnimatedPressable onPress={() => router.push('/subscription')}>
+            <View style={styles.premiumShadow}>
+              <LinearGradient
+                colors={['rgba(255,255,255,0.14)', 'rgba(255,255,255,0.04)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.premiumCard}
+              >
+                <LinearGradient
+                  colors={['rgba(255,255,255,0.18)', 'rgba(255,255,255,0)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 0, y: 1 }}
+                  style={[StyleSheet.absoluteFillObject, { borderRadius: BORDER_RADIUS.xl }]}
+                  pointerEvents="none"
+                />
+                <Ionicons name="star" size={26} color={COLORS.gold} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.premiumTitle}>Unlock Premium</Text>
+                  <Text style={styles.premiumSub}>Full charts, compatibility & remedies</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.40)" />
+              </LinearGradient>
+            </View>
+          </AnimatedPressable>
         )}
 
-        <View style={styles.bottomPad} />
+        <View style={{ height: 110 }} />
       </ScrollView>
     </StarField>
   );
 }
 
-function ProfileRow({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.profileRow}>
-      <Text style={styles.profileLabel}>{label}</Text>
-      <Text style={styles.profileValue}>{value}</Text>
-    </View>
-  );
-}
-
-function StatBadge({ label, value, emoji }: { label: string; value: string; emoji: string }) {
-  return (
-    <View style={styles.statBadge}>
-      <Text style={styles.statEmoji}>{emoji}</Text>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  container: {
-    paddingHorizontal: SPACING.lg,
-    paddingBottom: SPACING.xxl,
-    gap: SPACING.md,
+  container: { paddingHorizontal: SPACING.lg, paddingTop: 58, gap: SPACING.lg },
+
+  hero: { alignItems: 'center', gap: SPACING.sm },
+  nameLabel: {
+    color: COLORS.textMuted,
+    fontSize: 9,
+    fontFamily: 'Cinzel_400Regular',
+    letterSpacing: 3,
+    marginTop: 4,
   },
-  spacer: { height: 60 },
-  header: { alignItems: 'center', marginBottom: SPACING.sm },
   name: {
+    fontFamily: 'Cinzel_900Black',
+    fontSize: 26,
     color: COLORS.white,
-    fontSize: 28,
-    fontWeight: '700',
-    marginBottom: SPACING.sm,
+    textShadowColor: 'rgba(255,255,255,0.15)',
+    textShadowRadius: 14,
+    textShadowOffset: { width: 0, height: 0 },
+    letterSpacing: 2,
   },
-  statsRow: { flexDirection: 'row', gap: SPACING.lg },
-  statBadge: { alignItems: 'center' },
-  statEmoji: { fontSize: 24 },
-  statValue: { color: COLORS.starGold, fontSize: 20, fontWeight: '700' },
-  statLabel: { color: COLORS.textMuted, fontSize: 11 },
-  quickActions: {
+  ringsRow: {
     flexDirection: 'row',
-    gap: SPACING.sm,
-  },
-  actionButton: {
-    flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderRadius: BORDER_RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-    padding: SPACING.md,
     alignItems: 'center',
-    gap: 4,
+    gap: SPACING.xl,
+    marginTop: SPACING.xs,
   },
-  actionEmoji: { fontSize: 24 },
-  actionLabel: {
-    color: COLORS.textSecondary,
-    fontSize: 11,
-    fontWeight: '600',
+  ringWrap: { alignItems: 'center' },
+  ringDivider: {
+    width: 1, height: 40,
+    backgroundColor: 'rgba(255,255,255,0.10)',
   },
+
   dnaLabel: {
-    color: COLORS.textSecondary,
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: SPACING.xs,
+    color: COLORS.textMuted,
+    fontSize: 9,
+    fontFamily: 'Cinzel_400Regular',
+    letterSpacing: 2.5,
+    marginBottom: 4,
   },
-  dnaValue: { color: COLORS.starGold, fontSize: 17, fontWeight: '700' },
-  systemHeader: {
-    color: COLORS.white,
+  dnaValue: {
+    color: COLORS.gold,
     fontSize: 16,
-    fontWeight: '700',
-    marginBottom: SPACING.sm,
+    fontFamily: 'Cinzel_700Bold',
+    letterSpacing: 0.5,
   },
+
+  actionsRow: { flexDirection: 'row', justifyContent: 'space-around' },
+  actionItem: { alignItems: 'center', gap: 5 },
+  actionCircle: {
+    width: 52, height: 52, borderRadius: 26,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionLabel: { color: COLORS.textSecondary, fontSize: 10, fontFamily: 'Cinzel_400Regular', letterSpacing: 0.5 },
+
+  sectionTitle: {
+    fontFamily: 'Cinzel_400Regular',
+    color: COLORS.textMuted,
+    fontSize: 9,
+    letterSpacing: 3,
+  },
+  hScroll: { gap: SPACING.md, paddingRight: SPACING.lg },
+
+  profileCardShadow: {
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.45,
+    shadowRadius: 22,
+    elevation: 16,
+  },
+  profileCard: {
+    borderRadius: BORDER_RADIUS.xl,
+    padding: SPACING.md,
+    gap: 2,
+    overflow: 'hidden',
+  },
+  profileHeader: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.sm },
+  profileTitle: { color: '#fff', fontSize: 15, fontFamily: 'Cinzel_700Bold', letterSpacing: 0.3 },
   profileRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
+    borderBottomColor: 'rgba(255,255,255,0.10)',
   },
-  profileLabel: { color: COLORS.textSecondary, fontSize: 14 },
-  profileValue: { color: COLORS.white, fontSize: 14, fontWeight: '600' },
-  remedySection: { marginTop: SPACING.md },
-  remedyTitle: { color: COLORS.starGold, fontSize: 14, fontWeight: '600', marginBottom: SPACING.xs },
-  remedyText: { color: COLORS.textSecondary, fontSize: 13, lineHeight: 20, marginBottom: 4 },
-  predictionsSection: { marginTop: SPACING.md },
-  predictionsTitle: { color: COLORS.white, fontSize: 14, fontWeight: '600', marginBottom: SPACING.xs },
-  predictionItem: { marginBottom: SPACING.sm },
-  predictionArea: { color: COLORS.aurora, fontSize: 11, fontWeight: '700', letterSpacing: 1 },
-  predictionText: { color: COLORS.textSecondary, fontSize: 13, lineHeight: 19 },
-  predictionSource: { color: COLORS.textMuted, fontSize: 10, marginTop: 2 },
-  tapHint: { color: COLORS.textMuted, fontSize: 11, fontWeight: '400' },
-  badgesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
-  badgeItem: {
-    alignItems: 'center', width: '30%',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: BORDER_RADIUS.md, padding: SPACING.sm,
+  profileLabel: { color: 'rgba(255,255,255,0.50)', fontSize: 12 },
+  profileValue: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  profileReadMoreRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: SPACING.sm },
+  profileReadMore: { color: 'rgba(255,255,255,0.40)', fontSize: 11 },
+
+  badgeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, justifyContent: 'center' },
+  badge: {
+    alignItems: 'center',
+    width: '28%' as any,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    gap: 4,
   },
-  badgeLocked: { opacity: 0.35 },
-  badgeEmoji: { fontSize: 28 },
-  badgeEmojiLocked: { filter: 'grayscale(1)' as any },
-  badgeName: { color: COLORS.white, fontSize: 11, fontWeight: '600', marginTop: 4, textAlign: 'center' },
+  badgeLocked: { opacity: 0.30 },
+  badgeName: { color: COLORS.white, fontSize: 9, fontFamily: 'Cinzel_400Regular', textAlign: 'center', letterSpacing: 0.3 },
   badgeNameLocked: { color: COLORS.textMuted },
-  premiumTitle: { color: COLORS.starGold, fontSize: 18, fontWeight: '700', marginBottom: SPACING.xs },
-  premiumDesc: { color: COLORS.textSecondary, fontSize: 14, lineHeight: 21, marginBottom: SPACING.md },
-  premiumButton: { alignSelf: 'center' },
-  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  titleSpacer: { width: 36 },
-  settingsBtn: { width: 36, alignItems: 'center' },
-  settingsIcon: { fontSize: 24 },
-  bottomPad: { height: 20 },
+
+  premiumShadow: {
+    shadowColor: '#fff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 10,
+  },
+  premiumCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    borderRadius: BORDER_RADIUS.xl,
+    padding: SPACING.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+    overflow: 'hidden',
+  },
+  premiumTitle: { color: '#fff', fontSize: 15, fontFamily: 'Cinzel_700Bold', letterSpacing: 0.3 },
+  premiumSub: { color: COLORS.textSecondary, fontSize: 11, marginTop: 2 },
 });

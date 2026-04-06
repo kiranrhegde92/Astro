@@ -1,10 +1,8 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
-  requestNotificationPermissions,
-  scheduleDailyNotification,
-  cancelAllNotifications,
-} from '../utils/notifications';
+
+// Lazy-load notifications to avoid crashing in Expo Go (push tokens removed in SDK 53+)
+const getNotifications = () => import('../utils/notifications');
 
 interface SettingsState {
   language: string;
@@ -33,15 +31,23 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
   setNotifications: async (enabled) => {
     if (enabled) {
-      const granted = await requestNotificationPermissions();
-      if (granted) {
-        await scheduleDailyNotification(get().dailyNotificationTime);
-        set({ notificationsEnabled: true });
-      } else {
+      try {
+        const { requestNotificationPermissions, scheduleDailyNotification } = await getNotifications();
+        const granted = await requestNotificationPermissions();
+        if (granted) {
+          await scheduleDailyNotification(get().dailyNotificationTime);
+          set({ notificationsEnabled: true });
+        } else {
+          set({ notificationsEnabled: false });
+        }
+      } catch {
         set({ notificationsEnabled: false });
       }
     } else {
-      await cancelAllNotifications();
+      try {
+        const { cancelAllNotifications } = await getNotifications();
+        await cancelAllNotifications();
+      } catch {}
       set({ notificationsEnabled: false });
     }
     get().saveSettings();
@@ -50,7 +56,10 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   setNotificationTime: async (time) => {
     set({ dailyNotificationTime: time });
     if (get().notificationsEnabled) {
-      await scheduleDailyNotification(time);
+      try {
+        const { scheduleDailyNotification } = await getNotifications();
+        await scheduleDailyNotification(time);
+      } catch {}
     }
     get().saveSettings();
   },
@@ -63,7 +72,11 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         set(settings);
         // Re-schedule notification if enabled
         if (settings.notificationsEnabled) {
-          scheduleDailyNotification(settings.dailyNotificationTime).catch(() => {});
+          getNotifications()
+            .then(({ scheduleDailyNotification }) =>
+              scheduleDailyNotification(settings.dailyNotificationTime)
+            )
+            .catch(() => {});
         }
       }
     } catch {}

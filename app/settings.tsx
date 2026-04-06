@@ -254,11 +254,11 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.xxl, gap: SPACING.md },
-  spacer: { height: 50 },
-  backButton: { marginBottom: SPACING.sm },
-  backText: { color: COLORS.textSecondary, fontSize: 16 },
-  sectionTitle: { color: COLORS.white, fontSize: 16, fontWeight: '700', marginBottom: SPACING.md },
+  container: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.xxl, paddingTop: 58, gap: SPACING.lg },
+  spacer: { height: 0 },
+  backButton: { marginBottom: SPACING.xs },
+  backText: { color: COLORS.violet, fontSize: 15, fontWeight: '600' },
+  sectionTitle: { color: COLORS.white, fontSize: 16, fontFamily: 'PlayfairDisplay_700Bold', marginBottom: SPACING.md },
   settingRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -268,9 +268,9 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255,255,255,0.05)',
   },
   settingTextCol: { flex: 1 },
-  settingLabel: { color: COLORS.textSecondary, fontSize: 14 },
-  settingDesc: { color: COLORS.textMuted, fontSize: 12, marginTop: 2 },
-  settingValue: { color: COLORS.white, fontSize: 14, fontWeight: '600' },
+  settingLabel: { color: COLORS.textSecondary, fontSize: 14, fontWeight: '500' },
+  settingDesc: { color: COLORS.textMuted, fontSize: 11, marginTop: 2 },
+  settingValue: { color: COLORS.white, fontSize: 14, fontWeight: '700' },
   pickerContainer: {
     backgroundColor: 'rgba(255,255,255,0.04)',
     borderRadius: BORDER_RADIUS.md,
@@ -295,5 +295,5 @@ const styles = StyleSheet.create({
   upgradeButton: { marginTop: SPACING.sm },
   aboutText: { color: COLORS.textMuted, fontSize: 13, lineHeight: 20, marginTop: SPACING.sm },
   dangerButton: { borderColor: '#ff6b6b' },
-  bottomPad: { height: 20 },
+  bottomPad: { height: 100 },
 });
