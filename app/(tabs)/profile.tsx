@@ -79,20 +79,23 @@ export default function ProfileScreen() {
 
         {/* Western Profile */}
         {user.western && user.activeSystems.includes('western') && (
+          <TouchableOpacity onPress={() => router.push('/reading/western')} activeOpacity={0.8}>
           <GradientCard colors={COLORS.gradientWestern as unknown as readonly string[]}>
-            <Text style={styles.systemHeader}>{'\u2648'} Western Astrology</Text>
+            <Text style={styles.systemHeader}>{'\u2648'} Western Astrology <Text style={styles.tapHint}>Tap for details {'\u2192'}</Text></Text>
             <ProfileRow label="Sun Sign" value={user.western.sun} />
             <ProfileRow label="Moon Sign" value={user.western.moon} />
             {user.western.rising && <ProfileRow label="Rising Sign" value={user.western.rising} />}
             <ProfileRow label="Element" value={user.western.element} />
             <ProfileRow label="Modality" value={user.western.modality} />
           </GradientCard>
+          </TouchableOpacity>
         )}
 
         {/* Vedic Profile */}
         {user.vedic && user.activeSystems.includes('vedic') && (
+          <TouchableOpacity onPress={() => router.push('/reading/vedic')} activeOpacity={0.8}>
           <GradientCard colors={COLORS.gradientVedic as unknown as readonly string[]}>
-            <Text style={styles.systemHeader}>{'\u{1F549}\uFE0F'} Vedic Astrology</Text>
+            <Text style={styles.systemHeader}>{'\u{1F549}\uFE0F'} Vedic Astrology <Text style={styles.tapHint}>Tap for details {'\u2192'}</Text></Text>
             <ProfileRow label="Rashi (Moon Sign)" value={user.vedic.rashi} />
             <ProfileRow label="Nakshatra" value={`${user.vedic.nakshatra} (Pada ${user.vedic.nakshatraPada})`} />
             <ProfileRow label="Current Dasha" value={`${user.vedic.currentDasha.planet} Mahadasha`} />
@@ -107,12 +110,14 @@ export default function ProfileScreen() {
               </View>
             )}
           </GradientCard>
+          </TouchableOpacity>
         )}
 
         {/* Chinese Profile */}
         {user.chinese && user.activeSystems.includes('chinese') && (
+          <TouchableOpacity onPress={() => router.push('/reading/chinese')} activeOpacity={0.8}>
           <GradientCard colors={COLORS.gradientChinese as unknown as readonly string[]}>
-            <Text style={styles.systemHeader}>{'\u{1F409}'} Chinese Astrology</Text>
+            <Text style={styles.systemHeader}>{'\u{1F409}'} Chinese Astrology <Text style={styles.tapHint}>Tap for details {'\u2192'}</Text></Text>
             <ProfileRow label="Zodiac Animal" value={user.chinese.animal} />
             <ProfileRow label="Element" value={user.chinese.element} />
             <ProfileRow label="Yin/Yang" value={user.chinese.yinYang} />
@@ -126,12 +131,14 @@ export default function ProfileScreen() {
               <ProfileRow label="Compatible Animals" value={user.chinese.compatibleAnimals.join(', ')} />
             )}
           </GradientCard>
+          </TouchableOpacity>
         )}
 
         {/* KP Profile */}
         {user.kp && user.activeSystems.includes('kp') && (
+          <TouchableOpacity onPress={() => router.push('/reading/kp')} activeOpacity={0.8}>
           <GradientCard colors={COLORS.gradientKP as unknown as readonly string[]}>
-            <Text style={styles.systemHeader}>{'\u{1F52D}'} KP System</Text>
+            <Text style={styles.systemHeader}>{'\u{1F52D}'} KP System <Text style={styles.tapHint}>Tap for details {'\u2192'}</Text></Text>
             <ProfileRow label="Cusps Analyzed" value={`${user.kp.cusps.length}`} />
             <ProfileRow label="Active Significators" value={`${user.kp.significators.length}`} />
             {user.kp.predictions.length > 0 && (
@@ -147,7 +154,32 @@ export default function ProfileScreen() {
               </View>
             )}
           </GradientCard>
+          </TouchableOpacity>
         )}
+
+        {/* Badges */}
+        <GradientCard>
+          <Text style={styles.systemHeader}>{'\u{1F3C6}'} Cosmic Badges</Text>
+          <View style={styles.badgesGrid}>
+            {[
+              { emoji: '\u{1F31F}', name: 'Star Gazer', earned: user.streak >= 3 },
+              { emoji: '\u{1F319}', name: 'Moon Child', earned: user.streak >= 7 },
+              { emoji: '\u{1F52D}', name: 'Explorer', earned: user.activeSystems.length >= 4 },
+              { emoji: '\u{2728}', name: 'Rising Star', earned: user.cosmicPoints >= 100 },
+              { emoji: '\u{1F320}', name: 'Constellation', earned: user.cosmicPoints >= 500 },
+              { emoji: '\u{1F30C}', name: 'Galaxy', earned: user.cosmicPoints >= 1000 },
+            ].map((badge, i) => (
+              <View key={i} style={[styles.badgeItem, !badge.earned && styles.badgeLocked]}>
+                <Text style={[styles.badgeEmoji, !badge.earned && styles.badgeEmojiLocked]}>
+                  {badge.emoji}
+                </Text>
+                <Text style={[styles.badgeName, !badge.earned && styles.badgeNameLocked]}>
+                  {badge.name}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </GradientCard>
 
         {/* Premium Upsell */}
         {user.subscription.tier === 'free' && (
@@ -263,6 +295,18 @@ const styles = StyleSheet.create({
   predictionArea: { color: COLORS.aurora, fontSize: 11, fontWeight: '700', letterSpacing: 1 },
   predictionText: { color: COLORS.textSecondary, fontSize: 13, lineHeight: 19 },
   predictionSource: { color: COLORS.textMuted, fontSize: 10, marginTop: 2 },
+  tapHint: { color: COLORS.textMuted, fontSize: 11, fontWeight: '400' },
+  badgesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
+  badgeItem: {
+    alignItems: 'center', width: '30%',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: BORDER_RADIUS.md, padding: SPACING.sm,
+  },
+  badgeLocked: { opacity: 0.35 },
+  badgeEmoji: { fontSize: 28 },
+  badgeEmojiLocked: { filter: 'grayscale(1)' as any },
+  badgeName: { color: COLORS.white, fontSize: 11, fontWeight: '600', marginTop: 4, textAlign: 'center' },
+  badgeNameLocked: { color: COLORS.textMuted },
   premiumTitle: { color: COLORS.starGold, fontSize: 18, fontWeight: '700', marginBottom: SPACING.xs },
   premiumDesc: { color: COLORS.textSecondary, fontSize: 14, lineHeight: 21, marginBottom: SPACING.md },
   premiumButton: { alignSelf: 'center' },
