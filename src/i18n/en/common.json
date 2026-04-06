@@ -1,0 +1,125 @@
+{
+  "app": {
+    "name": "CosmicSelf",
+    "tagline": "Discover Your Cosmic DNA"
+  },
+  "onboarding": {
+    "welcome": {
+      "title": "Welcome to CosmicSelf",
+      "subtitle": "Discover yourself through the wisdom of the stars - across cultures, across time",
+      "getStarted": "Begin Your Cosmic Journey",
+      "selectLanguage": "Choose Your Language"
+    },
+    "birthDetails": {
+      "title": "Your Birth Details",
+      "subtitle": "The stars were in a unique alignment when you arrived",
+      "dateLabel": "Birth Date",
+      "timeLabel": "Birth Time (optional but recommended)",
+      "placeLabel": "Birth Place (optional)",
+      "placePlaceholder": "Enter city name",
+      "continue": "Continue",
+      "whyTime": "Birth time helps us calculate your Rising sign and house positions for more accurate readings",
+      "whyPlace": "Birth place helps with precise planetary positions"
+    },
+    "systemPicker": {
+      "title": "Choose Your Systems",
+      "subtitle": "Explore astrology from multiple traditions",
+      "western": "Western Astrology",
+      "westernDesc": "Sun signs, natal charts, planetary transits",
+      "vedic": "Vedic (Indian) Astrology",
+      "vedicDesc": "Rashi, Nakshatra, Dasha timing, remedies",
+      "chinese": "Chinese Astrology",
+      "chineseDesc": "Zodiac animals, elements, Four Pillars",
+      "kp": "KP System",
+      "kpDesc": "Precise event timing, sub-lord predictions",
+      "selectAll": "Select All (Recommended)",
+      "continue": "Reveal My Cosmic DNA"
+    },
+    "reveal": {
+      "title": "Your Cosmic DNA",
+      "subtitle": "Here's what the universe says about you",
+      "western": "Western",
+      "vedic": "Vedic",
+      "chinese": "Chinese",
+      "kp": "KP System",
+      "continue": "Enter CosmicSelf",
+      "share": "Share My Cosmic DNA"
+    }
+  },
+  "tabs": {
+    "today": "Today",
+    "profile": "Profile",
+    "compatibility": "Match",
+    "explore": "Explore",
+    "cosmos": "Cosmos"
+  },
+  "today": {
+    "greeting": "Good {{timeOfDay}}, {{name}}",
+    "cosmicVibe": "Today's Cosmic Vibe",
+    "affirmation": "Today's Affirmation",
+    "westernReading": "Western Reading",
+    "vedicReading": "Vedic Reading",
+    "chineseReading": "Chinese Reading",
+    "kpReading": "KP Insight",
+    "share": "Share Today's Vibe",
+    "source": "Source"
+  },
+  "profile": {
+    "title": "Cosmic Profile",
+    "cosmicDNA": "My Cosmic DNA",
+    "points": "Cosmic Points",
+    "streak": "Day Streak",
+    "systems": "My Systems",
+    "qrCode": "My QR Code",
+    "settings": "Settings",
+    "premium": "Upgrade to CosmicSelf+"
+  },
+  "compatibility": {
+    "title": "Cosmic Compatibility",
+    "subtitle": "See how your stars align with someone special",
+    "enterDetails": "Enter Their Birth Details",
+    "nameLabel": "Their Name",
+    "check": "Check Compatibility",
+    "result": "Cosmic Match",
+    "share": "Share Result",
+    "scan": "Scan QR Code"
+  },
+  "systems": {
+    "western": "Western",
+    "vedic": "Vedic",
+    "chinese": "Chinese",
+    "kp": "KP System"
+  },
+  "reading": {
+    "love": "Love & Relationships",
+    "career": "Career & Purpose",
+    "wellness": "Health & Wellness",
+    "overall": "Overall Energy",
+    "remedy": "Today's Remedy",
+    "mantra": "Today's Mantra",
+    "luckyNumber": "Lucky Number",
+    "luckyDirection": "Lucky Direction",
+    "viewSource": "View Source"
+  },
+  "subscription": {
+    "free": "CosmicSelf Lite",
+    "premium": "CosmicSelf+",
+    "family": "Cosmic Circle",
+    "upgrade": "Upgrade",
+    "restore": "Restore Purchase",
+    "trial": "Start 7-Day Free Trial"
+  },
+  "common": {
+    "loading": "Aligning the stars...",
+    "error": "Something went cosmic. Please try again.",
+    "save": "Save",
+    "cancel": "Cancel",
+    "share": "Share",
+    "back": "Back",
+    "next": "Next",
+    "done": "Done",
+    "morning": "morning",
+    "afternoon": "afternoon",
+    "evening": "evening"
+  }
+}
