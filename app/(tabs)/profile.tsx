@@ -190,13 +190,17 @@ export default function ProfileScreen() {
         </ScrollView>
 
         {/* ── Badges ── */}
-        <Text style={styles.sectionTitle}>COSMIC BADGES</Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>COSMIC BADGES</Text>
+          <Text style={styles.sectionSub}>{badges.filter(b => b.earned).length}/{badges.length} earned</Text>
+        </View>
         <GradientCard>
           <View style={styles.badgeGrid}>
             {badges.map((b, i) => (
               <View key={i} style={[styles.badge, !b.earned && styles.badgeLocked]}>
-                <Ionicons name={b.icon} size={24} color={b.earned ? b.color : 'rgba(255,255,255,0.25)'} />
+                <Ionicons name={b.icon} size={26} color={b.earned ? b.color : 'rgba(255,255,255,0.22)'} />
                 <Text style={[styles.badgeName, !b.earned && styles.badgeNameLocked]}>{b.name}</Text>
+                {!b.earned && <Ionicons name="lock-closed" size={10} color="rgba(255,255,255,0.22)" />}
               </View>
             ))}
           </View>
@@ -242,9 +246,9 @@ const styles = StyleSheet.create({
   hero: { alignItems: 'center', gap: SPACING.sm },
   nameLabel: {
     color: COLORS.textMuted,
-    fontSize: 9,
+    fontSize: 11,
     fontFamily: 'Cinzel_400Regular',
-    letterSpacing: 3,
+    letterSpacing: 2.5,
     marginTop: 4,
   },
   name: {
@@ -270,9 +274,9 @@ const styles = StyleSheet.create({
 
   dnaLabel: {
     color: COLORS.textMuted,
-    fontSize: 9,
+    fontSize: 11,
     fontFamily: 'Cinzel_400Regular',
-    letterSpacing: 2.5,
+    letterSpacing: 2,
     marginBottom: 4,
   },
   dnaValue: {
@@ -282,6 +286,8 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  sectionSub: { color: COLORS.textMuted, fontSize: 11 },
   actionsRow: { flexDirection: 'row', justifyContent: 'space-around' },
   actionItem: { alignItems: 'center', gap: 5 },
   actionCircle: {
@@ -292,13 +298,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  actionLabel: { color: COLORS.textSecondary, fontSize: 10, fontFamily: 'Cinzel_400Regular', letterSpacing: 0.5 },
+  actionLabel: { color: COLORS.textSecondary, fontSize: 11, fontFamily: 'Cinzel_400Regular', letterSpacing: 0.5 },
 
   sectionTitle: {
     fontFamily: 'Cinzel_400Regular',
-    color: COLORS.textMuted,
-    fontSize: 9,
-    letterSpacing: 3,
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    letterSpacing: 2.5,
   },
   hScroll: { gap: SPACING.md, paddingRight: SPACING.lg },
 
@@ -340,7 +346,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   badgeLocked: { opacity: 0.30 },
-  badgeName: { color: COLORS.white, fontSize: 9, fontFamily: 'Cinzel_400Regular', textAlign: 'center', letterSpacing: 0.3 },
+  badgeName: { color: COLORS.white, fontSize: 11, fontFamily: 'Cinzel_400Regular', textAlign: 'center', letterSpacing: 0.3 },
   badgeNameLocked: { color: COLORS.textMuted },
 
   premiumShadow: {

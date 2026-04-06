@@ -191,6 +191,6 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   booksHeader: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 3 },
-  booksLabel: { color: 'rgba(255,255,255,0.45)', fontSize: 9, fontFamily: 'Cinzel_400Regular', letterSpacing: 2 },
+  booksLabel: { color: 'rgba(255,255,255,0.55)', fontSize: 11, fontFamily: 'Cinzel_400Regular', letterSpacing: 1.5 },
   bookText: { color: 'rgba(255,255,255,0.65)', fontSize: 12, lineHeight: 18 },
 });

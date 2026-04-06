@@ -210,7 +210,10 @@ export default function TodayScreen() {
         )}
 
         {/* ── System Cards ── */}
-        <Text style={styles.sectionTitle}>YOUR SYSTEMS</Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>YOUR SYSTEMS</Text>
+          <Text style={styles.sectionHint}>swipe →</Text>
+        </View>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -263,6 +266,15 @@ export default function TodayScreen() {
           })}
         </ScrollView>
 
+        {/* ── Pagination dots ── */}
+        {systemReadings.length > 1 && (
+          <View style={styles.paginationRow}>
+            {systemReadings.map((_, i) => (
+              <View key={i} style={styles.paginationDot} />
+            ))}
+          </View>
+        )}
+
         {/* ── Share ── */}
         <AnimatedPressable onPress={() => router.push('/share/card')}>
           <View style={styles.shareShadow}>
@@ -303,7 +315,7 @@ const styles = StyleSheet.create({
   hero: { alignItems: 'center', gap: SPACING.sm },
   dateText: {
     color: COLORS.textMuted,
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: 'Cinzel_400Regular',
     letterSpacing: 2,
     textTransform: 'uppercase',
@@ -323,13 +335,14 @@ const styles = StyleSheet.create({
   statPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
     backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: BORDER_RADIUS.full,
-    paddingVertical: 6,
-    paddingHorizontal: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
+    minHeight: 44,
   },
   statPillWhite: {
     borderColor: 'rgba(255,215,0,0.22)',
@@ -342,9 +355,9 @@ const styles = StyleSheet.create({
   energyText: { flex: 1 },
   vibeLabel: {
     color: COLORS.textMuted,
-    fontSize: 9,
+    fontSize: 11,
     fontFamily: 'Cinzel_400Regular',
-    letterSpacing: 2.5,
+    letterSpacing: 2,
     marginBottom: 5,
   },
   vibeText: { color: COLORS.white, fontSize: 15, fontWeight: '600', lineHeight: 22 },
@@ -363,9 +376,9 @@ const styles = StyleSheet.create({
   },
   affirmLabel: {
     color: COLORS.textMuted,
-    fontSize: 9,
+    fontSize: 11,
     fontFamily: 'Cinzel_400Regular',
-    letterSpacing: 2.5,
+    letterSpacing: 2,
   },
 
   unifiedShadow: {
@@ -397,12 +410,22 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: SPACING.xs,
+  },
   sectionTitle: {
     fontFamily: 'Cinzel_400Regular',
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    letterSpacing: 2.5,
+  },
+  sectionHint: {
     color: COLORS.textMuted,
-    fontSize: 10,
-    letterSpacing: 3,
-    marginTop: SPACING.xs,
+    fontSize: 11,
+    letterSpacing: 1,
   },
   hScroll: { paddingRight: SPACING.lg, gap: SPACING.md },
 
@@ -429,8 +452,8 @@ const styles = StyleSheet.create({
   },
   sysLine: { marginBottom: 3 },
   sysLineLabel: {
-    color: 'rgba(255,255,255,0.45)',
-    fontSize: 9,
+    color: 'rgba(255,255,255,0.60)',
+    fontSize: 11,
     fontFamily: 'Cinzel_400Regular',
     letterSpacing: 1.5,
   },
@@ -486,10 +509,20 @@ const styles = StyleSheet.create({
   },
   sourcesTitle: {
     color: COLORS.textMuted,
-    fontSize: 9,
+    fontSize: 11,
     fontFamily: 'Cinzel_400Regular',
-    letterSpacing: 2.5,
+    letterSpacing: 2,
     marginBottom: SPACING.xs,
+  },
+  paginationRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    marginTop: -SPACING.xs,
+  },
+  paginationDot: {
+    width: 6, height: 6, borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.25)',
   },
   sourceText: { color: COLORS.textMuted, fontSize: 11, lineHeight: 17 },
 });

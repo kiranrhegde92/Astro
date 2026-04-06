@@ -69,7 +69,7 @@ function TabItem({
           <Ionicons
             name={(focused ? iconOn : iconOff) as any}
             size={22}
-            color={focused ? '#ffffff' : 'rgba(255,255,255,0.30)'}
+            color={focused ? '#ffffff' : 'rgba(255,255,255,0.50)'}
           />
         </Animated.View>
       </Animated.View>
@@ -189,14 +189,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   label: {
-    fontSize: 9,
-    color: 'rgba(255,255,255,0.30)',
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.50)',
     fontFamily: 'Cinzel_400Regular',
-    letterSpacing: 0.3,
+    letterSpacing: 0.5,
   },
   labelFocused: { color: '#ffffff' },
   dot: {
-    width: 4, height: 4, borderRadius: 2,
+    width: 5, height: 5, borderRadius: 3,
     backgroundColor: '#ffffff',
     marginTop: 1,
   },

@@ -120,8 +120,8 @@ const styles = StyleSheet.create({
 
   comingSoonBadge: {
     fontFamily: 'Cinzel_400Regular',
-    fontSize: 9,
-    letterSpacing: 3,
+    fontSize: 11,
+    letterSpacing: 2,
     color: COLORS.kp,
     marginBottom: 6,
   },
@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
   featureList: { gap: SPACING.md, marginTop: SPACING.xs },
   featureRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
   featureCircle: {
-    width: 38, height: 38, borderRadius: 19,
+    width: 44, height: 44, borderRadius: 22,
     backgroundColor: 'rgba(0,229,209,0.08)',
     borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
@@ -165,14 +165,14 @@ const styles = StyleSheet.create({
   },
   eventLabel: {
     fontFamily: 'Cinzel_400Regular',
-    fontSize: 9,
+    fontSize: 11,
     color: COLORS.gold,
-    letterSpacing: 2.5,
+    letterSpacing: 2,
   },
   eventTitle: { color: COLORS.white, fontSize: 19, fontFamily: 'Cinzel_700Bold', letterSpacing: 0.3 },
   eventDesc: { color: COLORS.textSecondary, fontSize: 13, lineHeight: 20, marginTop: 4 },
 
   factHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: SPACING.xs },
-  factLabel: { color: COLORS.gold, fontSize: 9, fontFamily: 'Cinzel_400Regular', letterSpacing: 2.5 },
+  factLabel: { color: COLORS.gold, fontSize: 11, fontFamily: 'Cinzel_400Regular', letterSpacing: 2 },
   factText: { color: COLORS.textSecondary, fontSize: 13, lineHeight: 20 },
 });

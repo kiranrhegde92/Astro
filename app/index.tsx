@@ -161,9 +161,9 @@ const styles = StyleSheet.create({
   },
   taglineBlock: { alignItems: 'center', marginBottom: SPACING.xl },
   tagline: {
-    color: 'rgba(255,255,255,0.35)',
-    fontSize: 10,
-    letterSpacing: 5,
+    color: 'rgba(255,255,255,0.45)',
+    fontSize: 11,
+    letterSpacing: 4,
     fontFamily: 'Cinzel_400Regular',
   },
   divider: {

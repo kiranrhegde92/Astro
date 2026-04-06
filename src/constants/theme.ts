@@ -69,7 +69,7 @@ export const COLORS = {
   // Text
   textPrimary:   WHITE.true,
   textSecondary: WHITE.w65,
-  textMuted:     WHITE.w42,
+  textMuted:     'rgba(255,255,255,0.52)',  // raised from 0.42 — passes WCAG AA at 12px+
 
   // Metals
   silver:        SILVER.bright,
@@ -128,6 +128,18 @@ export const FONTS = {
   heading: 'Cinzel_700Bold',    // section heads
   accent:  'Cinzel_400Regular', // labels, badges
   body:    'System',
+};
+
+// ─── Type Scale (minimum 11px everywhere) ────────────────────────────────────
+export const TYPE = {
+  hero:    { fontSize: 42, letterSpacing: 4 },
+  title:   { fontSize: 28, letterSpacing: 3 },
+  heading: { fontSize: 20, letterSpacing: 1 },
+  subhead: { fontSize: 16, letterSpacing: 0.4 },
+  body:    { fontSize: 14, letterSpacing: 0 },
+  caption: { fontSize: 12, letterSpacing: 0.3 },
+  label:   { fontSize: 11, letterSpacing: 2 },   // minimum size for Cinzel all-caps labels
+  micro:   { fontSize: 11, letterSpacing: 1.5 }, // was 9px — now safe minimum
 };
 
 // ─── 8px base spacing grid ────────────────────────────────────────────────────
