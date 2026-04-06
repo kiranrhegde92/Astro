@@ -1,5 +1,10 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  requestNotificationPermissions,
+  scheduleDailyNotification,
+  cancelAllNotifications,
+} from '../utils/notifications';
 
 interface SettingsState {
   language: string;
@@ -26,13 +31,27 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     get().saveSettings();
   },
 
-  setNotifications: (enabled) => {
-    set({ notificationsEnabled: enabled });
+  setNotifications: async (enabled) => {
+    if (enabled) {
+      const granted = await requestNotificationPermissions();
+      if (granted) {
+        await scheduleDailyNotification(get().dailyNotificationTime);
+        set({ notificationsEnabled: true });
+      } else {
+        set({ notificationsEnabled: false });
+      }
+    } else {
+      await cancelAllNotifications();
+      set({ notificationsEnabled: false });
+    }
     get().saveSettings();
   },
 
-  setNotificationTime: (time) => {
+  setNotificationTime: async (time) => {
     set({ dailyNotificationTime: time });
+    if (get().notificationsEnabled) {
+      await scheduleDailyNotification(time);
+    }
     get().saveSettings();
   },
 
@@ -42,6 +61,10 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       if (data) {
         const settings = JSON.parse(data);
         set(settings);
+        // Re-schedule notification if enabled
+        if (settings.notificationsEnabled) {
+          scheduleDailyNotification(settings.dailyNotificationTime).catch(() => {});
+        }
       }
     } catch {}
   },

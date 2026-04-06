@@ -20,6 +20,7 @@ interface UserState {
   addCosmicPoints: (points: number) => void;
   incrementStreak: () => void;
   resetStreak: () => void;
+  clearUser: () => Promise<void>;
   loadUser: () => Promise<void>;
   saveUser: () => Promise<void>;
 }
@@ -122,6 +123,11 @@ export const useUserStore = create<UserState>((set, get) => ({
       set({ user: { ...user, streak: 0 } });
       get().saveUser();
     }
+  },
+
+  clearUser: async () => {
+    await AsyncStorage.removeItem(STORAGE_KEY);
+    set({ user: null, isLoading: false });
   },
 
   loadUser: async () => {

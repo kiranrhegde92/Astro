@@ -27,12 +27,13 @@ export function parseDeepLink(url: string): {
   type: 'profile' | 'compat' | 'unknown';
   userId?: string;
 } {
-  const profileMatch = url.match(/cosmicself\.app\/profile\/(.+)/);
+  // Support both https://cosmicself.app/... and cosmicself://...
+  const profileMatch = url.match(/(?:cosmicself\.app|cosmicself:)\/?\/?profile\/(.+)/);
   if (profileMatch) {
     return { type: 'profile', userId: profileMatch[1] };
   }
 
-  const compatMatch = url.match(/cosmicself\.app\/compat\/(.+)/);
+  const compatMatch = url.match(/(?:cosmicself\.app|cosmicself:)\/?\/?compat\/(.+)/);
   if (compatMatch) {
     return { type: 'compat', userId: compatMatch[1] };
   }

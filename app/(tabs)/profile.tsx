@@ -31,9 +31,15 @@ export default function ProfileScreen() {
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.spacer} />
 
-        <GlowText size="xl" align="center">
-          {t('profile.title')}
-        </GlowText>
+        <View style={styles.titleRow}>
+          <View style={styles.titleSpacer} />
+          <GlowText size="xl" align="center">
+            {t('profile.title')}
+          </GlowText>
+          <TouchableOpacity onPress={() => router.push('/settings')} style={styles.settingsBtn}>
+            <Text style={styles.settingsIcon}>{'\u2699\uFE0F'}</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* Name & Points */}
         <View style={styles.header}>
@@ -310,5 +316,9 @@ const styles = StyleSheet.create({
   premiumTitle: { color: COLORS.starGold, fontSize: 18, fontWeight: '700', marginBottom: SPACING.xs },
   premiumDesc: { color: COLORS.textSecondary, fontSize: 14, lineHeight: 21, marginBottom: SPACING.md },
   premiumButton: { alignSelf: 'center' },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  titleSpacer: { width: 36 },
+  settingsBtn: { width: 36, alignItems: 'center' },
+  settingsIcon: { fontSize: 24 },
   bottomPad: { height: 20 },
 });
