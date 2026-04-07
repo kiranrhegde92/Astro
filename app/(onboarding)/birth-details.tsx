@@ -175,7 +175,7 @@ export default function BirthDetailsScreen() {
                 value={name}
                 onChangeText={t => { setName(t); setErrors(p => ({ ...p, name: undefined as any })); }}
                 placeholder="A name to place in the stars"
-                placeholderTextColor="rgba(255,255,255,0.35)"
+                placeholderTextColor={COLORS.textMuted}
                 autoCapitalize="words"
                 autoComplete="name"
                 returnKeyType="next"
@@ -196,7 +196,7 @@ export default function BirthDetailsScreen() {
                   value={day}
                   onChangeText={handleDay}
                   placeholder="DD"
-                  placeholderTextColor="rgba(255,255,255,0.35)"
+                  placeholderTextColor={COLORS.textMuted}
                   keyboardType="number-pad"
                   maxLength={2}
                   textAlign="center"
@@ -211,7 +211,7 @@ export default function BirthDetailsScreen() {
                   value={month}
                   onChangeText={handleMonth}
                   placeholder="MM"
-                  placeholderTextColor="rgba(255,255,255,0.35)"
+                  placeholderTextColor={COLORS.textMuted}
                   keyboardType="number-pad"
                   maxLength={2}
                   textAlign="center"
@@ -226,7 +226,7 @@ export default function BirthDetailsScreen() {
                   value={year}
                   onChangeText={handleYear}
                   placeholder="YYYY"
-                  placeholderTextColor="rgba(255,255,255,0.35)"
+                  placeholderTextColor={COLORS.textMuted}
                   keyboardType="number-pad"
                   maxLength={4}
                   textAlign="center"
@@ -247,7 +247,7 @@ export default function BirthDetailsScreen() {
                   value={hour}
                   onChangeText={handleHour}
                   placeholder="HH"
-                  placeholderTextColor="rgba(255,255,255,0.35)"
+                  placeholderTextColor={COLORS.textMuted}
                   keyboardType="number-pad"
                   maxLength={2}
                   textAlign="center"
@@ -262,7 +262,7 @@ export default function BirthDetailsScreen() {
                   value={minute}
                   onChangeText={handleMinute}
                   placeholder="MM"
-                  placeholderTextColor="rgba(255,255,255,0.35)"
+                  placeholderTextColor={COLORS.textMuted}
                   keyboardType="number-pad"
                   maxLength={2}
                   textAlign="center"
@@ -286,7 +286,7 @@ export default function BirthDetailsScreen() {
                 value={place}
                 onChangeText={setPlace}
                 placeholder="City or town of birth"
-                placeholderTextColor="rgba(255,255,255,0.35)"
+                placeholderTextColor={COLORS.textMuted}
                 autoCapitalize="words"
                 returnKeyType="done"
                 onSubmitEditing={handleContinue}
@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
     gap: SPACING.xs,
   },
   fieldLabel: {
-    color: 'rgba(255,255,255,0.65)',
+    color: COLORS.textMuted,
     fontSize: 12,
     fontFamily: FONTS.accent,
     letterSpacing: 1,
@@ -344,10 +344,10 @@ const styles = StyleSheet.create({
   inputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.40)',
+    backgroundColor: 'rgba(255,255,255,0.82)',
     borderRadius: BORDER_RADIUS.md,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderColor: 'rgba(36,40,74,0.16)',
     paddingHorizontal: SPACING.md,
     minHeight: 54,
   },
@@ -357,7 +357,7 @@ const styles = StyleSheet.create({
   icon: { marginRight: 10 },
   input: {
     flex: 1,
-    color: '#ffffff',
+    color: COLORS.textPrimary,
     fontSize: 16,
     paddingVertical: 14,
   },
@@ -370,19 +370,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   dateInput: {
-    backgroundColor: 'rgba(0,0,0,0.40)',
+    backgroundColor: 'rgba(255,255,255,0.82)',
     borderRadius: BORDER_RADIUS.md,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderColor: 'rgba(36,40,74,0.16)',
     minHeight: 54,
     paddingHorizontal: 8,
     paddingVertical: 14,
     fontSize: 16,
-    color: '#ffffff',
+    color: COLORS.textPrimary,
     flex: undefined,
   },
   dateSep: {
-    color: 'rgba(255,255,255,0.40)',
+    color: COLORS.textMuted,
     fontSize: 20,
     marginTop: 15,
     paddingHorizontal: 2,

@@ -68,7 +68,7 @@ export default function LoginScreen() {
                 <TextInput
                   style={styles.input}
                   placeholder="you@example.com"
-                  placeholderTextColor="rgba(255,255,255,0.35)"
+                  placeholderTextColor={COLORS.textMuted}
                   value={email}
                   onChangeText={t => { setEmail(t); setErrors(p => ({ ...p, email: undefined })); }}
                   autoCapitalize="none"
@@ -90,7 +90,7 @@ export default function LoginScreen() {
                   ref={passwordRef}
                   style={styles.input}
                   placeholder="Your password"
-                  placeholderTextColor="rgba(255,255,255,0.35)"
+                  placeholderTextColor={COLORS.textMuted}
                   value={password}
                   onChangeText={t => { setPassword(t); setErrors(p => ({ ...p, password: undefined })); }}
                   secureTextEntry={!showPass}
@@ -142,17 +142,17 @@ const styles = StyleSheet.create({
     gap: SPACING.lg,
   },
   header: { gap: SPACING.sm, alignItems: 'center' },
-  title: { fontFamily: FONTS.display, fontSize: 26, color: '#fff', letterSpacing: 2, textAlign: 'center' },
-  subtitle: { color: 'rgba(255,255,255,0.55)', fontSize: 14, textAlign: 'center' },
+  title: { fontFamily: FONTS.display, fontSize: 26, color: COLORS.textPrimary, letterSpacing: 1, textAlign: 'center' },
+  subtitle: { color: COLORS.textSecondary, fontSize: 14, textAlign: 'center' },
   fields: { gap: SPACING.md },
-  label: { color: 'rgba(255,255,255,0.65)', fontSize: 12, fontFamily: FONTS.accent, letterSpacing: 1, marginBottom: 6 },
+  label: { color: COLORS.textMuted, fontSize: 12, fontFamily: FONTS.accent, letterSpacing: 1, marginBottom: 6 },
   inputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.40)',
+    backgroundColor: 'rgba(255,255,255,0.82)',
     borderRadius: BORDER_RADIUS.md,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderColor: 'rgba(36,40,74,0.16)',
     paddingHorizontal: SPACING.md,
     minHeight: 54,
   },
@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
   icon: { marginRight: 10 },
   input: {
     flex: 1,
-    color: '#ffffff',
+    color: COLORS.textPrimary,
     fontSize: 16,
     paddingVertical: 14,
   },
@@ -175,15 +175,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     shadowColor: COLORS.western,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.35,
     shadowRadius: 12,
     elevation: 8,
   },
   btnText: { color: '#fff', fontSize: 15, fontFamily: FONTS.heading, letterSpacing: 1 },
   divider: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
-  dividerLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.10)' },
-  dividerText: { color: 'rgba(255,255,255,0.40)', fontSize: 13 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: 'rgba(36,40,74,0.12)' },
+  dividerText: { color: COLORS.textMuted, fontSize: 13 },
   linkBtn: { alignItems: 'center', paddingVertical: SPACING.sm },
-  linkText: { color: 'rgba(255,255,255,0.55)', fontSize: 14 },
+  linkText: { color: COLORS.textSecondary, fontSize: 14 },
   linkAccent: { color: COLORS.western, fontFamily: FONTS.heading },
 });
