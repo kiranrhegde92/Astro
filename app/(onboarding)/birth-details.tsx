@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TextInput, ScrollView, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StarField } from '../../src/components/ui/StarField';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
@@ -7,11 +7,14 @@ import { CosmicButton } from '../../src/components/ui/CosmicButton';
 import { GradientCard } from '../../src/components/ui/GradientCard';
 import { BORDER_RADIUS, COLORS, FONTS, SPACING } from '../../src/constants/theme';
 import { useUserStore } from '../../src/store/userStore';
+import { useAuthStore } from '../../src/store/authStore';
+import { updateUserProfile } from '../../src/services/firestoreService';
 import type { BirthDetails } from '../../src/types/user';
 
 export default function BirthDetailsScreen() {
   const router = useRouter();
   const setUser = useUserStore((state) => state.setUser);
+  const firebaseUser = useAuthStore((s) => s.firebaseUser);
 
   const [name, setName] = useState('');
   const [day, setDay] = useState('');
@@ -23,26 +26,55 @@ export default function BirthDetailsScreen() {
 
   const isValid = Boolean(name.trim() && day && month && year);
 
-  const handleContinue = () => {
-    const birthDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1, parseInt(day, 10));
+  const handleContinue = async () => {
+    const d = parseInt(day, 10);
+    const m = parseInt(month, 10);
+    const y = parseInt(year, 10);
+    if (d < 1 || d > 31 || m < 1 || m > 12 || y < 1900 || y > new Date().getFullYear()) {
+      Alert.alert('Invalid date', 'Please enter a valid birth date.');
+      return;
+    }
+
+    // Format YYYY-MM-DD for Cloud Function
+    const birthDateStr = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const birthTimeStr = hour && minute
+      ? `${hour.padStart(2,'0')}:${minute.padStart(2,'0')}`
+      : '12:00'; // noon default if unknown
+
+    const birthDate = new Date(y, m - 1, d);
     const birthDetails: BirthDetails = {
       date: birthDate,
-      time: hour && minute ? `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}` : undefined,
-      place: place ? { name: place, lat: 0, lng: 0, timezone: 'UTC' } : undefined,
-    };
+      time: birthTimeStr,
+      place: place.trim() ? { name: place.trim(), lat: 0, lng: 0, timezone: 'UTC' } : undefined,
+      // Store formatted strings for Cloud Function
+      birthDateStr,
+      birthTimeStr,
+      birthPlace: place.trim() || 'Unknown',
+    } as any;
 
-    setUser({
-      id: `user_${Date.now()}`,
+    const uid = firebaseUser?.uid ?? `local_${Date.now()}`;
+    const profile = {
+      id: uid,
       name: name.trim(),
       language: 'en',
       birthDetails,
-      activeSystems: [],
-      subscription: { tier: 'free', status: 'active', purchasedItems: [] },
+      activeSystems: [] as any[],
+      subscription: { tier: 'free' as const, status: 'active' as const, purchasedItems: [] },
       cosmicPoints: 0,
       streak: 0,
       onboardingComplete: false,
       createdAt: new Date(),
-    });
+    };
+
+    setUser(profile);
+
+    // Persist name + birth details to Firestore immediately
+    if (firebaseUser) {
+      updateUserProfile(firebaseUser.uid, {
+        name: name.trim(),
+        birthDetails,
+      } as any).catch(() => {});
+    }
 
     router.push('/(onboarding)/system-picker');
   };
@@ -87,7 +119,7 @@ export default function BirthDetailsScreen() {
           </View>
         </GradientCard>
 
-        <CosmicButton title="Continue" onPress={handleContinue} disabled={!isValid} />
+        <CosmicButton title="Continue" onPress={handleContinue} disabled={!isValid} loading={false} />
       </ScrollView>
     </StarField>
   );

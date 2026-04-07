@@ -1,61 +1,156 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { StarField } from '../../src/components/ui/StarField';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
 import { CosmicButton } from '../../src/components/ui/CosmicButton';
 import { CosmicOrb } from '../../src/components/ui/CosmicOrb';
 import { GradientCard } from '../../src/components/ui/GradientCard';
-import { COLORS, FONTS, SPACING } from '../../src/constants/theme';
+import { AnimatedPressable } from '../../src/components/ui/AnimatedPressable';
+import { COLORS, FONTS, SPACING, BORDER_RADIUS } from '../../src/constants/theme';
 import { useUserStore } from '../../src/store/userStore';
-import { calculateCosmicProfile, getCosmicDNASummary } from '../../src/engines/unified';
+import { useAuthStore } from '../../src/store/authStore';
+import { calculateUserChart } from '../../src/services/functionsService';
+
+type Status = 'calculating' | 'done' | 'error';
+
+const STEPS = [
+  'Geocoding birth location…',
+  'Computing planetary positions…',
+  'Casting Western chart…',
+  'Applying Lahiri ayanamsa for Vedic…',
+  'Deriving Four Pillars…',
+  'Calculating KP sub-lords…',
+  'Weaving your cosmic profile…',
+];
 
 export default function CosmicRevealScreen() {
   const router = useRouter();
   const user = useUserStore((state) => state.user);
-  const setWesternProfile = useUserStore((state) => state.setWesternProfile);
-  const setVedicProfile = useUserStore((state) => state.setVedicProfile);
-  const setChineseProfile = useUserStore((state) => state.setChineseProfile);
-  const setKPProfile = useUserStore((state) => state.setKPProfile);
-  const completeOnboarding = useUserStore((state) => state.completeOnboarding);
-  const addCosmicPoints = useUserStore((state) => state.addCosmicPoints);
+  const setWesternProfile = useUserStore((s) => s.setWesternProfile);
+  const setVedicProfile = useUserStore((s) => s.setVedicProfile);
+  const setChineseProfile = useUserStore((s) => s.setChineseProfile);
+  const setKPProfile = useUserStore((s) => s.setKPProfile);
+  const completeOnboarding = useUserStore((s) => s.completeOnboarding);
+  const addCosmicPoints = useUserStore((s) => s.addCosmicPoints);
+  const firebaseUser = useAuthStore((s) => s.firebaseUser);
 
-  const [isCalculating, setIsCalculating] = useState(true);
-  const [cosmicDNA, setCosmicDNA] = useState('');
+  const [status, setStatus] = useState<Status>('calculating');
+  const [stepIndex, setStepIndex] = useState(0);
+  const [chart, setChart] = useState<any>(null);
+  const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
     if (!user?.birthDetails) return;
-    const timer = setTimeout(() => {
-      const profile = calculateCosmicProfile(
-        user.birthDetails.date,
-        user.birthDetails.time,
-        user.birthDetails.place?.lat,
-        user.birthDetails.place?.lng
-      );
 
-      setWesternProfile(profile.western);
-      setVedicProfile(profile.vedic);
-      setChineseProfile(profile.chinese);
-      if (profile.kp) setKPProfile(profile.kp);
-      setCosmicDNA(getCosmicDNASummary(profile));
-      addCosmicPoints(100);
-      setIsCalculating(false);
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [addCosmicPoints, setChineseProfile, setKPProfile, setVedicProfile, setWesternProfile, user?.birthDetails]);
+    // Cycle through progress steps visually
+    const stepTimer = setInterval(() => {
+      setStepIndex(i => Math.min(i + 1, STEPS.length - 1));
+    }, 900);
 
-  if (isCalculating) {
+    const bd = user.birthDetails as any;
+    const birthDateStr: string = bd.birthDateStr
+      ?? user.birthDetails.date.toISOString().split('T')[0];
+    const birthTimeStr: string = bd.birthTimeStr ?? '12:00';
+    const birthPlace: string = bd.birthPlace ?? user.birthDetails.place?.name ?? 'London, UK';
+
+    calculateUserChart({ birthDate: birthDateStr, birthTime: birthTimeStr, birthPlace })
+      .then((result) => {
+        clearInterval(stepTimer);
+        const c = result.chart;
+
+        // Push real data into userStore
+        if (c.western) {
+          setWesternProfile({
+            sun: c.western.sun,
+            moon: c.western.moon,
+            rising: c.western.rising,
+            dominantElement: c.western.dominantElement,
+            dominantModality: c.western.dominantModality,
+          });
+        }
+        if (c.vedic) {
+          setVedicProfile({
+            rashi: c.vedic.rashi,
+            lagna: c.vedic.lagna,
+            nakshatra: c.vedic.nakshatra,
+            nakshatraPada: c.vedic.nakshatraPada,
+            currentDasha: c.vedic.currentDasha?.planet,
+            subDasha: c.vedic.subDasha?.planet,
+          });
+        }
+        if (c.chinese) {
+          setChineseProfile({
+            animal: c.chinese.animal,
+            element: c.chinese.element,
+            yinYang: c.chinese.yinYang,
+            luckyDirections: c.chinese.luckyDirections,
+            luckyColors: c.chinese.luckyColors,
+          });
+        }
+        if (c.kp) {
+          setKPProfile({ lagna: c.kp.lagna, lagnaSubLord: c.kp.lagnaSubLord });
+        }
+
+        setChart(c);
+        addCosmicPoints(100);
+        setStatus('done');
+      })
+      .catch((err) => {
+        clearInterval(stepTimer);
+        console.warn('Chart calculation failed:', err);
+        setErrorMsg('Could not connect to the calculation server. Your local profile has been saved — real chart data will sync when you are online.');
+        setStatus('error');
+      });
+
+    return () => clearInterval(stepTimer);
+  }, []);
+
+  // ── Loading ──────────────────────────────────────────────────────────────────
+  if (status === 'calculating') {
     return (
       <StarField>
         <View style={styles.loadingWrap}>
-          <CosmicOrb size={190} />
-          <ActivityIndicator color={COLORS.sunOrange} size="small" />
-          <Text style={styles.loadingTitle}>Casting your first constellation</Text>
-          <Text style={styles.loadingCopy}>We are layering four traditions into one personal almanac.</Text>
+          <CosmicOrb size={180} />
+          <Text style={styles.loadingTitle}>Casting your constellation</Text>
+          <Text style={styles.loadingStep}>{STEPS[stepIndex]}</Text>
+          <View style={styles.stepDots}>
+            {STEPS.map((_, i) => (
+              <View key={i} style={[styles.dot, i <= stepIndex && styles.dotActive]} />
+            ))}
+          </View>
         </View>
       </StarField>
     );
   }
+
+  // ── Error (offline / Firebase not configured) ────────────────────────────────
+  if (status === 'error') {
+    return (
+      <StarField>
+        <View style={styles.loadingWrap}>
+          <Ionicons name="cloud-offline-outline" size={52} color={COLORS.textMuted} />
+          <Text style={styles.loadingTitle}>Calculation pending</Text>
+          <Text style={styles.errorMsg}>{errorMsg}</Text>
+          <AnimatedPressable haptic onPress={() => {
+            completeOnboarding();
+            router.replace('/(tabs)/today');
+          }}>
+            <View style={styles.continueBtn}>
+              <Text style={styles.continueBtnText}>Continue Anyway</Text>
+            </View>
+          </AnimatedPressable>
+        </View>
+      </StarField>
+    );
+  }
+
+  // ── Reveal ───────────────────────────────────────────────────────────────────
+  const w = chart?.western;
+  const v = chart?.vedic;
+  const ch = chart?.chinese;
+  const kp = chart?.kp;
 
   return (
     <StarField>
@@ -64,27 +159,71 @@ export default function CosmicRevealScreen() {
         <Text style={styles.step}>Step 3 of 3</Text>
         <Text style={styles.headline}>This is the shape of your sky.</Text>
 
+        {/* Hero orb + name */}
         <View style={styles.hero}>
           <CosmicOrb size={188} />
           <Text style={styles.name}>{user?.name}</Text>
         </View>
 
-        <GradientCard accentColor={COLORS.gold}>
-          <Text style={styles.sectionLabel}>Cosmic DNA</Text>
-          <Text style={styles.dna}>{cosmicDNA}</Text>
-        </GradientCard>
-
-        <View style={styles.systemRow}>
-          {(user?.activeSystems ?? []).map((system) => (
-            <View key={system} style={styles.systemChip}>
-              <Text style={styles.systemChipText}>{system}</Text>
+        {/* Western */}
+        {w && (
+          <GradientCard accentColor={COLORS.western}>
+            <Text style={styles.sectionLabel}>WESTERN · TROPICAL</Text>
+            <View style={styles.signRow}>
+              <SignBadge label="SUN" value={w.sun} color={COLORS.vedic} />
+              <SignBadge label="MOON" value={w.moon} color={COLORS.western} />
+              <SignBadge label="RISING" value={w.rising} color={COLORS.kp} />
             </View>
-          ))}
-        </View>
+            <Text style={styles.detail}>{w.dominantElement} element · {w.dominantModality} modality</Text>
+          </GradientCard>
+        )}
 
-        <GradientCard style={styles.rewardCard}>
-          <Text style={styles.reward}>100 points added to begin your streak.</Text>
-          <Text style={styles.rewardCopy}>Tomorrow the reading opens faster because your profile is already in place.</Text>
+        {/* Vedic */}
+        {v && (
+          <GradientCard accentColor={COLORS.vedic}>
+            <Text style={styles.sectionLabel}>VEDIC · SIDEREAL</Text>
+            <View style={styles.signRow}>
+              <SignBadge label="RASHI" value={v.rashi} color={COLORS.vedic} />
+              <SignBadge label="LAGNA" value={v.lagna} color={COLORS.western} />
+              <SignBadge label="NAKSHATRA" value={v.nakshatra} color={COLORS.kp} />
+            </View>
+            <Text style={styles.detail}>{v.currentDasha?.planet} Mahadasha · {v.subDasha?.planet} Antardasha</Text>
+          </GradientCard>
+        )}
+
+        {/* Chinese */}
+        {ch && (
+          <GradientCard accentColor={COLORS.chinese}>
+            <Text style={styles.sectionLabel}>CHINESE · FOUR PILLARS</Text>
+            <View style={styles.signRow}>
+              <SignBadge label="ANIMAL" value={ch.animal} color={COLORS.chinese} />
+              <SignBadge label="ELEMENT" value={ch.element} color={COLORS.western} />
+              <SignBadge label="POLARITY" value={ch.yinYang} color={COLORS.kp} />
+            </View>
+            <Text style={styles.detail}>Lucky: {ch.luckyDirections?.[0]} · {ch.luckyColors?.[0]}</Text>
+          </GradientCard>
+        )}
+
+        {/* KP */}
+        {kp && (
+          <GradientCard accentColor={COLORS.kp}>
+            <Text style={styles.sectionLabel}>KP · SUB-LORD SYSTEM</Text>
+            <View style={styles.signRow}>
+              <SignBadge label="LAGNA" value={kp.lagna} color={COLORS.kp} />
+              <SignBadge label="SUB-LORD" value={kp.lagnaSubLord} color={COLORS.western} />
+            </View>
+          </GradientCard>
+        )}
+
+        {/* Reward */}
+        <GradientCard>
+          <View style={styles.rewardRow}>
+            <Ionicons name="sparkles" size={20} color={COLORS.gold} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.reward}>100 Cosmic Points added</Text>
+              <Text style={styles.rewardCopy}>Your chart is saved. Daily readings open tomorrow at midnight.</Text>
+            </View>
+          </View>
         </GradientCard>
 
         <CosmicButton
@@ -94,102 +233,78 @@ export default function CosmicRevealScreen() {
             router.replace('/(tabs)/today');
           }}
         />
+        <View style={{ height: SPACING.xxl }} />
       </ScrollView>
     </StarField>
   );
 }
 
+function SignBadge({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <View style={styles.badge}>
+      <Text style={[styles.badgeLabel, { color: 'rgba(255,255,255,0.55)' }]}>{label}</Text>
+      <Text style={[styles.badgeValue, { color }]}>{value}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   loadingWrap: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: SPACING.md,
-    paddingHorizontal: SPACING.lg,
+    flex: 1, justifyContent: 'center', alignItems: 'center',
+    gap: SPACING.md, paddingHorizontal: SPACING.xl,
   },
   loadingTitle: {
-    color: COLORS.textPrimary,
-    fontSize: 30,
-    fontFamily: FONTS.heading,
-    letterSpacing: -0.4,
+    color: COLORS.textPrimary, fontSize: 26,
+    fontFamily: FONTS.heading, textAlign: 'center',
   },
-  loadingCopy: {
-    color: COLORS.textSecondary,
-    fontSize: 14,
-    lineHeight: 22,
-    maxWidth: 280,
-    textAlign: 'center',
+  loadingStep: {
+    color: COLORS.textMuted, fontSize: 13,
+    letterSpacing: 0.5, textAlign: 'center',
   },
-  container: {
-    paddingHorizontal: SPACING.lg,
-    paddingBottom: SPACING.xxl,
-    gap: SPACING.lg,
+  stepDots: { flexDirection: 'row', gap: 5, marginTop: SPACING.sm },
+  dot: {
+    width: 6, height: 6, borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.15)',
   },
-  step: {
-    color: COLORS.textMuted,
-    fontSize: 11,
-    fontFamily: FONTS.accent,
-    letterSpacing: 1.2,
+  dotActive: { backgroundColor: COLORS.western },
+  errorMsg: {
+    color: COLORS.textSecondary, fontSize: 14, lineHeight: 22,
+    textAlign: 'center', maxWidth: 300,
   },
+  continueBtn: {
+    marginTop: SPACING.sm,
+    paddingVertical: 14, paddingHorizontal: SPACING.xl,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    minHeight: 44,
+  },
+  continueBtnText: {
+    color: COLORS.white, fontSize: 14,
+    fontFamily: FONTS.heading, letterSpacing: 1,
+  },
+  container: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.xxl, gap: SPACING.lg },
+  step: { color: COLORS.textMuted, fontSize: 11, fontFamily: FONTS.accent, letterSpacing: 1.2 },
   headline: {
-    color: COLORS.textPrimary,
-    fontSize: 40,
-    lineHeight: 46,
-    fontFamily: FONTS.display,
-    letterSpacing: -0.8,
+    color: COLORS.textPrimary, fontSize: 36, lineHeight: 44,
+    fontFamily: FONTS.display, letterSpacing: -0.5,
   },
-  hero: {
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  name: {
-    color: COLORS.textPrimary,
-    fontSize: 28,
-    fontFamily: FONTS.heading,
-  },
+  hero: { alignItems: 'center', gap: SPACING.sm },
+  name: { color: COLORS.textPrimary, fontSize: 26, fontFamily: FONTS.heading },
   sectionLabel: {
-    color: COLORS.textMuted,
-    fontSize: 11,
-    fontFamily: FONTS.accent,
-    letterSpacing: 1.1,
+    color: COLORS.textMuted, fontSize: 11,
+    fontFamily: FONTS.accent, letterSpacing: 1.5, marginBottom: SPACING.sm,
   },
-  dna: {
-    color: COLORS.textPrimary,
-    fontSize: 24,
-    lineHeight: 32,
-    fontFamily: FONTS.heading,
-    letterSpacing: -0.2,
+  signRow: { flexDirection: 'row', gap: SPACING.sm, flexWrap: 'wrap' },
+  badge: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: BORDER_RADIUS.md, paddingVertical: 8, paddingHorizontal: 12,
+    gap: 3, minWidth: 80,
   },
-  systemRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.sm,
-  },
-  systemChip: {
-    borderWidth: 1,
-    borderColor: COLORS.glassBorder,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: 'rgba(255,255,255,0.68)',
-  },
-  systemChipText: {
-    color: COLORS.textPrimary,
-    fontSize: 12,
-    fontFamily: FONTS.accent,
-    letterSpacing: 0.8,
-  },
-  rewardCard: {
-    gap: SPACING.xs,
-  },
-  reward: {
-    color: COLORS.textPrimary,
-    fontSize: 18,
-    fontFamily: FONTS.heading,
-  },
-  rewardCopy: {
-    color: COLORS.textSecondary,
-    fontSize: 14,
-    lineHeight: 22,
-  },
+  badgeLabel: { fontSize: 10, fontFamily: FONTS.accent, letterSpacing: 1.2 },
+  badgeValue: { fontSize: 14, fontFamily: FONTS.heading, fontWeight: '700' },
+  detail: { color: COLORS.textMuted, fontSize: 12, marginTop: SPACING.xs, letterSpacing: 0.3 },
+  rewardRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
+  reward: { color: COLORS.textPrimary, fontSize: 16, fontFamily: FONTS.heading },
+  rewardCopy: { color: COLORS.textSecondary, fontSize: 13, lineHeight: 20, marginTop: 2 },
 });

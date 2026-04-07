@@ -15,6 +15,7 @@ import { BORDER_RADIUS, COLORS, FONTS, SHADOWS, SPACING } from '../../src/consta
 import { generatePeriodForecast, type ForecastWindow } from '../../src/content/forecastTemplates';
 import { getReadingExplainers } from '../../src/content/readingExplainers';
 import { generateDailyReading } from '../../src/content/dailyTemplates';
+import { fetchDailyReading } from '../../src/services/functionsService';
 import { useJournalStore } from '../../src/store/journalStore';
 import { useReadingStore } from '../../src/store/readingStore';
 import { useUserStore } from '../../src/store/userStore';
@@ -107,18 +108,39 @@ export default function TodayScreen() {
   useEffect(() => {
     if (!user?.western?.sun || !user?.vedic?.rashi || !user?.chinese?.animal) return;
 
-    try {
-      const cached = getCachedReading(todayKey);
-      if (cached) {
-        setTodayReading(cached);
-      } else {
-        const generated = generateDailyReading(today, user.western.sun, user.vedic.rashi, user.chinese.animal);
-        setTodayReading(generated);
-      }
+    const cached = getCachedReading(todayKey);
+    if (cached) {
+      setTodayReading(cached);
       incrementStreak().catch(() => {});
-    } catch {
-      setRetryKey((value) => value + 1);
+      return;
     }
+
+    // Try Cloud Function first, fall back to local templates
+    fetchDailyReading()
+      .then(({ reading }) => {
+        // Merge cloud reading into our local format
+        const merged = {
+          date: todayKey,
+          western: reading.western,
+          vedic: reading.vedic,
+          chinese: reading.chinese,
+          kp: reading.kp,
+          unified: reading.unified,
+          references: [],
+        };
+        setTodayReading(merged as any);
+        incrementStreak().catch(() => {});
+      })
+      .catch(() => {
+        // Firebase not configured or offline — fall back to local templates
+        try {
+          const generated = generateDailyReading(today, user.western!.sun, user.vedic!.rashi, user.chinese!.animal);
+          setTodayReading(generated);
+          incrementStreak().catch(() => {});
+        } catch {
+          setRetryKey((v) => v + 1);
+        }
+      });
   }, [
     getCachedReading,
     incrementStreak,
@@ -131,16 +153,11 @@ export default function TodayScreen() {
     user?.western?.sun,
   ]);
 
-  const reading = useMemo(() => {
+  const reading = (() => {
     if (!user?.western?.sun || !user?.vedic?.rashi || !user?.chinese?.animal) return null;
     if (todayReading?.date === todayKey) return todayReading;
-    if (retryKey === 0) return null;
-    try {
-      return generateDailyReading(today, user.western.sun, user.vedic.rashi, user.chinese.animal);
-    } catch {
-      return 'error' as const;
-    }
-  }, [retryKey, today, todayKey, todayReading, user?.western?.sun, user?.vedic?.rashi, user?.chinese?.animal]);
+    return null; // loading — useEffect will populate todayReading
+  })();
 
   const energy = useMemo(() => getCosmicEnergy(today), [today]);
   const greeting = useMemo(() => getGreeting(today), [today]);
