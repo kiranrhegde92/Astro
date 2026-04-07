@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BORDER_RADIUS, COLORS, FONTS, SHADOWS, SPACING } from '../../constants/theme';
+import { BORDER_RADIUS, COLORS, FONTS, SPACING } from '../../constants/theme';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -27,14 +27,6 @@ type AlertState = {
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-/**
- * Drop-in replacement for React Native's Alert.alert().
- *
- * Usage:
- *   const { showAlert, alertModal } = useCosmicAlert();
- *   showAlert('Title', 'Message', [{ text: 'OK' }]);
- *   // render {alertModal} anywhere in the component's JSX
- */
 export function useCosmicAlert() {
   const [state, setState] = useState<AlertState>({
     visible: false,
@@ -91,15 +83,17 @@ export function CosmicAlertModal({ visible, title, message, buttons, onDismiss }
       statusBarTranslucent
       onRequestClose={onDismiss}
     >
-      {/* Scrim */}
       <Pressable style={styles.scrim} onPress={onDismiss}>
         <Pressable onPress={() => {}} style={styles.cardWrap}>
-          <LinearGradient colors={COLORS.gradientInk} style={styles.card}>
-            {/* Accent line */}
-            <View style={styles.accentLine} />
+          <LinearGradient colors={COLORS.gradientSilver} style={styles.card}>
+
+            {/* Top accent pill */}
+            <View style={styles.pill} />
 
             <Text style={styles.title}>{title}</Text>
             {!!message && <Text style={styles.message}>{message}</Text>}
+
+            <View style={styles.divider} />
 
             <View style={[styles.btnRow, buttons.length === 1 && styles.btnRowSingle]}>
               {buttons.map((btn, i) => {
@@ -144,7 +138,7 @@ export function CosmicAlertModal({ visible, title, message, buttons, onDismiss }
 const styles = StyleSheet.create({
   scrim: {
     flex: 1,
-    backgroundColor: 'rgba(8,6,24,0.72)',
+    backgroundColor: 'rgba(100, 80, 160, 0.30)',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: SPACING.xl,
@@ -152,25 +146,28 @@ const styles = StyleSheet.create({
   cardWrap: {
     width: '100%',
     maxWidth: 340,
-    ...SHADOWS.deep,
+    shadowColor: '#7367ff',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
+    elevation: 12,
   },
   card: {
     borderRadius: BORDER_RADIUS.xxl,
     borderWidth: 1,
-    borderColor: COLORS.glassBorderBright,
+    borderColor: 'rgba(115,103,255,0.18)',
     overflow: 'hidden',
     paddingHorizontal: SPACING.lg,
-    paddingTop: 0,
+    paddingTop: SPACING.md,
     paddingBottom: SPACING.lg,
     gap: SPACING.sm,
   },
-  accentLine: {
-    height: 3,
-    width: 44,
+  pill: {
+    width: 36,
+    height: 4,
     borderRadius: 2,
-    backgroundColor: COLORS.western,
+    backgroundColor: 'rgba(115,103,255,0.35)',
     alignSelf: 'center',
-    marginTop: SPACING.md,
     marginBottom: SPACING.xs,
   },
   title: {
@@ -178,7 +175,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     lineHeight: 28,
     fontFamily: FONTS.display,
-    letterSpacing: -0.4,
+    letterSpacing: -0.3,
     textAlign: 'center',
   },
   message: {
@@ -186,12 +183,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 21,
     textAlign: 'center',
-    paddingHorizontal: SPACING.sm,
+    paddingHorizontal: SPACING.xs,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(115,103,255,0.12)',
+    marginVertical: SPACING.xs,
   },
   btnRow: {
     flexDirection: 'row',
     gap: SPACING.sm,
-    marginTop: SPACING.sm,
   },
   btnRowSingle: {
     flexDirection: 'column',
@@ -213,20 +214,20 @@ const styles = StyleSheet.create({
     borderColor: COLORS.western,
   },
   btnCancel: {
-    backgroundColor: 'rgba(255,255,255,0.07)',
-    borderColor: COLORS.glassBorder,
+    backgroundColor: 'rgba(36,40,74,0.06)',
+    borderColor: 'rgba(36,40,74,0.14)',
   },
   btnDestructive: {
-    backgroundColor: `${COLORS.coral}18`,
-    borderColor: `${COLORS.coral}66`,
+    backgroundColor: 'rgba(255,94,126,0.08)',
+    borderColor: 'rgba(255,94,126,0.40)',
   },
   btnText: {
     fontSize: 15,
     fontFamily: FONTS.heading,
-    letterSpacing: 0.2,
+    letterSpacing: 0.1,
   },
   btnTextDefault: {
-    color: '#fff',
+    color: '#ffffff',
   },
   btnTextCancel: {
     color: COLORS.textSecondary,
