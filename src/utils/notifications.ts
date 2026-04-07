@@ -1,8 +1,12 @@
 /**
  * Push Notification Utilities for CosmicSelf
  *
- * Uses dynamic imports for expo-notifications so the module can be safely
- * loaded in Expo Go without triggering the SDK-53 push-token side effects.
+ * expo-notifications crashes in Expo Go SDK 53+ because its
+ * DevicePushTokenAutoRegistration side-effect module throws on Android
+ * when loaded. We avoid the static import and use lazy require() inside
+ * each function instead. Metro still bundles the module (require strings
+ * are statically analyzable) but the side-effect code never runs at
+ * module load time, only when a function is actually called.
  */
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
@@ -10,10 +14,12 @@ import type { UserProfile } from '../types/user';
 import { generateDailyReading } from '../content/dailyTemplates';
 import { registerPushToken } from './notificationTokenHelper';
 
-// Push tokens (and the DevicePushTokenAutoRegistration side-effect module)
-// are unavailable in Expo Go since SDK 53. Never statically import
-// expo-notifications at module level — load it dynamically inside functions.
 export const IS_EXPO_GO = Constants.appOwnership === 'expo';
+
+// Lazy accessor — require() is synchronous and Metro-bundled, but the
+// side-effect modules inside expo-notifications only run on first call.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const getNotifications = () => require('expo-notifications') as typeof import('expo-notifications');
 
 const COSMIC_MESSAGES = [
   { title: 'Your Stars Are Aligned', body: 'The cosmos has a beautiful message for you today. Open CosmicSelf to discover it.' },
@@ -47,13 +53,12 @@ function getPersonalizedMessage(user?: UserProfile | null): { title: string; bod
 }
 
 /**
- * Request notification permissions. Returns false in Expo Go (not supported).
+ * Request notification permissions. Returns false in Expo Go.
  */
 export async function requestNotificationPermissions(): Promise<boolean> {
   if (IS_EXPO_GO) return false;
 
-  // Dynamic import avoids the DevicePushTokenAutoRegistration side-effect in Expo Go
-  const Notifications = await import('expo-notifications');
+  const Notifications = getNotifications();
 
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
@@ -86,7 +91,7 @@ export async function requestNotificationPermissions(): Promise<boolean> {
     const tokenData = await Notifications.getExpoPushTokenAsync();
     await registerPushToken(tokenData.data);
   } catch {
-    // Non-critical
+    // Non-critical — push token unavailable in some environments
   }
 
   return true;
@@ -101,7 +106,7 @@ export async function scheduleDailyNotification(
 ): Promise<void> {
   if (IS_EXPO_GO) return;
 
-  const Notifications = await import('expo-notifications');
+  const Notifications = getNotifications();
   await Notifications.cancelAllScheduledNotificationsAsync();
 
   const [hours, minutes] = timeString.split(':').map(Number);
@@ -127,6 +132,6 @@ export async function scheduleDailyNotification(
  */
 export async function cancelAllNotifications(): Promise<void> {
   if (IS_EXPO_GO) return;
-  const Notifications = await import('expo-notifications');
+  const Notifications = getNotifications();
   await Notifications.cancelAllScheduledNotificationsAsync();
 }
