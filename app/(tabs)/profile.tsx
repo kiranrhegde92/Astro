@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,7 +8,7 @@ import { GradientCard } from '../../src/components/ui/GradientCard';
 import { StarField } from '../../src/components/ui/StarField';
 import { AnimatedCard } from '../../src/components/ui/AnimatedScreen';
 import { BORDER_RADIUS, COLORS, FONTS, SHADOWS, SPACING } from '../../src/constants/theme';
-import { getCosmicDNASummary } from '../../src/engines/unified';
+import { calculateCosmicProfile, getCosmicDNASummary } from '../../src/engines/unified';
 import { useAuthStore } from '../../src/store/authStore';
 import { useConnectionsStore } from '../../src/store/connectionsStore';
 import { useJournalStore } from '../../src/store/journalStore';
@@ -35,7 +35,13 @@ export default function ProfileScreen() {
   const entries = useJournalStore((s) => s.entries);
   const archiveCount = useReadingStore((s) => Object.keys(s.cachedReadings).length);
 
+  const setWesternProfile = useUserStore((s) => s.setWesternProfile);
+  const setVedicProfile = useUserStore((s) => s.setVedicProfile);
+  const setChineseProfile = useUserStore((s) => s.setChineseProfile);
+  const setKPProfile = useUserStore((s) => s.setKPProfile);
+
   const [currentLang, setCurrentLang] = useState(i18n.language?.split('-')[0] ?? 'en');
+  const [recalculating, setRecalculating] = useState(false);
 
   const cosmicDNA = useMemo(() => {
     if (!user?.western || !user?.vedic || !user?.chinese) return '';
@@ -51,6 +57,46 @@ export default function ProfileScreen() {
   const handleLanguage = (code: string) => {
     setCurrentLang(code);
     i18n.changeLanguage(code);
+  };
+
+  const handleRecalculate = async () => {
+    const bd = user.birthDetails as any;
+    const rawDate = bd.date;
+    const d = rawDate instanceof Date ? rawDate : new Date(rawDate);
+    const birthTime: string | undefined = bd.birthTimeStr ?? bd.time ?? undefined;
+
+    setRecalculating(true);
+    try {
+      // Try cloud function first
+      const { calculateUserChart } = await import('../../src/services/functionsService');
+      const birthDateStr = bd.birthDateStr ?? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      const birthTimeStr = birthTime ?? '12:00';
+      const birthPlace = bd.birthPlace ?? bd.place?.name ?? 'Unknown';
+
+      try {
+        const result = await calculateUserChart({ birthDate: birthDateStr, birthTime: birthTimeStr, birthPlace });
+        const c = result.chart;
+        if (c.western) setWesternProfile({ sun: c.western.sun, moon: c.western.moon, rising: c.western.rising, element: c.western.dominantElement, modality: c.western.dominantModality, planets: [], houses: c.western.houses });
+        if (c.vedic) setVedicProfile({ rashi: c.vedic.rashi, nakshatra: c.vedic.nakshatra, nakshatraPada: c.vedic.nakshatraPada, moonSign: c.vedic.rashi, dashas: [], currentDasha: { planet: c.vedic.currentDasha?.planet, startDate: new Date(c.vedic.currentDasha?.startDate), endDate: new Date(c.vedic.currentDasha?.endDate) }, remedies: [] });
+        if (c.chinese) setChineseProfile({ animal: c.chinese.animal, element: c.chinese.element, yinYang: c.chinese.yinYang, pillars: undefined, luckyNumbers: [], luckyColors: c.chinese.luckyColors, compatibleAnimals: [], incompatibleAnimals: [] });
+        Alert.alert('Chart updated', `Rashi: ${c.vedic?.rashi ?? '—'}  ·  Nakshatra: ${c.vedic?.nakshatra ?? '—'}`);
+        return;
+      } catch {
+        // Cloud failed — fall through to local
+      }
+
+      // Local engine fallback (uses birth time for accurate Rashi)
+      const local = calculateCosmicProfile(new Date(d.getFullYear(), d.getMonth(), d.getDate()), birthTime);
+      if (local.western) setWesternProfile(local.western);
+      if (local.vedic)   setVedicProfile(local.vedic);
+      if (local.chinese) setChineseProfile(local.chinese);
+      if (local.kp)      setKPProfile(local.kp);
+      Alert.alert('Chart recalculated', `Rashi: ${local.vedic?.rashi ?? '—'}  ·  Nakshatra: ${local.vedic?.nakshatra ?? '—'}`);
+    } catch (err) {
+      Alert.alert('Recalculation failed', 'Could not recalculate your chart. Please try again.');
+    } finally {
+      setRecalculating(false);
+    }
   };
 
   const handleLogout = () => {
@@ -197,8 +243,19 @@ export default function ProfileScreen() {
           </GradientCard>
         </AnimatedCard>
 
-        {/* ── Logout ────────────────────────────────────────────────────── */}
+        {/* ── Recalculate ───────────────────────────────────────────────── */}
         <AnimatedCard index={5}>
+          <TouchableOpacity style={styles.recalcBtn} onPress={handleRecalculate} activeOpacity={0.8} disabled={recalculating}>
+            {recalculating
+              ? <ActivityIndicator size="small" color={COLORS.vedic} />
+              : <Ionicons name="refresh-outline" size={20} color={COLORS.vedic} />
+            }
+            <Text style={styles.recalcText}>{recalculating ? 'Recalculating…' : 'Recalculate my chart'}</Text>
+          </TouchableOpacity>
+        </AnimatedCard>
+
+        {/* ── Logout ────────────────────────────────────────────────────── */}
+        <AnimatedCard index={6}>
           <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
             <Ionicons name="log-out-outline" size={20} color={COLORS.coral} />
             <Text style={styles.logoutText}>Log out</Text>
@@ -324,6 +381,22 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.heading,
   },
   langTextActive: { color: COLORS.textPrimary },
+  recalcBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+    paddingVertical: 16,
+    borderRadius: BORDER_RADIUS.xl,
+    borderWidth: 1,
+    borderColor: `${COLORS.vedic}44`,
+    backgroundColor: `${COLORS.vedic}10`,
+  },
+  recalcText: {
+    color: COLORS.vedic,
+    fontSize: 17,
+    fontFamily: FONTS.heading,
+  },
   logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
