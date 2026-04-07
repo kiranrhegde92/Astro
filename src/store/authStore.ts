@@ -10,6 +10,8 @@ const IS_EXPO_GO = Constants.appOwnership === 'expo';
 interface AuthState {
   firebaseUser: User | null;
   authReady: boolean;
+  /** True while we are fetching the Firestore profile after sign-in. */
+  profileLoading: boolean;
   initialize: () => () => void;
   logout: () => Promise<void>;
 }
@@ -17,10 +19,12 @@ interface AuthState {
 export const useAuthStore = create<AuthState>((set) => ({
   firebaseUser: null,
   authReady: false,
+  profileLoading: false,
 
   initialize: () => {
     const unsubscribe = onAuthChange(async (user) => {
-      set({ firebaseUser: user, authReady: true });
+      // Mark profileLoading=true BEFORE authReady so routing waits.
+      set({ firebaseUser: user, authReady: true, profileLoading: !!user });
 
       if (user) {
         // Load Firestore profile
@@ -31,6 +35,8 @@ export const useAuthStore = create<AuthState>((set) => ({
           }
         } catch (e) {
           console.warn('Failed to load Firestore profile:', e);
+        } finally {
+          set({ profileLoading: false });
         }
         // Request push permissions — skip entirely in Expo Go (SDK 53+ removed push support)
         if (!IS_EXPO_GO) {
@@ -41,6 +47,7 @@ export const useAuthStore = create<AuthState>((set) => ({
           }, 3000);
         }
       } else {
+        set({ profileLoading: false });
         useUserStore.getState().clearUser();
       }
     });

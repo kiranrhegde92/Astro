@@ -29,6 +29,7 @@ import '../src/services/firebase';
 export default function RootLayout() {
   const initialize = useAuthStore((s) => s.initialize);
   const authReady = useAuthStore((s) => s.authReady);
+  const profileLoading = useAuthStore((s) => s.profileLoading);
   const firebaseUser = useAuthStore((s) => s.firebaseUser);
   const user = useUserStore((s) => s.user);
   const syncSubscriptionStatus = useUserStore((s) => s.syncSubscriptionStatus);
@@ -64,7 +65,10 @@ export default function RootLayout() {
 
   // Auth-based routing
   useEffect(() => {
-    if (!authReady || !fontsLoaded) return;
+    // Wait for fonts, auth, AND the async Firestore profile fetch.
+    // Without the profileLoading guard, routing fires while user===null
+    // and every login incorrectly redirects to onboarding.
+    if (!authReady || !fontsLoaded || profileLoading) return;
 
     const inAuth = segments[0] === '(auth)';
     const inOnboarding = segments[0] === '(onboarding)';
@@ -79,7 +83,7 @@ export default function RootLayout() {
       // Fully set up → main tabs
       if (inAuth || inOnboarding) router.replace('/(tabs)/today');
     }
-  }, [authReady, fontsLoaded, firebaseUser, user?.onboardingComplete]);
+  }, [authReady, fontsLoaded, profileLoading, firebaseUser, user?.onboardingComplete]);
 
   // Deep link handler
   useEffect(() => {
