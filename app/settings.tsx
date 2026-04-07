@@ -5,8 +5,10 @@ import i18n from '../src/i18n';
 import { CosmicButton } from '../src/components/ui/CosmicButton';
 import { GradientCard } from '../src/components/ui/GradientCard';
 import { ScreenHeader } from '../src/components/ui/ScreenHeader';
+import { SectionTabs } from '../src/components/ui/SectionTabs';
 import { StarField } from '../src/components/ui/StarField';
 import { BORDER_RADIUS, COLORS, FONTS, SPACING } from '../src/constants/theme';
+import { useAuthStore } from '../src/store/authStore';
 import { useConnectionsStore } from '../src/store/connectionsStore';
 import { useJournalStore } from '../src/store/journalStore';
 import { useReadingStore } from '../src/store/readingStore';
@@ -49,12 +51,19 @@ export default function SettingsScreen() {
   const router = useRouter();
   const user = useUserStore((state) => state.user);
   const clearUser = useUserStore((state) => state.clearUser);
+  const logout = useAuthStore((state) => state.logout);
   const clearReadings = useReadingStore((state) => state.clearReadings);
   const clearConnections = useConnectionsStore((state) => state.clearConnections);
   const clearJournal = useJournalStore((state) => state.clearJournal);
   const { language, notificationsEnabled, dailyNotificationTime, setLanguage, setNotifications, setNotificationTime } = useSettingsStore();
+  const [activeSection, setActiveSection] = useState('preferences');
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const tabs = [
+    { key: 'preferences', label: 'Preferences' },
+    { key: 'profile', label: 'Profile' },
+    { key: 'session', label: 'Session' },
+  ];
 
   const handleLanguageChange = (code: string) => {
     setLanguage(code);
@@ -63,9 +72,9 @@ export default function SettingsScreen() {
   };
 
   const clearProfileAndReturnToOnboarding = async () => {
-    await Promise.all([clearUser(), clearReadings(), clearConnections(), clearJournal()]);
+    await Promise.all([logout(), clearUser(), clearReadings(), clearConnections(), clearJournal()]);
     router.dismissAll();
-    router.replace('/(onboarding)/welcome');
+    router.replace('/(auth)/login');
   };
 
   const handleLogout = () => {
@@ -84,77 +93,86 @@ export default function SettingsScreen() {
       <ScreenHeader title="Settings" />
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <Text style={styles.headline}>Shape the ritual around your routine.</Text>
+        <SectionTabs tabs={tabs} activeKey={activeSection} onChange={setActiveSection} />
 
-        <GradientCard style={styles.section}>
-          <Text style={styles.sectionLabel}>Language</Text>
-          <PickerRow
-            label="App language"
-            value={LANGUAGES.find((item) => item.code === language)?.name ?? 'English'}
-            onPress={() => setShowLanguagePicker((value) => !value)}
-          />
-          {showLanguagePicker ? (
-            <View style={styles.inlineList}>
-              {LANGUAGES.map((item) => (
-                <TouchableOpacity key={item.code} onPress={() => handleLanguageChange(item.code)} style={styles.inlineItem} activeOpacity={0.84}>
-                  <Text style={[styles.inlineText, item.code === language && styles.inlineTextActive]}>{item.name}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          ) : null}
-        </GradientCard>
-
-        <GradientCard style={styles.section}>
-          <Text style={styles.sectionLabel}>Reminder</Text>
-          <View style={styles.switchRow}>
-            <Text style={styles.rowText}>Daily reading notification</Text>
-            <Switch
-              value={notificationsEnabled}
-              onValueChange={setNotifications}
-              trackColor={{ false: 'rgba(40,49,73,0.16)', true: COLORS.sunOrange }}
-              thumbColor="#fffaf1"
-            />
-          </View>
-          {notificationsEnabled ? (
-            <>
+        {activeSection === 'preferences' && (
+          <>
+            <GradientCard style={styles.section}>
+              <Text style={styles.sectionLabel}>Language</Text>
               <PickerRow
-                label="Reminder time"
-                value={NOTIFICATION_TIMES.find((item) => item.value === dailyNotificationTime)?.label ?? '8:00 am'}
-                onPress={() => setShowTimePicker((value) => !value)}
+                label="App language"
+                value={LANGUAGES.find((item) => item.code === language)?.name ?? 'English'}
+                onPress={() => setShowLanguagePicker((value) => !value)}
               />
-              {showTimePicker ? (
+              {showLanguagePicker ? (
                 <View style={styles.inlineList}>
-                  {NOTIFICATION_TIMES.map((item) => (
-                    <TouchableOpacity
-                      key={item.value}
-                      onPress={() => {
-                        setNotificationTime(item.value);
-                        setShowTimePicker(false);
-                      }}
-                      style={styles.inlineItem}
-                      activeOpacity={0.84}
-                    >
-                      <Text style={[styles.inlineText, item.value === dailyNotificationTime && styles.inlineTextActive]}>{item.label}</Text>
+                  {LANGUAGES.map((item) => (
+                    <TouchableOpacity key={item.code} onPress={() => handleLanguageChange(item.code)} style={styles.inlineItem} activeOpacity={0.84}>
+                      <Text style={[styles.inlineText, item.code === language && styles.inlineTextActive]}>{item.name}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
               ) : null}
-            </>
-          ) : null}
-        </GradientCard>
+            </GradientCard>
 
-        <GradientCard style={styles.section}>
-          <Text style={styles.sectionLabel}>Profile snapshot</Text>
-          <Text style={styles.metaLine}>Name - {user?.name ?? 'Unknown'}</Text>
-          <Text style={styles.metaLine}>Plan - {user?.subscription.tier ?? 'free'}</Text>
-          <Text style={styles.metaLine}>Active systems - {user?.activeSystems.length ?? 0}</Text>
-          <Text style={styles.metaLine}>Cosmic points - {user?.cosmicPoints ?? 0}</Text>
-        </GradientCard>
+            <GradientCard style={styles.section}>
+              <Text style={styles.sectionLabel}>Reminder</Text>
+              <View style={styles.switchRow}>
+                <Text style={styles.rowText}>Daily reading notification</Text>
+                <Switch
+                  value={notificationsEnabled}
+                  onValueChange={setNotifications}
+                  trackColor={{ false: 'rgba(40,49,73,0.16)', true: COLORS.sunOrange }}
+                  thumbColor="#fffaf1"
+                />
+              </View>
+              {notificationsEnabled ? (
+                <>
+                  <PickerRow
+                    label="Reminder time"
+                    value={NOTIFICATION_TIMES.find((item) => item.value === dailyNotificationTime)?.label ?? '8:00 am'}
+                    onPress={() => setShowTimePicker((value) => !value)}
+                  />
+                  {showTimePicker ? (
+                    <View style={styles.inlineList}>
+                      {NOTIFICATION_TIMES.map((item) => (
+                        <TouchableOpacity
+                          key={item.value}
+                          onPress={() => {
+                            setNotificationTime(item.value);
+                            setShowTimePicker(false);
+                          }}
+                          style={styles.inlineItem}
+                          activeOpacity={0.84}
+                        >
+                          <Text style={[styles.inlineText, item.value === dailyNotificationTime && styles.inlineTextActive]}>{item.label}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  ) : null}
+                </>
+              ) : null}
+            </GradientCard>
+          </>
+        )}
 
-        <GradientCard style={styles.section} accentColor={COLORS.coral}>
-          <Text style={styles.sectionLabel}>Session</Text>
-          <Text style={styles.logoutCopy}>Logging out clears the local chart and takes you back to the beginning.</Text>
-          <CosmicButton title="Log out" onPress={handleLogout} variant="outline" />
-        </GradientCard>
+        {activeSection === 'profile' && (
+          <GradientCard style={styles.section}>
+            <Text style={styles.sectionLabel}>Profile snapshot</Text>
+            <Text style={styles.metaLine}>Name - {user?.name ?? 'Unknown'}</Text>
+            <Text style={styles.metaLine}>Plan - {user?.subscription.tier ?? 'free'}</Text>
+            <Text style={styles.metaLine}>Active systems - {user?.activeSystems.length ?? 0}</Text>
+            <Text style={styles.metaLine}>Cosmic points - {user?.cosmicPoints ?? 0}</Text>
+          </GradientCard>
+        )}
+
+        {activeSection === 'session' && (
+          <GradientCard style={styles.section} accentColor={COLORS.coral}>
+            <Text style={styles.sectionLabel}>Session</Text>
+            <Text style={styles.logoutCopy}>Logging out signs you out of Firebase, clears the local chart cache, and returns you to login.</Text>
+            <CosmicButton title="Log out" onPress={handleLogout} variant="outline" />
+          </GradientCard>
+        )}
       </ScrollView>
     </StarField>
   );

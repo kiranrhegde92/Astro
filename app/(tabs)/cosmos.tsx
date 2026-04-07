@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { GradientCard } from '../../src/components/ui/GradientCard';
+import { SectionTabs } from '../../src/components/ui/SectionTabs';
 import { StarField } from '../../src/components/ui/StarField';
 import { CosmicButton } from '../../src/components/ui/CosmicButton';
 import { BORDER_RADIUS, COLORS, FONTS, SPACING } from '../../src/constants/theme';
@@ -19,6 +20,7 @@ const MOODS = [
 
 export default function CosmosScreen() {
   const router = useRouter();
+  const [activeSection, setActiveSection] = useState('write');
   const today = useMemo(() => new Date(), []);
   const todayKey = getDateKey(today);
   const getCachedReading = useReadingStore((state) => state.getCachedReading);
@@ -44,6 +46,11 @@ export default function CosmosScreen() {
     todayReading?.unified.affirmation ??
     'What did today reveal that you would have missed without slowing down?';
   const archive = getRecentReadings(10);
+  const tabs = [
+    { key: 'write', label: 'Write' },
+    { key: 'archive', label: 'Archive' },
+    { key: 'notes', label: 'Notes' },
+  ];
 
   const handleSave = async () => {
     if (!note.trim()) return;
@@ -68,99 +75,108 @@ export default function CosmosScreen() {
         <Text style={styles.copy}>
           This is your private sky log: one place for reflections, prompts, and the last few readings that shaped the week.
         </Text>
+        <SectionTabs tabs={tabs} activeKey={activeSection} onChange={setActiveSection} />
 
-        <GradientCard accentColor={COLORS.tide}>
-          <Text style={styles.promptLabel}>Tonight&apos;s prompt</Text>
-          <Text style={styles.promptText}>{prompt}</Text>
-        </GradientCard>
+        {activeSection === 'write' && (
+          <>
+            <GradientCard accentColor={COLORS.tide}>
+              <Text style={styles.promptLabel}>Tonight&apos;s prompt</Text>
+              <Text style={styles.promptText}>{prompt}</Text>
+            </GradientCard>
 
-        <GradientCard accentColor={COLORS.iris} style={styles.journalCard}>
-          <Text style={styles.sectionLabel}>Today&apos;s note</Text>
-          <TextInput
-            value={title}
-            onChangeText={setTitle}
-            placeholder="Give this feeling a title"
-            placeholderTextColor={COLORS.textMuted}
-            style={styles.titleInput}
-          />
-          <TextInput
-            value={note}
-            onChangeText={setNote}
-            placeholder="Write what landed, what shifted, or what still feels unresolved."
-            placeholderTextColor={COLORS.textMuted}
-            style={styles.noteInput}
-            multiline
-            textAlignVertical="top"
-          />
+            <GradientCard accentColor={COLORS.iris} style={styles.journalCard}>
+              <Text style={styles.sectionLabel}>Today&apos;s note</Text>
+              <TextInput
+                value={title}
+                onChangeText={setTitle}
+                placeholder="Give this feeling a title"
+                placeholderTextColor={COLORS.textMuted}
+                style={styles.titleInput}
+              />
+              <TextInput
+                value={note}
+                onChangeText={setNote}
+                placeholder="Write what landed, what shifted, or what still feels unresolved."
+                placeholderTextColor={COLORS.textMuted}
+                style={styles.noteInput}
+                multiline
+                textAlignVertical="top"
+              />
 
-          <View style={styles.moodRow}>
-            {MOODS.map((option) => {
-              const active = option.value === mood;
-              return (
-                <TouchableOpacity
-                  key={option.value}
-                  onPress={() => setMood(option.value)}
-                  style={[styles.moodChip, active && styles.moodChipActive]}
-                  activeOpacity={0.84}
-                >
-                  <Text style={[styles.moodText, active && styles.moodTextActive]}>{option.label}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          <View style={styles.actionRow}>
-            <CosmicButton title={currentEntry ? 'Update note' : 'Save note'} onPress={handleSave} />
-            {currentEntry ? (
-              <CosmicButton title="Delete" onPress={() => void removeEntry(currentEntry.id)} variant="outline" />
-            ) : null}
-          </View>
-        </GradientCard>
-
-        <GradientCard style={styles.archiveCard} accentColor={COLORS.gold}>
-          <Text style={styles.sectionLabel}>Reading archive</Text>
-          {archive.length ? (
-            archive.map((reading) => {
-              const linkedEntry = entries.find((entry) => entry.linkedReadingDate === reading.date);
-              return (
-                <View key={reading.date} style={styles.archiveItem}>
-                  <View style={styles.archiveMeta}>
-                    <Text style={styles.archiveDate}>{formatDisplayDate(reading.date)}</Text>
-                    {linkedEntry ? <Text style={styles.archiveBadge}>Journaled</Text> : null}
-                  </View>
-                  <Text style={styles.archiveVibe}>{reading.unified.cosmicVibe}</Text>
-                  <Text style={styles.archiveAffirmation}>"{reading.unified.affirmation}"</Text>
-                </View>
-              );
-            })
-          ) : (
-            <Text style={styles.emptyText}>Your reading archive will appear here as you keep opening the app.</Text>
-          )}
-        </GradientCard>
-
-        <GradientCard style={styles.entriesCard} accentColor={COLORS.coral}>
-          <View style={styles.entriesHeader}>
-            <Text style={styles.sectionLabel}>Recent notes</Text>
-            <TouchableOpacity onPress={() => router.push('/(tabs)/today')} activeOpacity={0.84}>
-              <Text style={styles.entriesLink}>Back to today</Text>
-            </TouchableOpacity>
-          </View>
-
-          {entries.length ? (
-            entries.slice(0, 8).map((entry) => (
-              <View key={entry.id} style={styles.entryItem}>
-                <View style={styles.entryTop}>
-                  <Text style={styles.entryDate}>{formatDisplayDate(entry.date)}</Text>
-                  <Text style={styles.entryMood}>{entry.mood}</Text>
-                </View>
-                {entry.title ? <Text style={styles.entryTitle}>{entry.title}</Text> : null}
-                <Text style={styles.entryBody}>{entry.body}</Text>
+              <View style={styles.moodRow}>
+                {MOODS.map((option) => {
+                  const active = option.value === mood;
+                  return (
+                    <TouchableOpacity
+                      key={option.value}
+                      onPress={() => setMood(option.value)}
+                      style={[styles.moodChip, active && styles.moodChipActive]}
+                      activeOpacity={0.84}
+                    >
+                      <Text style={[styles.moodText, active && styles.moodTextActive]}>{option.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
-            ))
-          ) : (
-            <Text style={styles.emptyText}>No notes yet. Save one tonight and this page becomes your personal archive.</Text>
-          )}
-        </GradientCard>
+
+              <View style={styles.actionRow}>
+                <CosmicButton title={currentEntry ? 'Update note' : 'Save note'} onPress={handleSave} />
+                {currentEntry ? (
+                  <CosmicButton title="Delete" onPress={() => void removeEntry(currentEntry.id)} variant="outline" />
+                ) : null}
+              </View>
+            </GradientCard>
+          </>
+        )}
+
+        {activeSection === 'archive' && (
+          <GradientCard style={styles.archiveCard} accentColor={COLORS.gold}>
+            <Text style={styles.sectionLabel}>Reading archive</Text>
+            {archive.length ? (
+              archive.map((reading) => {
+                const linkedEntry = entries.find((entry) => entry.linkedReadingDate === reading.date);
+                return (
+                  <View key={reading.date} style={styles.archiveItem}>
+                    <View style={styles.archiveMeta}>
+                      <Text style={styles.archiveDate}>{formatDisplayDate(reading.date)}</Text>
+                      {linkedEntry ? <Text style={styles.archiveBadge}>Journaled</Text> : null}
+                    </View>
+                    <Text style={styles.archiveVibe}>{reading.unified.cosmicVibe}</Text>
+                    <Text style={styles.archiveAffirmation}>"{reading.unified.affirmation}"</Text>
+                  </View>
+                );
+              })
+            ) : (
+              <Text style={styles.emptyText}>Your reading archive will appear here as you keep opening the app.</Text>
+            )}
+          </GradientCard>
+        )}
+
+        {activeSection === 'notes' && (
+          <GradientCard style={styles.entriesCard} accentColor={COLORS.coral}>
+            <View style={styles.entriesHeader}>
+              <Text style={styles.sectionLabel}>Recent notes</Text>
+              <TouchableOpacity onPress={() => router.push('/(tabs)/today')} activeOpacity={0.84}>
+                <Text style={styles.entriesLink}>Back to today</Text>
+              </TouchableOpacity>
+            </View>
+
+            {entries.length ? (
+              entries.slice(0, 8).map((entry) => (
+                <View key={entry.id} style={styles.entryItem}>
+                  <View style={styles.entryTop}>
+                    <Text style={styles.entryDate}>{formatDisplayDate(entry.date)}</Text>
+                    <Text style={styles.entryMood}>{entry.mood}</Text>
+                  </View>
+                  {entry.title ? <Text style={styles.entryTitle}>{entry.title}</Text> : null}
+                  <Text style={styles.entryBody}>{entry.body}</Text>
+                </View>
+              ))
+            ) : (
+              <Text style={styles.emptyText}>No notes yet. Save one tonight and this page becomes your personal archive.</Text>
+            )}
+          </GradientCard>
+        )}
       </ScrollView>
     </StarField>
   );

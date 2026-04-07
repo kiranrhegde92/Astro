@@ -6,7 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": false,
     "scheme": "cosmicself",
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -31,7 +30,15 @@
     },
     "plugins": [
       "expo-router",
-      "expo-localization"
+      "expo-localization",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow CosmicSelf to scan shared QR codes",
+          "barcodeScannerEnabled": true
+        }
+      ],
+      "expo-sharing"
     ]
   }
 }

@@ -181,7 +181,7 @@ export default function TodayScreen() {
     [forecastWindow, profile, today]
   );
   const explainItems = useMemo(() => {
-    if (!user || !reading || reading === 'error') return [];
+    if (!user || !reading) return [];
     return getReadingExplainers(user, reading);
   }, [reading, user]);
 
@@ -192,21 +192,6 @@ export default function TodayScreen() {
           <CosmicOrb size={176} />
           <Text style={styles.emptyTitle}>Preparing your morning almanac</Text>
           <Text style={styles.emptyCopy}>We are arranging today's reading around your saved chart.</Text>
-        </View>
-      </StarField>
-    );
-  }
-
-  if (reading === 'error') {
-    return (
-      <StarField>
-        <View style={styles.emptyWrap}>
-          <CosmicOrb size={176} />
-          <Text style={styles.emptyTitle}>Today is taking a slower path</Text>
-          <Text style={styles.emptyCopy}>Refresh once and the reading should return.</Text>
-          <View style={styles.retryWrap}>
-            <CosmicButton title="Refresh today" onPress={() => setRetryKey((value) => value + 1)} />
-          </View>
         </View>
       </StarField>
     );

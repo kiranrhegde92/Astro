@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -6,6 +6,7 @@ import { CosmicOrb } from '../../src/components/ui/CosmicOrb';
 import { GradientCard } from '../../src/components/ui/GradientCard';
 import { OrbIcon } from '../../src/components/ui/OrbIcon';
 import { AnimatedCard } from '../../src/components/ui/AnimatedScreen';
+import { SectionTabs } from '../../src/components/ui/SectionTabs';
 import { StarField } from '../../src/components/ui/StarField';
 import { BORDER_RADIUS, COLORS, FONTS, SHADOWS, SPACING } from '../../src/constants/theme';
 import { getCosmicDNASummary } from '../../src/engines/unified';
@@ -42,6 +43,7 @@ function ActionRow({
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const [activeSection, setActiveSection] = useState('overview');
   const user = useUserStore((state) => state.user);
   const savedProfiles = useConnectionsStore((state) => state.savedProfiles);
   const entries = useJournalStore((state) => state.entries);
@@ -59,6 +61,12 @@ export default function ProfileScreen() {
 
   if (!user) return null;
 
+  const tabs = [
+    { key: 'overview', label: 'Overview' },
+    { key: 'library', label: 'Library' },
+    { key: 'actions', label: 'Actions' },
+  ];
+
   const birthDate = user.birthDetails.date.toLocaleDateString('en-US', {
     month: 'long',
     day: 'numeric',
@@ -69,77 +77,106 @@ export default function ProfileScreen() {
     <StarField>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <Text style={styles.kicker}>Profile</Text>
+        <SectionTabs tabs={tabs} activeKey={activeSection} onChange={setActiveSection} />
 
-        <AnimatedCard index={0}>
-          <View style={styles.posterWrap}>
-            <LinearGradient colors={COLORS.gradientInkSoft} style={styles.poster}>
-              <Text style={styles.posterLabel}>Your chart archive</Text>
-              <Text style={styles.name}>{user.name}</Text>
-              <Text style={styles.birthMeta}>
-                {birthDate}
-                {user.birthDetails.place?.name ? ` - ${user.birthDetails.place.name}` : ''}
-              </Text>
+        {activeSection === 'overview' && (
+          <>
+            <AnimatedCard index={0}>
+              <View style={styles.posterWrap}>
+                <LinearGradient colors={COLORS.gradientInkSoft} style={styles.poster}>
+                  <Text style={styles.posterLabel}>Your chart archive</Text>
+                  <Text style={styles.name}>{user.name}</Text>
+                  <Text style={styles.birthMeta}>
+                    {birthDate}
+                    {user.birthDetails.place?.name ? ` - ${user.birthDetails.place.name}` : ''}
+                  </Text>
+                </LinearGradient>
+                <View style={styles.posterOrb}>
+                  <CosmicOrb size={156} />
+                </View>
+              </View>
+            </AnimatedCard>
+
+            <AnimatedCard index={1}>
+              <LinearGradient colors={COLORS.gradientInkSoft} style={styles.archiveBoard}>
+                <Text style={styles.sectionLabel}>Cosmic DNA</Text>
+                <Text style={styles.summary}>{cosmicDNA}</Text>
+
+                <View style={styles.boardDivider} />
+
+                <View style={styles.boardRow}>
+                  <View style={styles.signatureChip}>
+                    <Text style={styles.signatureLabel}>Sun</Text>
+                    <Text style={styles.signatureValue}>{user.western?.sun ?? 'Unknown'}</Text>
+                  </View>
+                  <View style={styles.signatureChip}>
+                    <Text style={styles.signatureLabel}>Rashi</Text>
+                    <Text style={styles.signatureValue}>{user.vedic?.rashi ?? 'Unknown'}</Text>
+                  </View>
+                  <View style={styles.signatureChip}>
+                    <Text style={styles.signatureLabel}>Animal</Text>
+                    <Text style={styles.signatureValue}>{user.chinese?.animal ?? 'Unknown'}</Text>
+                  </View>
+                </View>
+              </LinearGradient>
+            </AnimatedCard>
+          </>
+        )}
+
+        {activeSection === 'library' && (
+          <AnimatedCard index={0}>
+            <LinearGradient colors={COLORS.gradientInkSoft} style={styles.archiveBoard}>
+              <Text style={styles.sectionLabel}>Library snapshot</Text>
+              <View style={styles.boardRow}>
+                <View style={styles.metric}>
+                  <Text style={styles.metricValue}>{savedProfiles.length}</Text>
+                  <Text style={styles.metricLabel}>Saved people</Text>
+                </View>
+                <View style={styles.metric}>
+                  <Text style={styles.metricValue}>{entries.length}</Text>
+                  <Text style={styles.metricLabel}>Journal notes</Text>
+                </View>
+                <View style={styles.metric}>
+                  <Text style={styles.metricValue}>{archiveCount}</Text>
+                  <Text style={styles.metricLabel}>Archive days</Text>
+                </View>
+              </View>
+
+              <View style={styles.boardDivider} />
+
+              <View style={styles.boardRow}>
+                <View style={styles.metric}>
+                  <Text style={styles.metricValue}>{user.cosmicPoints}</Text>
+                  <Text style={styles.metricLabel}>Cosmic points</Text>
+                </View>
+                <View style={styles.metric}>
+                  <Text style={styles.metricValue}>{user.streak}</Text>
+                  <Text style={styles.metricLabel}>Reading streak</Text>
+                </View>
+                <View style={styles.metric}>
+                  <Text style={styles.metricValue}>{user.subscription.tier}</Text>
+                  <Text style={styles.metricLabel}>Plan</Text>
+                </View>
+              </View>
             </LinearGradient>
-            <View style={styles.posterOrb}>
-              <CosmicOrb size={156} />
-            </View>
-          </View>
-        </AnimatedCard>
+          </AnimatedCard>
+        )}
 
-        <AnimatedCard index={1}>
-          <LinearGradient colors={COLORS.gradientInkSoft} style={styles.archiveBoard}>
-            <Text style={styles.sectionLabel}>Cosmic DNA</Text>
-            <Text style={styles.summary}>{cosmicDNA}</Text>
-
-            <View style={styles.boardDivider} />
-
-            <View style={styles.boardRow}>
-              <View style={styles.signatureChip}>
-                <Text style={styles.signatureLabel}>Sun</Text>
-                <Text style={styles.signatureValue}>{user.western?.sun ?? 'Unknown'}</Text>
-              </View>
-              <View style={styles.signatureChip}>
-                <Text style={styles.signatureLabel}>Rashi</Text>
-                <Text style={styles.signatureValue}>{user.vedic?.rashi ?? 'Unknown'}</Text>
-              </View>
-              <View style={styles.signatureChip}>
-                <Text style={styles.signatureLabel}>Animal</Text>
-                <Text style={styles.signatureValue}>{user.chinese?.animal ?? 'Unknown'}</Text>
-              </View>
-            </View>
-
-            <View style={styles.boardDivider} />
-
-            <View style={styles.boardRow}>
-              <View style={styles.metric}>
-                <Text style={styles.metricValue}>{user.cosmicPoints}</Text>
-                <Text style={styles.metricLabel}>Cosmic points</Text>
-              </View>
-              <View style={styles.metric}>
-                <Text style={styles.metricValue}>{user.streak}</Text>
-                <Text style={styles.metricLabel}>Reading streak</Text>
-              </View>
-              <View style={styles.metric}>
-                <Text style={styles.metricValue}>{user.subscription.tier}</Text>
-                <Text style={styles.metricLabel}>Plan</Text>
-              </View>
-            </View>
-          </LinearGradient>
-        </AnimatedCard>
-
-        <AnimatedCard index={2}>
-          <GradientCard style={styles.actionsCard} colors={COLORS.gradientSilver} accentColor={COLORS.gold}>
-            <Text style={styles.actionsLabel}>Open next</Text>
-            <ActionRow label="Connections" value={`${savedProfiles.length} saved people`} onPress={() => router.push('/(tabs)/compatibility')} accent={COLORS.coral} icon="people" secondary="#ffdbe6" />
-            <ActionRow label="Journal" value={`${entries.length} notes, ${archiveCount} archive days`} onPress={() => router.push('/(tabs)/cosmos')} accent={COLORS.iris} icon="book" secondary="#ece6ff" />
-            <ActionRow label="Share card" value="Create a social card" onPress={() => router.push('/share/card')} accent={COLORS.gold} icon="share-social" secondary="#fff4cf" />
-            <ActionRow label="My QR code" value="Swap your profile instantly" onPress={() => router.push('/qr/my-code')} accent={COLORS.tide} icon="qr-code" secondary="#e1f5ef" />
-            <ActionRow label="Settings" value="Language, reminders, and logout" onPress={() => router.push('/settings')} accent={COLORS.plum} icon="settings" secondary="#f2e2ea" />
-            {user.subscription.tier === 'free' ? (
-              <ActionRow label="Upgrade" value="Unlock premium readings" onPress={() => router.push('/subscription')} accent={COLORS.sunOrange} icon="sparkles" secondary="#ffe9c7" />
-            ) : null}
-          </GradientCard>
-        </AnimatedCard>
+        {activeSection === 'actions' && (
+          <AnimatedCard index={0}>
+            <GradientCard style={styles.actionsCard} colors={COLORS.gradientSilver} accentColor={COLORS.gold}>
+              <Text style={styles.actionsLabel}>Open next</Text>
+              <ActionRow label="Connections" value={`${savedProfiles.length} saved people`} onPress={() => router.push('/(tabs)/compatibility')} accent={COLORS.coral} icon="people" secondary="#ffdbe6" />
+              <ActionRow label="Journal" value={`${entries.length} notes, ${archiveCount} archive days`} onPress={() => router.push('/(tabs)/cosmos')} accent={COLORS.iris} icon="book" secondary="#ece6ff" />
+              <ActionRow label="Share card" value="Create a social card" onPress={() => router.push('/share/card')} accent={COLORS.gold} icon="share-social" secondary="#fff4cf" />
+              <ActionRow label="My QR code" value="Swap your profile instantly" onPress={() => router.push('/qr/my-code')} accent={COLORS.tide} icon="qr-code" secondary="#e1f5ef" />
+              <ActionRow label="Settings" value="Language, reminders, and logout" onPress={() => router.push('/settings')} accent={COLORS.plum} icon="settings" secondary="#f2e2ea" />
+              {user.subscription.tier === 'free' ? (
+                <ActionRow label="Upgrade" value="Unlock premium readings" onPress={() => router.push('/subscription')} accent={COLORS.sunOrange} icon="sparkles" secondary="#ffe9c7" />
+              ) : null}
+            </GradientCard>
+          </AnimatedCard>
+        )}
       </ScrollView>
     </StarField>
   );

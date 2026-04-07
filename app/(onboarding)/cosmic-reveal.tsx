@@ -12,6 +12,7 @@ import { COLORS, FONTS, SPACING, BORDER_RADIUS } from '../../src/constants/theme
 import { useUserStore } from '../../src/store/userStore';
 import { useAuthStore } from '../../src/store/authStore';
 import { calculateUserChart } from '../../src/services/functionsService';
+import type { ChineseProfile, DashaPeriod, KPProfile, PlanetPosition, WesternProfile } from '../../src/types/astrology';
 
 type Status = 'calculating' | 'done' | 'error';
 
@@ -24,6 +25,25 @@ const STEPS = [
   'Calculating KP sub-lords…',
   'Weaving your cosmic profile…',
 ];
+
+const PLANET_NAME_MAP: Record<string, PlanetPosition['planet']> = {
+  SUN: 'Sun',
+  MOON: 'Moon',
+  MERCURY: 'Mercury',
+  VENUS: 'Venus',
+  MARS: 'Mars',
+  JUPITER: 'Jupiter',
+  SATURN: 'Saturn',
+  URANUS: 'Uranus',
+  NEPTUNE: 'Neptune',
+  PLUTO: 'Pluto',
+  NORTHNODE: 'NorthNode',
+  SOUTHNODE: 'SouthNode',
+};
+
+function toDate(value?: string) {
+  return value ? new Date(value) : new Date();
+}
 
 export default function CosmicRevealScreen() {
   const router = useRouter();
@@ -62,35 +82,89 @@ export default function CosmicRevealScreen() {
 
         // Push real data into userStore
         if (c.western) {
-          setWesternProfile({
+          const planets: PlanetPosition[] = Object.entries(c.western.planets ?? {})
+            .map(([planet, value]: [string, any]) => {
+              const mapped = PLANET_NAME_MAP[planet];
+              if (!mapped) return null;
+              return {
+                planet: mapped,
+                sign: value.sign,
+                degree: value.degree,
+                house: value.house,
+                retrograde: value.retrograde,
+              };
+            })
+            .filter(Boolean) as PlanetPosition[];
+
+          const westernProfile: WesternProfile = {
             sun: c.western.sun,
             moon: c.western.moon,
             rising: c.western.rising,
-            dominantElement: c.western.dominantElement,
-            dominantModality: c.western.dominantModality,
-          });
+            element: c.western.dominantElement,
+            modality: c.western.dominantModality,
+            planets,
+            houses: c.western.houses,
+          };
+
+          setWesternProfile(westernProfile);
         }
         if (c.vedic) {
+          const currentDasha: DashaPeriod = {
+            planet: c.vedic.currentDasha?.planet,
+            startDate: toDate(c.vedic.currentDasha?.startDate),
+            endDate: toDate(c.vedic.currentDasha?.endDate),
+          };
+
           setVedicProfile({
             rashi: c.vedic.rashi,
-            lagna: c.vedic.lagna,
             nakshatra: c.vedic.nakshatra,
             nakshatraPada: c.vedic.nakshatraPada,
-            currentDasha: c.vedic.currentDasha?.planet,
-            subDasha: c.vedic.subDasha?.planet,
+            moonSign: c.vedic.rashi,
+            dashas: [currentDasha],
+            currentDasha,
+            remedies: [],
           });
         }
         if (c.chinese) {
-          setChineseProfile({
+          const chineseProfile: ChineseProfile = {
             animal: c.chinese.animal,
             element: c.chinese.element,
             yinYang: c.chinese.yinYang,
-            luckyDirections: c.chinese.luckyDirections,
+            pillars: c.chinese.yearPillar
+              ? {
+                  year: { stem: c.chinese.yearPillar.stem, branch: c.chinese.yearPillar.animal, element: c.chinese.yearPillar.element },
+                  month: { stem: c.chinese.monthPillar.stem, branch: c.chinese.monthPillar.animal, element: c.chinese.monthPillar.element },
+                  day: { stem: c.chinese.dayPillar.stem, branch: c.chinese.dayPillar.animal, element: c.chinese.dayPillar.element },
+                  hour: { stem: c.chinese.hourPillar.stem, branch: c.chinese.hourPillar.animal, element: c.chinese.hourPillar.element },
+                }
+              : undefined,
+            luckyNumbers: c.chinese.luckyNumbers ?? [],
             luckyColors: c.chinese.luckyColors,
-          });
+            compatibleAnimals: [],
+            incompatibleAnimals: [],
+          };
+
+          setChineseProfile(chineseProfile);
         }
         if (c.kp) {
-          setKPProfile({ lagna: c.kp.lagna, lagnaSubLord: c.kp.lagnaSubLord });
+          const kpProfile: KPProfile = {
+            sublords: [],
+            cusps: (c.kp.houseCusps ?? []).map((house: any) => ({
+              house: house.house,
+              degree: 0,
+              sign: house.sign,
+              starLord: house.nakshatraLord,
+              subLord: house.subLord,
+            })),
+            significators: Object.entries(c.kp.significators ?? {}).map(([house, planets]: [string, any]) => ({
+              planet: (Array.isArray(planets) && planets[0] ? planets[0] : 'Sun'),
+              houses: [Number(house)],
+              strength: 'moderate',
+            })),
+            predictions: [],
+          };
+
+          setKPProfile(kpProfile);
         }
 
         setChart(c);
