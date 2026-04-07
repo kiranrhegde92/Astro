@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Alert, View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as Linking from 'expo-linking';
@@ -98,7 +98,7 @@ export default function RootLayout() {
             });
           })
           .catch(() => {
-            Alert.alert('Shared profile', 'Unable to open that shared chart.');
+            // deep-link error — silently ignore (no themed alert available in root layout)
           });
       }
     };

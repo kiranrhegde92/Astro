@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Alert, ScrollView,
+  KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView,
 } from 'react-native';
 import Animated, {
   FadeInDown,
@@ -17,6 +17,7 @@ import { AnimatedPressable } from '../../src/components/ui/AnimatedPressable';
 import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../../src/constants/theme';
 import { signUp } from '../../src/services/authService';
 import { createUserProfile } from '../../src/services/firestoreService';
+import { useCosmicAlert } from '../../src/components/ui/CosmicAlert';
 
 function FocusInput({ error, children }: { error?: boolean; children: React.ReactNode }) {
   const focused = useSharedValue(0);
@@ -49,6 +50,7 @@ export default function SignupScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
+  const { showAlert, alertModal } = useCosmicAlert();
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string }>({});
 
@@ -87,7 +89,7 @@ export default function SignupScreen() {
           : e.code === 'auth/network-request-failed'
           ? 'No internet connection.'
           : 'Sign up failed. Please try again.';
-      Alert.alert('Sign up failed', msg);
+      showAlert('Sign up failed', msg);
     } finally {
       setLoading(false);
     }
@@ -198,6 +200,7 @@ export default function SignupScreen() {
           <View style={{ height: SPACING.xxl }} />
         </ScrollView>
       </KeyboardAvoidingView>
+      {alertModal}
     </StarField>
   );
 }

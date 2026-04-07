@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import i18n from '../src/i18n';
 import { CosmicButton } from '../src/components/ui/CosmicButton';
@@ -14,6 +14,7 @@ import { useJournalStore } from '../src/store/journalStore';
 import { useReadingStore } from '../src/store/readingStore';
 import { useSettingsStore } from '../src/store/settingsStore';
 import { useUserStore } from '../src/store/userStore';
+import { useCosmicAlert } from '../src/components/ui/CosmicAlert';
 
 const LANGUAGES = [
   { code: 'en', name: 'English' },
@@ -56,6 +57,7 @@ export default function SettingsScreen() {
   const clearConnections = useConnectionsStore((state) => state.clearConnections);
   const clearJournal = useJournalStore((state) => state.clearJournal);
   const { language, notificationsEnabled, dailyNotificationTime, setLanguage, setNotifications, setNotificationTime } = useSettingsStore();
+  const { showAlert, alertModal } = useCosmicAlert();
   const [activeSection, setActiveSection] = useState('preferences');
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -78,12 +80,12 @@ export default function SettingsScreen() {
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      'Log Out',
-      'This app stores your profile locally. Logging out clears the saved chart on this device and returns you to onboarding.',
+    showAlert(
+      'Log out',
+      'This clears the saved chart on this device and returns you to login.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Log Out', style: 'destructive', onPress: () => void clearProfileAndReturnToOnboarding() },
+        { text: 'Log out', style: 'destructive', onPress: () => clearProfileAndReturnToOnboarding() },
       ]
     );
   };
@@ -174,6 +176,7 @@ export default function SettingsScreen() {
           </GradientCard>
         )}
       </ScrollView>
+      {alertModal}
     </StarField>
   );
 }

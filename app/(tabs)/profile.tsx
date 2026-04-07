@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +14,7 @@ import { useConnectionsStore } from '../../src/store/connectionsStore';
 import { useJournalStore } from '../../src/store/journalStore';
 import { useReadingStore } from '../../src/store/readingStore';
 import { useUserStore } from '../../src/store/userStore';
+import { useCosmicAlert } from '../../src/components/ui/CosmicAlert';
 import i18n from '../../src/i18n';
 
 const LANGUAGES = [
@@ -40,6 +41,7 @@ export default function ProfileScreen() {
   const setChineseProfile = useUserStore((s) => s.setChineseProfile);
   const setKPProfile = useUserStore((s) => s.setKPProfile);
 
+  const { showAlert, alertModal } = useCosmicAlert();
   const [currentLang, setCurrentLang] = useState(i18n.language?.split('-')[0] ?? 'en');
   const [recalculating, setRecalculating] = useState(false);
 
@@ -79,7 +81,7 @@ export default function ProfileScreen() {
         if (c.western) setWesternProfile({ sun: c.western.sun, moon: c.western.moon, rising: c.western.rising, element: c.western.dominantElement, modality: c.western.dominantModality, planets: [], houses: c.western.houses });
         if (c.vedic) setVedicProfile({ rashi: c.vedic.rashi, nakshatra: c.vedic.nakshatra, nakshatraPada: c.vedic.nakshatraPada, moonSign: c.vedic.rashi, dashas: [], currentDasha: { planet: c.vedic.currentDasha?.planet, startDate: new Date(c.vedic.currentDasha?.startDate), endDate: new Date(c.vedic.currentDasha?.endDate) }, remedies: [] });
         if (c.chinese) setChineseProfile({ animal: c.chinese.animal, element: c.chinese.element, yinYang: c.chinese.yinYang, pillars: undefined, luckyNumbers: [], luckyColors: c.chinese.luckyColors, compatibleAnimals: [], incompatibleAnimals: [] });
-        Alert.alert('Chart updated', `Rashi: ${c.vedic?.rashi ?? '—'}  ·  Nakshatra: ${c.vedic?.nakshatra ?? '—'}`);
+        showAlert('Chart updated', `Rashi: ${c.vedic?.rashi ?? '—'}  ·  Nakshatra: ${c.vedic?.nakshatra ?? '—'}`);
         return;
       } catch {
         // Cloud failed — fall through to local
@@ -91,16 +93,16 @@ export default function ProfileScreen() {
       if (local.vedic)   setVedicProfile(local.vedic);
       if (local.chinese) setChineseProfile(local.chinese);
       if (local.kp)      setKPProfile(local.kp);
-      Alert.alert('Chart recalculated', `Rashi: ${local.vedic?.rashi ?? '—'}  ·  Nakshatra: ${local.vedic?.nakshatra ?? '—'}`);
+      showAlert('Chart recalculated', `Rashi: ${local.vedic?.rashi ?? '—'}  ·  Nakshatra: ${local.vedic?.nakshatra ?? '—'}`);
     } catch (err) {
-      Alert.alert('Recalculation failed', 'Could not recalculate your chart. Please try again.');
+      showAlert('Recalculation failed', 'Could not recalculate your chart. Please try again.');
     } finally {
       setRecalculating(false);
     }
   };
 
   const handleLogout = () => {
-    Alert.alert(
+    showAlert(
       'Log out',
       'This signs you out and clears the local chart on this device.',
       [
@@ -263,6 +265,7 @@ export default function ProfileScreen() {
         </AnimatedCard>
 
       </ScrollView>
+      {alertModal}
     </StarField>
   );
 }

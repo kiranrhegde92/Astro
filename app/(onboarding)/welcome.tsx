@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -13,6 +13,7 @@ import { AnimatedCard } from '../../src/components/ui/AnimatedScreen';
 import { BORDER_RADIUS, COLORS, FONTS, SHADOWS, SPACING } from '../../src/constants/theme';
 import { useAuthStore } from '../../src/store/authStore';
 import { useUserStore } from '../../src/store/userStore';
+import { useCosmicAlert } from '../../src/components/ui/CosmicAlert';
 
 const LANGUAGES = [
   { code: 'en', native: 'English' },
@@ -100,6 +101,7 @@ export default function WelcomeScreen() {
   const { i18n } = useTranslation();
   const logout = useAuthStore((s) => s.logout);
   const clearUser = useUserStore((s) => s.clearUser);
+  const { showAlert, alertModal } = useCosmicAlert();
   const [selectedLang, setSelectedLang] = useState<SupportedLanguage>(() => {
     const code = i18n.language?.split('-')[0];
     return LANGUAGES.some((lang) => lang.code === code) ? (code as SupportedLanguage) : 'en';
@@ -107,7 +109,7 @@ export default function WelcomeScreen() {
   const copy = useMemo(() => WELCOME_COPY[selectedLang] ?? WELCOME_COPY.en, [selectedLang]);
 
   const handleLogout = () => {
-    Alert.alert(
+    showAlert(
       'Log out',
       'Sign out and return to the login screen?',
       [
@@ -191,6 +193,7 @@ export default function WelcomeScreen() {
           </GradientCard>
         </AnimatedCard>
       </ScrollView>
+      {alertModal}
     </StarField>
   );
 }

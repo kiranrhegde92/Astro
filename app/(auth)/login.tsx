@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Alert, ScrollView,
+  KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView,
 } from 'react-native';
 import Animated, {
   FadeInDown,
@@ -16,6 +16,7 @@ import { StarField } from '../../src/components/ui/StarField';
 import { AnimatedPressable } from '../../src/components/ui/AnimatedPressable';
 import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../../src/constants/theme';
 import { signIn } from '../../src/services/authService';
+import { useCosmicAlert } from '../../src/components/ui/CosmicAlert';
 
 // Per-field animated border wrapper
 function FocusInput({
@@ -59,6 +60,7 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
+  const { showAlert, alertModal } = useCosmicAlert();
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
@@ -85,7 +87,7 @@ export default function LoginScreen() {
           : e.code === 'auth/network-request-failed'
           ? 'No internet connection.'
           : 'Sign in failed. Please try again.';
-      Alert.alert('Sign in failed', msg);
+      showAlert('Sign in failed', msg);
     } finally {
       setLoading(false);
     }
@@ -175,6 +177,7 @@ export default function LoginScreen() {
           <View style={{ height: SPACING.xxl }} />
         </ScrollView>
       </KeyboardAvoidingView>
+      {alertModal}
     </StarField>
   );
 }

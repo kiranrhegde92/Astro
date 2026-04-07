@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import ViewShot from 'react-native-view-shot';
 import { CosmicButton } from '../../src/components/ui/CosmicButton';
+import { useCosmicAlert } from '../../src/components/ui/CosmicAlert';
 import { CosmicOrb } from '../../src/components/ui/CosmicOrb';
 import { GradientCard } from '../../src/components/ui/GradientCard';
 import { SectionTabs } from '../../src/components/ui/SectionTabs';
@@ -109,6 +110,7 @@ export default function CompatibilityScreen() {
   const removeSavedProfile = useConnectionsStore((state) => state.removeSavedProfile);
   const addCompatibilityHistory = useConnectionsStore((state) => state.addCompatibilityHistory);
 
+  const { showAlert, alertModal } = useCosmicAlert();
   const [name, setName] = useState('');
   const [day, setDay] = useState('');
   const [month, setMonth] = useState('');
@@ -187,7 +189,7 @@ export default function CompatibilityScreen() {
   const handleCheck = useCallback(async () => {
     if (!user?.western || !user?.vedic || !user?.chinese) return;
     if (!canRunCheck) {
-      Alert.alert('Daily limit reached', 'Free tier includes one saved comparison per day. Upgrade to unlock unlimited checks.');
+      showAlert('Daily limit reached', 'Free tier includes one saved comparison per day. Upgrade to unlock unlimited checks.');
       return;
     }
 
@@ -255,7 +257,7 @@ export default function CompatibilityScreen() {
     try {
       await captureAndShare(compatCardRef);
     } catch {
-      Alert.alert('Share', 'Unable to share right now.');
+      showAlert('Share', 'Unable to share right now.');
     }
   }, []);
 
@@ -450,6 +452,7 @@ export default function CompatibilityScreen() {
           </GradientCard>
         ) : null}
       </ScrollView>
+      {alertModal}
     </StarField>
   );
 }
