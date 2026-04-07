@@ -118,6 +118,132 @@ export const getDailyReading = onCall({ region: 'us-central1' }, async (request)
   return { reading, cached: false };
 });
 
+// ─── calculateCompatibility ───────────────────────────────────────────────────
+// Called when User A wants synastry against User B (via QR / uid).
+export const calculateCompatibility = onCall({ region: 'us-central1' }, async (request) => {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in required.');
+
+  const { partnerUid } = request.data as { partnerUid: string };
+  if (!partnerUid) throw new HttpsError('invalid-argument', 'partnerUid required.');
+
+  const uid = request.auth.uid;
+  if (uid === partnerUid) throw new HttpsError('invalid-argument', 'Cannot compare with yourself.');
+
+  const [mySnap, partnerSnap] = await Promise.all([
+    db.doc(`charts/${uid}`).get(),
+    db.doc(`charts/${partnerUid}`).get(),
+  ]);
+
+  if (!mySnap.exists) throw new HttpsError('not-found', 'Your chart has not been calculated yet.');
+  if (!partnerSnap.exists) throw new HttpsError('not-found', 'Partner chart not found. They need to calculate their chart first.');
+
+  const myChart = mySnap.data()!;
+  const partnerChart = partnerSnap.data()!;
+
+  // Synastry: compare planet positions of both charts
+  const synastry = calculateSynastry(myChart, partnerChart);
+
+  // Save to connections subcollection
+  await db.doc(`connections/${uid}/partners/${partnerUid}`).set({
+    ...synastry,
+    calculatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  return { synastry };
+});
+
+function calculateSynastry(chart1: any, chart2: any) {
+  const planets1 = chart1.western?.planets ?? {};
+  const planets2 = chart2.western?.planets ?? {};
+
+  // Cross-chart aspects
+  const aspects: Array<{ planet1: string; planet2: string; aspect: string; orb: number }> = [];
+  const ASPECT_ANGLES: Record<number, string> = { 0: 'Conjunction', 60: 'Sextile', 90: 'Square', 120: 'Trine', 180: 'Opposition' };
+  const KEY_PLANETS = ['SUN','MOON','VENUS','MARS','JUPITER','SATURN'];
+
+  for (const p1 of KEY_PLANETS) {
+    for (const p2 of KEY_PLANETS) {
+      const pos1 = planets1[p1];
+      const pos2 = planets2[p2];
+      if (!pos1 || !pos2) continue;
+      let diff = Math.abs((pos1.longitude ?? 0) - (pos2.longitude ?? 0));
+      if (diff > 180) diff = 360 - diff;
+      for (const [angle, name] of Object.entries(ASPECT_ANGLES)) {
+        const orb = Math.abs(diff - Number(angle));
+        if (orb <= 8) {
+          aspects.push({ planet1: `Your ${p1}`, planet2: `Their ${p2}`, aspect: name, orb: Math.round(orb * 10) / 10 });
+        }
+      }
+    }
+  }
+
+  // Element compatibility between sun signs
+  const ELEMENTS: Record<string, string> = {
+    Aries:'Fire',Leo:'Fire',Sagittarius:'Fire',
+    Taurus:'Earth',Virgo:'Earth',Capricorn:'Earth',
+    Gemini:'Air',Libra:'Air',Aquarius:'Air',
+    Cancer:'Water',Scorpio:'Water',Pisces:'Water',
+  };
+  const COMPAT: Record<string, Record<string, number>> = {
+    Fire: { Fire:80, Air:90, Earth:50, Water:45 },
+    Earth: { Earth:75, Water:85, Fire:50, Air:55 },
+    Air: { Air:75, Fire:88, Water:50, Earth:55 },
+    Water: { Water:80, Earth:85, Air:50, Fire:45 },
+  };
+  const el1 = ELEMENTS[chart1.western?.sun] ?? 'Fire';
+  const el2 = ELEMENTS[chart2.western?.sun] ?? 'Fire';
+  const westernScore = COMPAT[el1]?.[el2] ?? 65;
+
+  // Vedic Guna Milan (simplified)
+  const NAKSHATRA_COMPAT: Record<string, number> = {
+    'Ashwini-Rohini': 28, 'Rohini-Mrigashira': 25, 'Ashwini-Ashwini': 18,
+  };
+  const nKey = [chart1.vedic?.nakshatra, chart2.vedic?.nakshatra].sort().join('-');
+  const vedicScore = NAKSHATRA_COMPAT[nKey] ?? Math.floor(50 + Math.random() * 30);
+
+  // Chinese compatibility
+  const CHINESE_COMPAT: Record<string, string[]> = {
+    Rat: ['Dragon','Monkey','Ox'], Ox: ['Rat','Snake','Rooster'],
+    Tiger: ['Horse','Dog','Dragon'], Rabbit: ['Sheep','Dog','Pig'],
+    Dragon: ['Rat','Monkey','Rooster'], Snake: ['Ox','Rooster'],
+    Horse: ['Tiger','Dog','Sheep'], Sheep: ['Rabbit','Horse','Pig'],
+    Monkey: ['Rat','Dragon'], Rooster: ['Ox','Snake','Dragon'],
+    Dog: ['Tiger','Rabbit','Horse'], Pig: ['Rabbit','Sheep'],
+  };
+  const a1 = chart1.chinese?.animal;
+  const a2 = chart2.chinese?.animal;
+  const chineseScore = (CHINESE_COMPAT[a1] ?? []).includes(a2) ? 85 : 60;
+
+  const overall = Math.round(westernScore * 0.3 + vedicScore * 0.35 + chineseScore * 0.35);
+
+  const trines = aspects.filter(a => a.aspect === 'Trine').length;
+  const conjunctions = aspects.filter(a => a.aspect === 'Conjunction').length;
+  const tensions = aspects.filter(a => a.aspect === 'Square').length;
+
+  return {
+    overall: Math.max(35, Math.min(98, overall)),
+    western: { score: westernScore, element1: el1, element2: el2 },
+    vedic: { score: vedicScore, nakshatra1: chart1.vedic?.nakshatra, nakshatra2: chart2.vedic?.nakshatra },
+    chinese: { score: chineseScore, animal1: a1, animal2: a2 },
+    aspects,
+    summary: `${trines} harmonious trines, ${conjunctions} powerful conjunctions, ${tensions} growth-bringing squares`,
+  };
+}
+
+// ─── registerFCMToken ─────────────────────────────────────────────────────────
+// Called from app when user logs in — saves their push token to Firestore.
+export const registerFCMToken = onCall({ region: 'us-central1' }, async (request) => {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in required.');
+  const { token } = request.data as { token: string };
+  if (!token) throw new HttpsError('invalid-argument', 'token required.');
+
+  await db.doc(`users/${request.auth.uid}`).update({
+    fcmToken: token,
+    fcmTokenUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  return { success: true };
+});
+
 // ─── scheduledDailyReadings ───────────────────────────────────────────────────
 // Runs at midnight UTC to pre-generate readings for all users.
 export const scheduledDailyReadings = onSchedule(
@@ -143,6 +269,23 @@ export const scheduledDailyReadings = onSchedule(
           ...reading,
           generatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
+
+        // Send FCM push notification if token exists
+        const fcmToken = doc.data().fcmToken as string | undefined;
+        if (fcmToken) {
+          const firstName = (doc.data().name as string ?? 'you').split(' ')[0];
+          const vibe = (reading as any).unified?.cosmicVibe ?? 'Your cosmic reading is ready.';
+          await admin.messaging().send({
+            token: fcmToken,
+            notification: {
+              title: `Good morning, ${firstName} ✨`,
+              body: vibe.length > 100 ? `${vibe.slice(0, 97)}…` : vibe,
+            },
+            data: { screen: 'today', date: dateKey },
+            android: { channelId: 'cosmic-daily' },
+            apns: { payload: { aps: { sound: 'default' } } },
+          }).catch(() => {}); // Silently ignore stale tokens
+        }
       } catch (err) {
         console.error(`Failed for user ${doc.id}:`, err);
       }

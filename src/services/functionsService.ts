@@ -33,3 +33,16 @@ export async function fetchDailyReading(): Promise<{ reading: any; cached: boole
   const result = await fn({});
   return result.data as any;
 }
+
+// ─── calculateCompatibility ───────────────────────────────────────────────────
+export async function fetchCompatibility(partnerUid: string): Promise<{ synastry: any }> {
+  const fn = httpsCallable<{ partnerUid: string }, { synastry: any }>(functions, 'calculateCompatibility');
+  const result = await fn({ partnerUid });
+  return result.data;
+}
+
+// ─── registerFCMToken ─────────────────────────────────────────────────────────
+export async function registerPushToken(token: string): Promise<void> {
+  const fn = httpsCallable(functions, 'registerFCMToken');
+  await fn({ token });
+}

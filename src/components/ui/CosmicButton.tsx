@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleProp, StyleSheet, Text, TouchableOpacity, ViewStyle } from 'react-native';
+import { ActivityIndicator, StyleProp, StyleSheet, Text, TouchableOpacity, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BORDER_RADIUS, COLORS, SHADOWS, SPACING, FONTS } from '../../constants/theme';
 
@@ -10,6 +10,7 @@ interface CosmicButtonProps {
   colors?: string[];
   style?: StyleProp<ViewStyle>;
   disabled?: boolean;
+  loading?: boolean;
 }
 
 export function CosmicButton({
@@ -19,6 +20,7 @@ export function CosmicButton({
   colors,
   style,
   disabled = false,
+  loading = false,
 }: CosmicButtonProps) {
   const gradientColors =
     colors ??
@@ -40,9 +42,12 @@ export function CosmicButton({
   }
 
   return (
-    <TouchableOpacity onPress={onPress} disabled={disabled} activeOpacity={0.9} style={[disabled && styles.disabled, style]}>
+    <TouchableOpacity onPress={onPress} disabled={disabled || loading} activeOpacity={0.9} style={[disabled && styles.disabled, style]}>
       <LinearGradient colors={gradientColors as [string, string, ...string[]]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.base, SHADOWS.glowGold]}>
-        <Text style={[styles.text, variant === 'secondary' && styles.secondaryText]}>{title}</Text>
+        {loading
+          ? <ActivityIndicator color="#fffaf1" />
+          : <Text style={[styles.text, variant === 'secondary' && styles.secondaryText]}>{title}</Text>
+        }
       </LinearGradient>
     </TouchableOpacity>
   );

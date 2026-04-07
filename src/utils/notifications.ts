@@ -8,6 +8,7 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import type { UserProfile } from '../types/user';
 import { generateDailyReading } from '../content/dailyTemplates';
+import { registerPushToken } from './notificationTokenHelper';
 
 // Configure how notifications appear when app is in foreground
 Notifications.setNotificationHandler({
@@ -45,6 +46,14 @@ export async function requestNotificationPermissions(): Promise<boolean> {
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#FFD700',
     });
+  }
+
+  // Register Expo push token with Firebase Cloud Functions
+  try {
+    const tokenData = await Notifications.getExpoPushTokenAsync();
+    await registerPushToken(tokenData.data);
+  } catch {
+    // Non-critical — app works without push token
   }
 
   return true;

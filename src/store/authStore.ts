@@ -3,6 +3,7 @@ import type { User } from 'firebase/auth';
 import { onAuthChange, signOut } from '../services/authService';
 import { getUserProfile } from '../services/firestoreService';
 import { useUserStore } from './userStore';
+import { requestNotificationPermissions } from '../utils/notifications';
 
 interface AuthState {
   firebaseUser: User | null;
@@ -29,6 +30,8 @@ export const useAuthStore = create<AuthState>((set) => ({
         } catch (e) {
           console.warn('Failed to load Firestore profile:', e);
         }
+        // Request push permissions and register token (non-blocking)
+        requestNotificationPermissions().catch(() => {});
       } else {
         // Signed out — clear local user
         useUserStore.getState().clearUser();
