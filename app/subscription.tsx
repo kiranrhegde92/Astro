@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import { useRouter } from 'expo-router';
 import { StarField } from '../src/components/ui/StarField';
 import { GlowText } from '../src/components/ui/GlowText';
+import { ScreenHeader } from '../src/components/ui/ScreenHeader';
 import { GradientCard } from '../src/components/ui/GradientCard';
 import { CosmicButton } from '../src/components/ui/CosmicButton';
 import { COLORS, SPACING, BORDER_RADIUS } from '../src/constants/theme';
@@ -53,15 +54,10 @@ export default function SubscriptionScreen() {
 
   return (
     <StarField>
+      <ScreenHeader title="CosmicSelf+" accentColor={COLORS.starGold} />
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <View style={styles.spacer} />
-
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backText}>{'\u2190'} Back</Text>
-        </TouchableOpacity>
-
         <Text style={styles.headerEmoji}>{'\u2728'}</Text>
-        <GlowText size="xl" align="center" color={COLORS.starGold}>
+        <GlowText size="lg" align="center" color={COLORS.starGold}>
           Unlock Your Full Cosmos
         </GlowText>
         <Text style={styles.subtitle}>
@@ -211,9 +207,6 @@ function PassItem({ name, price, desc }: { name: string; price: string; desc: st
 
 const styles = StyleSheet.create({
   container: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.xxl, gap: SPACING.md },
-  spacer: { height: 50 },
-  backButton: { marginBottom: SPACING.sm },
-  backText: { color: COLORS.textSecondary, fontSize: 16 },
   headerEmoji: { fontSize: 56, textAlign: 'center' },
   subtitle: { color: COLORS.textSecondary, fontSize: 15, textAlign: 'center', marginBottom: SPACING.sm },
   activeTitle: { color: COLORS.starGold, fontSize: 18, fontWeight: '700' },

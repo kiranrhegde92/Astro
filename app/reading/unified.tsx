@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StarField } from '../../src/components/ui/StarField';
-import { GlowText } from '../../src/components/ui/GlowText';
+import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
 import { GradientCard } from '../../src/components/ui/GradientCard';
 import { CosmicButton } from '../../src/components/ui/CosmicButton';
 import { ProgressRing } from '../../src/components/ui/ProgressRing';
@@ -29,17 +29,9 @@ export default function UnifiedReadingScreen() {
 
   return (
     <StarField>
+      <ScreenHeader title="Unified Reading" accentColor={COLORS.starGold} />
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <View style={styles.spacer} />
-
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backText}>{'\u2190'} Back</Text>
-        </TouchableOpacity>
-
         <Text style={styles.headerEmoji}>{'\u{1F30C}'}</Text>
-        <GlowText size="xl" align="center" color={COLORS.starGold}>
-          Unified Cosmic Reading
-        </GlowText>
         <Text style={styles.subtitle}>
           All 4 systems aligned into one cosmic insight
         </Text>
@@ -216,9 +208,6 @@ function SourceRef({ text }: { text: string }) {
 
 const styles = StyleSheet.create({
   container: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.xxl, gap: SPACING.md },
-  spacer: { height: 50 },
-  backButton: { marginBottom: SPACING.sm },
-  backText: { color: COLORS.textSecondary, fontSize: 16 },
   headerEmoji: { fontSize: 56, textAlign: 'center' },
   subtitle: { color: COLORS.textSecondary, fontSize: 14, textAlign: 'center', marginBottom: SPACING.md },
   sectionLabel: { color: COLORS.textSecondary, fontSize: 10, fontWeight: '700', letterSpacing: 2 },

@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import i18n from '../src/i18n';
 import { StarField } from '../src/components/ui/StarField';
-import { GlowText } from '../src/components/ui/GlowText';
+import { ScreenHeader } from '../src/components/ui/ScreenHeader';
 import { GradientCard } from '../src/components/ui/GradientCard';
 import { CosmicButton } from '../src/components/ui/CosmicButton';
 import { COLORS, SPACING, BORDER_RADIUS } from '../src/constants/theme';
@@ -70,16 +70,8 @@ export default function SettingsScreen() {
 
   return (
     <StarField>
+      <ScreenHeader title="Settings" />
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <View style={styles.spacer} />
-
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backText}>{'\u2190'} Back</Text>
-        </TouchableOpacity>
-
-        <GlowText size="xl" align="center">
-          Settings
-        </GlowText>
 
         {/* Language */}
         <GradientCard>
@@ -255,10 +247,7 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.xxl, paddingTop: 58, gap: SPACING.lg },
-  spacer: { height: 0 },
-  backButton: { marginBottom: SPACING.xs },
-  backText: { color: COLORS.violet, fontSize: 15, fontWeight: '600' },
+  container: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.xxl, gap: SPACING.lg },
   sectionTitle: { color: COLORS.white, fontSize: 16, fontFamily: 'PlayfairDisplay_700Bold', marginBottom: SPACING.md },
   settingRow: {
     flexDirection: 'row',

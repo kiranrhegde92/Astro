@@ -1,9 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { useRouter } from 'expo-router';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import ReAnimated, { FadeInDown } from 'react-native-reanimated';
 import { StarField } from '../../src/components/ui/StarField';
-import { GlowText } from '../../src/components/ui/GlowText';
+import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
 import { GradientCard } from '../../src/components/ui/GradientCard';
 import { COLORS, SPACING, BORDER_RADIUS } from '../../src/constants/theme';
 import { useUserStore } from '../../src/store/userStore';
@@ -11,7 +10,6 @@ import { WESTERN_ZODIAC } from '../../src/constants/zodiacData';
 import { getRulingPlanet, getElement, getModality } from '../../src/engines/western';
 
 export default function WesternReadingScreen() {
-  const router = useRouter();
   const user = useUserStore((s) => s.user);
 
   if (!user?.western) return null;
@@ -21,18 +19,10 @@ export default function WesternReadingScreen() {
 
   return (
     <StarField>
+      <ScreenHeader title="Western Astrology" accentColor={COLORS.western} />
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <View style={styles.spacer} />
-
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backText}>{'\u2190'} Back</Text>
-        </TouchableOpacity>
-
         <ReAnimated.View entering={FadeInDown.delay(100).duration(500).springify()}>
           <Text style={styles.headerEmoji}>{sunInfo?.emoji ?? '\u2648'}</Text>
-          <GlowText size="xl" align="center" color={COLORS.western}>
-            Western Astrology
-          </GlowText>
         </ReAnimated.View>
 
         {/* Sun Sign */}
@@ -178,9 +168,6 @@ function BookRef({ title, author, desc }: { title: string; author: string; desc:
 
 const styles = StyleSheet.create({
   container: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.xxl, gap: SPACING.md },
-  spacer: { height: 50 },
-  backButton: { marginBottom: SPACING.sm },
-  backText: { color: COLORS.textSecondary, fontSize: 16 },
   headerEmoji: { fontSize: 56, textAlign: 'center' },
   cardTitle: { color: COLORS.white, fontSize: 16, fontWeight: '700', marginBottom: SPACING.sm },
   signName: { color: COLORS.starGold, fontSize: 28, fontWeight: '800' },

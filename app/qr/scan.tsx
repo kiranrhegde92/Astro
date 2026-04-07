@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StarField } from '../../src/components/ui/StarField';
-import { GlowText } from '../../src/components/ui/GlowText';
+import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
 import { CosmicButton } from '../../src/components/ui/CosmicButton';
 import { COLORS, SPACING, BORDER_RADIUS } from '../../src/constants/theme';
 
@@ -25,12 +25,8 @@ export default function QRScanScreen() {
 
   return (
     <StarField>
+      <ScreenHeader title="Scan Cosmic QR" />
       <View style={styles.container}>
-        <View style={styles.spacer} />
-
-        <GlowText size="xl" align="center">
-          Scan Cosmic QR
-        </GlowText>
         <Text style={styles.subtitle}>
           Scan someone's CosmicSelf QR code to instantly see your compatibility across all systems
         </Text>
@@ -81,7 +77,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: SPACING.lg,
   },
-  spacer: { height: 60 },
   subtitle: {
     color: COLORS.textSecondary,
     fontSize: 14,
@@ -134,7 +129,7 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderColor: COLORS.cardBorder,
+    borderColor: COLORS.glassBorder,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     color: COLORS.white,

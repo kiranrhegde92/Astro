@@ -1,9 +1,8 @@
 import React, { useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { useRouter } from 'expo-router';
 import ViewShot from 'react-native-view-shot';
 import { StarField } from '../../src/components/ui/StarField';
-import { GlowText } from '../../src/components/ui/GlowText';
+import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
 import { CosmicButton } from '../../src/components/ui/CosmicButton';
 import { ShareableCard, DailyVibeCard } from '../../src/components/share/ShareableCard';
 import { COLORS, SPACING, BORDER_RADIUS } from '../../src/constants/theme';
@@ -14,7 +13,6 @@ import { getDailyAffirmation, getDailyOpener } from '../../src/content/positiveF
 type CardType = 'cosmic-dna' | 'daily-vibe';
 
 export default function ShareCardScreen() {
-  const router = useRouter();
   const user = useUserStore((s) => s.user);
   const viewShotRef = useRef<ViewShot>(null);
   const [activeTab, setActiveTab] = useState<CardType>('cosmic-dna');
@@ -35,16 +33,8 @@ export default function ShareCardScreen() {
 
   return (
     <StarField>
+      <ScreenHeader title="Share Your Stars" />
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <View style={styles.spacer} />
-
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backText}>{'\u2190'} Back</Text>
-        </TouchableOpacity>
-
-        <GlowText size="xl" align="center">
-          Share Your Stars
-        </GlowText>
         <Text style={styles.subtitle}>
           Create beautiful shareable cards for social media
         </Text>
@@ -112,9 +102,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingBottom: SPACING.xxl,
   },
-  spacer: { height: 50 },
-  backButton: { marginBottom: SPACING.md },
-  backText: { color: COLORS.textSecondary, fontSize: 16 },
   subtitle: {
     color: COLORS.textSecondary,
     fontSize: 14,

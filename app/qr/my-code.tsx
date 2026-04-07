@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import { useRouter } from 'expo-router';
 import ViewShot from 'react-native-view-shot';
 import { StarField } from '../../src/components/ui/StarField';
-import { GlowText } from '../../src/components/ui/GlowText';
+import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
 import { CosmicButton } from '../../src/components/ui/CosmicButton';
 import { QRCodeCard } from '../../src/components/share/QRCodeCard';
 import { COLORS, SPACING, BORDER_RADIUS } from '../../src/constants/theme';
@@ -34,16 +34,8 @@ export default function MyQRCodeScreen() {
 
   return (
     <StarField>
+      <ScreenHeader title="My Cosmic QR" />
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <View style={styles.spacer} />
-
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backText}>{'\u2190'} Back</Text>
-        </TouchableOpacity>
-
-        <GlowText size="xl" align="center">
-          My Cosmic QR
-        </GlowText>
         <Text style={styles.subtitle}>
           Share your QR code and let others discover your Cosmic DNA instantly
         </Text>
@@ -139,9 +131,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingBottom: SPACING.xxl,
   },
-  spacer: { height: 50 },
-  backButton: { marginBottom: SPACING.md },
-  backText: { color: COLORS.textSecondary, fontSize: 16 },
   subtitle: {
     color: COLORS.textSecondary,
     fontSize: 14,
