@@ -3,12 +3,11 @@ import type { User } from 'firebase/auth';
 import { onAuthChange, signOut } from '../services/authService';
 import { getUserProfile } from '../services/firestoreService';
 import { useUserStore } from './userStore';
-import { requestNotificationPermissions } from '../utils/notifications';
 
 interface AuthState {
   firebaseUser: User | null;
   authReady: boolean;
-  initialize: () => () => void; // returns unsubscribe
+  initialize: () => () => void;
   logout: () => Promise<void>;
 }
 
@@ -21,7 +20,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ firebaseUser: user, authReady: true });
 
       if (user) {
-        // Load user profile from Firestore into userStore
+        // Load Firestore profile
         try {
           const profile = await getUserProfile(user.uid);
           if (profile) {
@@ -30,10 +29,13 @@ export const useAuthStore = create<AuthState>((set) => ({
         } catch (e) {
           console.warn('Failed to load Firestore profile:', e);
         }
-        // Request push permissions and register token (non-blocking)
-        requestNotificationPermissions().catch(() => {});
+        // Request push permissions — lazy import so Expo Go crash can't block route loading
+        setTimeout(() => {
+          import('../utils/notifications')
+            .then(m => m.requestNotificationPermissions())
+            .catch(() => {});
+        }, 3000);
       } else {
-        // Signed out — clear local user
         useUserStore.getState().clearUser();
       }
     });

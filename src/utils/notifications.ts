@@ -6,9 +6,13 @@
  */
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import type { UserProfile } from '../types/user';
 import { generateDailyReading } from '../content/dailyTemplates';
 import { registerPushToken } from './notificationTokenHelper';
+
+// Push tokens are unavailable in Expo Go since SDK 53
+const IS_EXPO_GO = Constants.appOwnership === 'expo';
 
 // Configure how notifications appear when app is in foreground
 Notifications.setNotificationHandler({
@@ -48,12 +52,14 @@ export async function requestNotificationPermissions(): Promise<boolean> {
     });
   }
 
-  // Register Expo push token with Firebase Cloud Functions
-  try {
-    const tokenData = await Notifications.getExpoPushTokenAsync();
-    await registerPushToken(tokenData.data);
-  } catch {
-    // Non-critical — app works without push token
+  // Register push token — only available in standalone/dev builds, not Expo Go
+  if (!IS_EXPO_GO) {
+    try {
+      const tokenData = await Notifications.getExpoPushTokenAsync();
+      await registerPushToken(tokenData.data);
+    } catch {
+      // Non-critical
+    }
   }
 
   return true;
