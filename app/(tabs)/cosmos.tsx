@@ -281,7 +281,7 @@ export default function CosmosScreen() {
           </Text>
         </GradientCard>
 
-        <View style={{ height: 110 }} />
+        <View style={{ height: 140 }} />
       </ScrollView>
 
       {/* FAB — New Post */}
@@ -447,7 +447,7 @@ const styles = StyleSheet.create({
   // FAB
   fab: {
     position: 'absolute',
-    bottom: 100,
+    bottom: 130,
     right: SPACING.lg,
     shadowColor: COLORS.western,
     shadowOffset: { width: 0, height: 4 },

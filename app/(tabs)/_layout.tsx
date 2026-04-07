@@ -12,6 +12,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Platform, Animated } from 're
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { COLORS, BORDER_RADIUS } from '../../src/constants/theme';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
@@ -80,8 +81,10 @@ function TabItem({
 }
 
 function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
+  const insets = useSafeAreaInsets();
+  const bottomOffset = Math.max(insets.bottom + 8, Platform.OS === 'ios' ? 28 : 16);
   return (
-    <View style={styles.wrapper} pointerEvents="box-none">
+    <View style={[styles.wrapper, { bottom: bottomOffset }]} pointerEvents="box-none">
       <View style={styles.pillShadow}>
         <View style={styles.pill}>
           <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFillObject} />
@@ -135,12 +138,10 @@ export default function TabsLayout() {
 }
 
 const BAR_H = 64;
-const BOTTOM = Platform.OS === 'ios' ? 28 : 16;
 
 const styles = StyleSheet.create({
   wrapper: {
     position: 'absolute',
-    bottom: BOTTOM,
     left: 16,
     right: 16,
   },

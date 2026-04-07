@@ -46,7 +46,7 @@ function SkeletonBlock({ width: w, height: h, style }: { width: number | string;
   }, []);
   const opacity = shimmer.interpolate({ inputRange: [0, 1], outputRange: [0.06, 0.18] });
   return (
-    <Animated.View style={[{ width: w as any, height, borderRadius: 8, backgroundColor: '#ffffff', opacity }, style]} />
+    <Animated.View style={[{ width: w as any, height: h, borderRadius: 8, backgroundColor: '#ffffff' }, style, { opacity }]} />
   );
 }
 
@@ -367,7 +367,7 @@ export default function TodayScreen() {
           ))}
         </View>
 
-        <View style={{ height: 110 }} />
+        <View style={{ height: 140 }} />
       </ScrollView>
     </StarField>
   );

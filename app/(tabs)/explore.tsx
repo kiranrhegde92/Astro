@@ -125,7 +125,7 @@ export default function ExploreScreen() {
           </AnimatedPressable>
         ))}
 
-        <View style={{ height: 110 }} />
+        <View style={{ height: 140 }} />
       </ScrollView>
     </StarField>
   );

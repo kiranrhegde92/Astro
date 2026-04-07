@@ -119,7 +119,7 @@ export default function WelcomeScreen() {
                 <View style={[styles.iconCircle, { borderColor: `${sys.color}55` }]}>
                   <Ionicons name={sys.icon} size={22} color={sys.color} />
                 </View>
-                <Text style={[styles.sysLabel, { color: sys.color }]}>{sys.label}</Text>
+                <Text style={[styles.sysLabel, { color: '#ffffff' }]}>{sys.label}</Text>
                 <Text style={styles.sysSub}>{sys.sub}</Text>
               </LinearGradient>
             </View>

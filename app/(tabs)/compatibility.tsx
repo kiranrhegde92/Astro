@@ -127,7 +127,7 @@ export default function CompatibilityScreen() {
           </View>
         )}
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: 140 }} />
       </ScrollView>
     </StarField>
   );

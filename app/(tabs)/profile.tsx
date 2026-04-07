@@ -234,7 +234,7 @@ export default function ProfileScreen() {
           </AnimatedPressable>
         )}
 
-        <View style={{ height: 110 }} />
+        <View style={{ height: 140 }} />
       </ScrollView>
     </StarField>
   );
