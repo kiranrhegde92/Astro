@@ -6,12 +6,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // ─── Replace with your Firebase project config ───────────────────────────────
 // Firebase Console → Project Settings → Your apps → Web app → Config
 const firebaseConfig = {
-  apiKey:            'REPLACE_WITH_YOUR_API_KEY',
-  authDomain:        'REPLACE_WITH_YOUR_AUTH_DOMAIN',
-  projectId:         'REPLACE_WITH_YOUR_PROJECT_ID',
-  storageBucket:     'REPLACE_WITH_YOUR_STORAGE_BUCKET',
-  messagingSenderId: 'REPLACE_WITH_YOUR_MESSAGING_SENDER_ID',
-  appId:             'REPLACE_WITH_YOUR_APP_ID',
+  apiKey: "AIzaSyCJZmvAeg3CB2LHcjzgcZnsYTrm5mkAfgA",
+  authDomain: "cosmicself-66472.firebaseapp.com",
+  projectId: "cosmicself-66472",
+  storageBucket: "cosmicself-66472.firebasestorage.app",
+  messagingSenderId: "713381145492",
+  appId: "1:713381145492:web:f1638aec53e28b6de83d81",
+  measurementId: "G-JQ45K9NM0F"
 };
 // ─────────────────────────────────────────────────────────────────────────────
 

@@ -1,4 +1,4 @@
-import { getAllPlanets, getHouses, getAspects, dateToJulian, PlanetPosition } from './ephemeris';
+import { getAllPlanets, getHouseCusps, getAspects } from './ephemeris';
 
 export interface WesternChart {
   sun: string;           // Sun sign
@@ -43,9 +43,8 @@ export function calculateWesternChart(
   lat: number,
   lng: number
 ): WesternChart {
-  const jd = dateToJulian(birthDate);
-  const positions = getAllPlanets(jd); // Tropical (no ayanamsa)
-  const houses = getHouses(jd, lat, lng, 'P');
+  const positions = getAllPlanets(birthDate); // Tropical
+  const houses = getHouseCusps(birthDate, lat, lng);
   const aspects = getAspects(positions);
 
   const planetData: WesternChart['planets'] = {};
@@ -73,7 +72,7 @@ export function calculateWesternChart(
 
   // Rising sign from ascendant longitude
   const risingSigns = ['Aries','Taurus','Gemini','Cancer','Leo','Virgo','Libra','Scorpio','Sagittarius','Capricorn','Aquarius','Pisces'];
-  const risingIndex = Math.floor(houses.ascendant / 30) % 12;
+  const risingIndex = Math.floor(((houses.ascendant % 360) + 360) % 360 / 30) % 12;
 
   return {
     sun: positions.SUN?.sign ?? 'Unknown',

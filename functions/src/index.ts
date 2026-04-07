@@ -103,9 +103,8 @@ export const getDailyReading = onCall({ region: 'us-central1' }, async (request)
   const now = new Date();
 
   // Current transits
-  const { getAllPlanets, dateToJulian } = await import('./calculations/ephemeris');
-  const jdNow = dateToJulian(now);
-  const transits = getAllPlanets(jdNow);
+  const { getAllPlanets } = await import('./calculations/ephemeris');
+  const transits = getAllPlanets(now);
 
   // Generate reading text based on transits vs natal
   const reading = generateReadingFromTransits(chart, transits, now);
@@ -260,9 +259,8 @@ export const scheduledDailyReadings = onSchedule(
         const chartSnap = await db.doc(`charts/${uid}`).get();
         if (!chartSnap.exists) return;
 
-        const { getAllPlanets, dateToJulian } = await import('./calculations/ephemeris');
-        const jdNow = dateToJulian(new Date());
-        const transits = getAllPlanets(jdNow);
+        const { getAllPlanets } = await import('./calculations/ephemeris');
+        const transits = getAllPlanets(new Date());
         const reading = generateReadingFromTransits(chartSnap.data()!, transits, new Date());
 
         await db.doc(`dailyReadings/${uid}/dates/${dateKey}`).set({
@@ -282,7 +280,7 @@ export const scheduledDailyReadings = onSchedule(
               body: vibe.length > 100 ? `${vibe.slice(0, 97)}…` : vibe,
             },
             data: { screen: 'today', date: dateKey },
-            android: { channelId: 'cosmic-daily' },
+            android: { notification: { channelId: 'cosmic-daily' } },
             apns: { payload: { aps: { sound: 'default' } } },
           }).catch(() => {}); // Silently ignore stale tokens
         }
