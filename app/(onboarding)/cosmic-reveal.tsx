@@ -316,7 +316,7 @@ export default function CosmicRevealScreen() {
 function SignBadge({ label, value, color }: { label: string; value: string; color: string }) {
   return (
     <View style={styles.badge}>
-      <Text style={[styles.badgeLabel, { color: 'rgba(255,255,255,0.55)' }]}>{label}</Text>
+      <Text style={[styles.badgeLabel, { color: COLORS.textMuted }]}>{label}</Text>
       <Text style={[styles.badgeValue, { color }]}>{value}</Text>
     </View>
   );
