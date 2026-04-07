@@ -3,6 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { UserProfile, BirthDetails, AstrologySystem, Subscription } from '../types/user';
 import type { WesternProfile, VedicProfile, ChineseProfile, KPProfile } from '../types/astrology';
 import { getDateKey, getDayDifference } from '../utils/dateUtils';
+import { updateUserProfile } from '../services/firestoreService';
+import { currentUser } from '../services/authService';
 
 interface UserState {
   user: UserProfile | null;
@@ -245,8 +247,13 @@ export const useUserStore = create<UserState>((set, get) => ({
 
   saveUser: async () => {
     const { user } = get();
-    if (user) {
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+    if (!user) return;
+    // Save locally
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+    // Sync to Firestore if signed in
+    const fbUser = currentUser();
+    if (fbUser) {
+      updateUserProfile(fbUser.uid, user).catch(() => {});
     }
   },
 }));
