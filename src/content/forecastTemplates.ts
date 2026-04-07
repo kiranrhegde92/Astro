@@ -68,9 +68,9 @@ function getSeed(date: Date, profile: CosmicProfile) {
     date.getFullYear() +
     date.getMonth() * 13 +
     date.getDate() * 7 +
-    profile.western.sun.length +
-    profile.vedic.rashi.length +
-    profile.chinese.animal.length
+    (profile.western?.sun?.length ?? 0) +
+    (profile.vedic?.rashi?.length ?? 0) +
+    (profile.chinese?.animal?.length ?? 0)
   );
 }
 

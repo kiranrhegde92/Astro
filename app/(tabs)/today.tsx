@@ -164,7 +164,7 @@ export default function TodayScreen() {
   const firstName = user?.name?.split(' ')[0] ?? 'you';
   const journalEntry = getEntryForDate(todayKey);
   const profile = useMemo(() => {
-    if (!user?.western || !user?.vedic || !user?.chinese) return null;
+    if (!user?.western?.sun || !user?.vedic?.rashi || !user?.chinese?.animal) return null;
     return {
       western: user.western,
       vedic: user.vedic,
