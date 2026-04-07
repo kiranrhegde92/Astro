@@ -6,8 +6,8 @@ import { GlowText } from '../src/components/ui/GlowText';
 import { ScreenHeader } from '../src/components/ui/ScreenHeader';
 import { GradientCard } from '../src/components/ui/GradientCard';
 import { CosmicButton } from '../src/components/ui/CosmicButton';
-import { COLORS, SPACING, BORDER_RADIUS } from '../src/constants/theme';
-import { useSubscriptionStore } from '../src/store/subscriptionStore';
+import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../src/constants/theme';
+import { useUserStore } from '../src/store/userStore';
 
 type PlanType = 'monthly' | 'yearly';
 
@@ -32,17 +32,27 @@ const FAMILY_EXTRAS = [
 
 export default function SubscriptionScreen() {
   const router = useRouter();
-  const { startTrial, upgradeTo, subscription } = useSubscriptionStore();
+  const user = useUserStore((state) => state.user);
+  const startTrial = useUserStore((state) => state.startTrial);
+  const upgradeSubscription = useUserStore((state) => state.upgradeSubscription);
   const [selectedPlan, setSelectedPlan] = useState<PlanType>('yearly');
   const [selectedTier, setSelectedTier] = useState<'premium' | 'family'>('premium');
 
+  if (!user) return null;
+  const subscription = user.subscription;
+
   const handleSubscribe = () => {
-    // In production, this would trigger in-app purchase via RevenueCat
     if (subscription.status === 'active' && subscription.tier !== 'free') {
       router.back();
       return;
     }
-    startTrial();
+    if (subscription.status === 'trial') {
+      upgradeSubscription(selectedTier);
+    } else if (selectedPlan === 'yearly') {
+      startTrial();
+    } else {
+      upgradeSubscription(selectedTier);
+    }
     router.back();
   };
 
@@ -213,30 +223,32 @@ const styles = StyleSheet.create({
   activeDesc: { color: COLORS.textSecondary, fontSize: 14, marginTop: SPACING.xs },
   tierSelector: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: 'rgba(255,255,255,0.68)',
+    borderRadius: BORDER_RADIUS.lg,
     padding: 3,
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
   },
   tierTab: {
     flex: 1,
     paddingVertical: SPACING.sm,
-    borderRadius: BORDER_RADIUS.full,
+    borderRadius: BORDER_RADIUS.md,
     alignItems: 'center',
   },
   tierTabActive: { backgroundColor: COLORS.starGold },
   tierTabText: { color: COLORS.textSecondary, fontSize: 14, fontWeight: '600' },
-  tierTabTextActive: { color: COLORS.deepSpace, fontWeight: '700' },
+  tierTabTextActive: { color: COLORS.textPrimary, fontWeight: '700' },
   planRow: { flexDirection: 'row', gap: SPACING.sm },
   planCard: {
     flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: 'rgba(255,255,255,0.68)',
     borderWidth: 2,
-    borderColor: 'transparent',
+    borderColor: COLORS.glassBorder,
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.lg,
     alignItems: 'center',
   },
-  planCardActive: { borderColor: COLORS.starGold, backgroundColor: 'rgba(255,215,0,0.06)' },
+  planCardActive: { borderColor: COLORS.starGold, backgroundColor: 'rgba(255,255,255,0.82)' },
   saveBadge: {
     backgroundColor: COLORS.starGold,
     borderRadius: BORDER_RADIUS.full,
@@ -244,12 +256,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.sm,
     marginBottom: SPACING.sm,
   },
-  saveText: { color: COLORS.deepSpace, fontSize: 11, fontWeight: '800' },
-  planPrice: { color: COLORS.white, fontSize: 24, fontWeight: '800' },
+  saveText: { color: COLORS.textPrimary, fontSize: 11, fontWeight: '800' },
+  planPrice: { color: COLORS.textPrimary, fontSize: 24, fontWeight: '800' },
   planPeriod: { color: COLORS.textSecondary, fontSize: 13, marginTop: 2 },
   planMonthly: { color: COLORS.starGold, fontSize: 12, fontWeight: '600', marginTop: SPACING.xs },
   trialNote: { color: COLORS.textMuted, fontSize: 12, textAlign: 'center' },
-  featuresTitle: { color: COLORS.white, fontSize: 16, fontWeight: '700', marginBottom: SPACING.md },
+  featuresTitle: { color: COLORS.textPrimary, fontSize: 16, fontFamily: FONTS.heading, marginBottom: SPACING.md },
   featureRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -260,7 +272,7 @@ const styles = StyleSheet.create({
   featureText: { color: COLORS.textSecondary, fontSize: 14, flex: 1 },
   familyDivider: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: COLORS.glassBorder,
     marginVertical: SPACING.md,
   },
   familyTitle: { color: COLORS.starGold, fontSize: 14, fontWeight: '700', marginBottom: SPACING.xs },
@@ -270,13 +282,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: SPACING.sm,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
+    borderBottomColor: COLORS.glassBorder,
   },
   passInfo: { flex: 1 },
-  passName: { color: COLORS.white, fontSize: 14, fontWeight: '600' },
+  passName: { color: COLORS.textPrimary, fontSize: 14, fontWeight: '600' },
   passDesc2: { color: COLORS.textMuted, fontSize: 12, marginTop: 1 },
   passBuyBtn: {
-    backgroundColor: 'rgba(255,215,0,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.74)',
     borderRadius: BORDER_RADIUS.full,
     paddingVertical: 6,
     paddingHorizontal: SPACING.md,

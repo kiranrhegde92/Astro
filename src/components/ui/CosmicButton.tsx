@@ -1,14 +1,14 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ViewStyle } from 'react-native';
+import { StyleProp, StyleSheet, Text, TouchableOpacity, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, BORDER_RADIUS, SPACING, SHADOWS } from '../../constants/theme';
+import { BORDER_RADIUS, COLORS, SHADOWS, SPACING, FONTS } from '../../constants/theme';
 
 interface CosmicButtonProps {
   title: string;
   onPress: () => void;
   variant?: 'primary' | 'secondary' | 'outline';
   colors?: string[];
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   disabled?: boolean;
 }
 
@@ -20,72 +20,64 @@ export function CosmicButton({
   style,
   disabled = false,
 }: CosmicButtonProps) {
+  const gradientColors =
+    colors ??
+    (variant === 'secondary'
+      ? [COLORS.bgElevated, COLORS.bgCard]
+      : [...COLORS.gradientPrimary]);
+
   if (variant === 'outline') {
     return (
       <TouchableOpacity
         onPress={onPress}
         disabled={disabled}
-        style={[styles.outlineButton, disabled && styles.disabled, style]}
-        activeOpacity={0.7}
+        style={[styles.base, styles.outlineButton, disabled && styles.disabled, style]}
+        activeOpacity={0.84}
       >
         <Text style={styles.outlineText}>{title}</Text>
       </TouchableOpacity>
     );
   }
 
-  const gradientColors = colors ?? (variant === 'primary'
-    ? [COLORS.violet, COLORS.aurora]
-    : [COLORS.cosmic, COLORS.nebula]);
-
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      disabled={disabled}
-      activeOpacity={0.8}
-      style={[disabled && styles.disabled, style]}
-    >
-      <LinearGradient
-        colors={gradientColors as [string, string, ...string[]]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={[styles.button, SHADOWS.glow]}
-      >
-        <Text style={styles.buttonText}>{title}</Text>
+    <TouchableOpacity onPress={onPress} disabled={disabled} activeOpacity={0.9} style={[disabled && styles.disabled, style]}>
+      <LinearGradient colors={gradientColors as [string, string, ...string[]]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.base, SHADOWS.glowGold]}>
+        <Text style={[styles.text, variant === 'secondary' && styles.secondaryText]}>{title}</Text>
       </LinearGradient>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  button: {
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.xl,
-    borderRadius: BORDER_RADIUS.full,
+  base: {
+    minHeight: 52,
+    borderRadius: BORDER_RADIUS.lg,
+    paddingHorizontal: SPACING.lg,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
   },
-  buttonText: {
-    color: COLORS.white,
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+  text: {
+    color: '#fffaf1',
+    fontSize: 15,
+    fontFamily: FONTS.heading,
+    letterSpacing: 0.2,
+  },
+  secondaryText: {
+    color: COLORS.textPrimary,
   },
   outlineButton: {
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.xl,
-    borderRadius: BORDER_RADIUS.full,
-    borderWidth: 1.5,
-    borderColor: COLORS.violet,
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.74)',
+    borderColor: COLORS.glassBorderBright,
   },
   outlineText: {
-    color: COLORS.violet,
-    fontSize: 16,
-    fontWeight: '600',
-    letterSpacing: 0.5,
+    color: COLORS.textPrimary,
+    fontSize: 15,
+    fontFamily: FONTS.heading,
+    letterSpacing: 0.2,
   },
   disabled: {
-    opacity: 0.5,
+    opacity: 0.45,
   },
 });

@@ -1,207 +1,175 @@
-/**
- * CosmicSelf — Obsidian Glass Design System
- * Theme: Pure black base · White glass cards · Vibrant system accents
- * Fonts: Cinzel (Roman display) + System body
- * 3D: Depth via layered shadows + glossy overlays + chrome gradients
- */
-
-// ─── Base Palette ─────────────────────────────────────────────────────────────
-const BLACK = {
-  true:   '#000000',
-  950:    '#050505',
-  900:    '#0a0a0a',
-  850:    '#0f0f0f',
-  800:    '#141414',
-  750:    '#1a1a1a',
-  700:    '#1f1f1f',
-  600:    '#2a2a2a',
+const PAPER = {
+  50: '#fff8f2',
+  100: '#f4ebf8',
+  200: '#e6d8f2',
+  300: '#f8c892',
 };
 
-const WHITE = {
-  true:  '#ffffff',
-  w98:   'rgba(255,255,255,0.98)',
-  w85:   'rgba(255,255,255,0.85)',
-  w65:   'rgba(255,255,255,0.65)',
-  w42:   'rgba(255,255,255,0.42)',
-  w22:   'rgba(255,255,255,0.22)',
-  w12:   'rgba(255,255,255,0.12)',
-  w07:   'rgba(255,255,255,0.07)',
-  w04:   'rgba(255,255,255,0.04)',
+const INK = {
+  900: '#17182d',
+  800: '#24284a',
+  700: '#46507b',
+  600: '#6872a0',
+  500: '#959aba',
 };
 
-const SILVER = {
-  bright:  '#E8E8F0',
-  mid:     '#C0C0CC',
-  dim:     '#888899',
-  dark:    '#444455',
-};
-
-const GOLD = {
-  bright:  '#FFD700',
-  mid:     '#E5B800',
-  dim:     '#B8960C',
-  pale:    '#F0E080',
-};
-
-// ─── System Accent Colors (vibrant pops on monochrome) ──────────────────────
 const ACCENT = {
-  western:  '#7C6DFF',   // electric indigo
-  vedic:    '#FF6B35',   // ember orange
-  chinese:  '#FF3A5C',   // neon rose
-  kp:       '#00E5D1',   // electric teal
+  dawn: '#ff8a5b',
+  iris: '#7367ff',
+  tide: '#12c8b2',
+  plum: '#b04ec7',
+  gold: '#f1b74f',
+  coral: '#ff5e7e',
+  mint: '#7de7da',
 };
 
-// ─── Exported COLORS ──────────────────────────────────────────────────────────
 export const COLORS = {
-  // Backgrounds
-  bg:           '#0e0e18',
-  bgDeep:       '#0a0a12',
-  bgCard:       '#14141f',
-  bgElevated:   '#1a1a28',
+  bg: PAPER[100],
+  bgDeep: PAPER[50],
+  bgCard: 'rgba(255,248,252,0.72)',
+  bgElevated: 'rgba(255,255,255,0.86)',
+  bgMuted: 'rgba(230,216,242,0.52)',
+  bgInkCard: 'rgba(23,24,45,0.94)',
+  bgInkCardSoft: 'rgba(36,40,74,0.90)',
 
-  // Glass
-  glassBg:           WHITE.w04,
-  glassBgMid:        WHITE.w07,
-  glassBorder:       WHITE.w12,
-  glassBorderBright: WHITE.w22,
-  glassHighlight:    WHITE.w12,
+  glassBg: 'rgba(255,248,252,0.76)',
+  glassBgMid: 'rgba(255,255,255,0.86)',
+  glassBorder: 'rgba(36,40,74,0.12)',
+  glassBorderBright: 'rgba(115,103,255,0.28)',
+  glassHighlight: 'rgba(255,255,255,0.65)',
+  rule: 'rgba(36,40,74,0.14)',
+  ruleLight: 'rgba(255,250,241,0.16)',
 
-  // Text
-  textPrimary:   WHITE.true,
-  textSecondary: WHITE.w65,
-  textMuted:     'rgba(255,255,255,0.52)',  // raised from 0.42 — passes WCAG AA at 12px+
+  textPrimary: INK[900],
+  textSecondary: INK[700],
+  textMuted: INK[500],
+  ink: INK[900],
+  inkMid: INK[800],
+  inkSoft: INK[700],
 
-  // Metals
-  silver:        SILVER.bright,
-  silverMid:     SILVER.mid,
-  silverDim:     SILVER.dim,
-  white:         WHITE.true,
-  gold:          GOLD.bright,
-  goldMid:       GOLD.mid,
-  starGold:      GOLD.bright,
-  starGoldDeep:  GOLD.dim,
+  white: '#ffffff',
+  silver: '#f3edf7',
+  silverMid: '#cec4da',
+  silverDim: '#8f87a1',
+  gold: ACCENT.gold,
+  goldMid: '#bc8331',
+  starGold: ACCENT.gold,
+  starGoldDeep: '#bc8331',
 
-  // System accents
-  western:       ACCENT.western,
-  vedic:         ACCENT.vedic,
-  chinese:       ACCENT.chinese,
-  kp:            ACCENT.kp,
+  western: ACCENT.iris,
+  vedic: ACCENT.dawn,
+  chinese: ACCENT.coral,
+  kp: ACCENT.tide,
+  iris: ACCENT.iris,
+  tide: ACCENT.tide,
+  plum: ACCENT.plum,
+  coral: ACCENT.coral,
 
-  // Legacy aliases
-  violet:        ACCENT.western,
-  violetLight:   '#A89EFF',
-  violetBright:  '#A89EFF',
-  teal:          ACCENT.kp,
-  tealLight:     '#55F5E8',
-  deepSpace:     BLACK.true,
-  nebula:        BLACK[800],
-  cosmic:        BLACK[700],
-  aurora:        ACCENT.kp,
+  violet: ACCENT.iris,
+  violetLight: '#a59dff',
+  violetBright: '#b8b0ff',
+  teal: ACCENT.tide,
+  tealLight: ACCENT.mint,
+  deepSpace: PAPER[50],
+  nebula: PAPER[100],
+  cosmic: PAPER[200],
+  aurora: '#ffc888',
 
-  // Status
-  success: '#00E09A',
-  warning: GOLD.bright,
-  error:   '#FF3A5C',
+  success: '#58ad7c',
+  warning: ACCENT.gold,
+  error: '#d75c5c',
 
-  // System colors (extra)
-  sunOrange:  ACCENT.vedic,
-  moonSilver: SILVER.bright,
+  sunOrange: ACCENT.dawn,
+  moonSilver: '#f4efe6',
 
-  // Gradients
-  gradientBg:        ['#000000', '#050508', '#000000'] as const,
-  gradientCard:      ['rgba(255,255,255,0.10)', 'rgba(255,255,255,0.02)'] as const,
-  gradientPrimary:   [ACCENT.western, ACCENT.kp] as const,
-  gradientGold:      [GOLD.dim, GOLD.bright] as const,
-  gradientSilver:    ['rgba(220,220,240,0.22)', 'rgba(140,140,160,0.05)'] as const,
-  gradientChrome:    ['rgba(255,255,255,0.18)', 'rgba(180,180,200,0.04)'] as const,
-  gradientWestern:   ['#3D35CC', ACCENT.western] as const,
-  gradientVedic:     ['#CC3A10', ACCENT.vedic] as const,
-  gradientChinese:   ['#CC0030', ACCENT.chinese] as const,
-  gradientKP:        ['#007A72', ACCENT.kp] as const,
-  gradientMystic:    [ACCENT.western, ACCENT.kp] as const,
-  gradientCompatibility: ['#CC0030', ACCENT.vedic, GOLD.dim] as const,
+  gradientBg: ['#fff8f2', '#f4ebf8', '#ddd5ff'] as const,
+  gradientCard: ['rgba(255,255,255,0.80)', 'rgba(244,235,248,0.58)'] as const,
+  gradientInk: ['#17182d', '#24284a', '#46306b'] as const,
+  gradientInkSoft: ['#24284a', '#3c366d'] as const,
+  gradientDawn: ['#ffe0a4', '#ff9a68', '#ff5e7e'] as const,
+  gradientSunset: ['#ffd0b3', '#ff7e63', '#8c56ff'] as const,
+  gradientPrimary: ['#ff7b5b', '#ffbf63'] as const,
+  gradientGold: ['#ffe0a2', '#f1b74f'] as const,
+  gradientSilver: ['rgba(255,255,255,0.96)', 'rgba(230,216,242,0.76)'] as const,
+  gradientChrome: ['rgba(255,255,255,0.82)', 'rgba(230,216,242,0.52)'] as const,
+  gradientWestern: ['rgba(115,103,255,0.26)', 'rgba(115,103,255,0.08)'] as const,
+  gradientVedic: ['rgba(255,138,91,0.24)', 'rgba(255,138,91,0.08)'] as const,
+  gradientChinese: ['rgba(255,94,126,0.24)', 'rgba(255,94,126,0.08)'] as const,
+  gradientKP: ['rgba(18,200,178,0.24)', 'rgba(18,200,178,0.08)'] as const,
+  gradientMystic: ['rgba(255,255,255,0.72)', 'rgba(230,216,242,0.32)'] as const,
+  gradientCompatibility: ['rgba(255,94,126,0.16)', 'rgba(255,138,91,0.16)', 'rgba(115,103,255,0.14)'] as const,
 };
 
-// ─── Typography ───────────────────────────────────────────────────────────────
 export const FONTS = {
-  display: 'Cinzel_900Black',   // hero titles — Roman capitals
-  heading: 'Cinzel_700Bold',    // section heads
-  accent:  'Cinzel_400Regular', // labels, badges
-  body:    'System',
+  display: 'PlayfairDisplay_900Black',
+  heading: 'PlayfairDisplay_700Bold',
+  accent: 'Cinzel_400Regular',
+  body: 'System',
 };
 
-// ─── Type Scale (minimum 11px everywhere) ────────────────────────────────────
 export const TYPE = {
-  hero:    { fontSize: 42, letterSpacing: 4 },
-  title:   { fontSize: 28, letterSpacing: 3 },
-  heading: { fontSize: 20, letterSpacing: 1 },
-  subhead: { fontSize: 16, letterSpacing: 0.4 },
-  body:    { fontSize: 14, letterSpacing: 0 },
-  caption: { fontSize: 12, letterSpacing: 0.3 },
-  label:   { fontSize: 11, letterSpacing: 2 },   // minimum size for Cinzel all-caps labels
-  micro:   { fontSize: 11, letterSpacing: 1.5 }, // was 9px — now safe minimum
+  hero: { fontSize: 40, letterSpacing: -0.8 },
+  title: { fontSize: 30, letterSpacing: -0.4 },
+  heading: { fontSize: 22, letterSpacing: -0.2 },
+  subhead: { fontSize: 16, letterSpacing: 0 },
+  body: { fontSize: 15, letterSpacing: 0 },
+  caption: { fontSize: 13, letterSpacing: 0.1 },
+  label: { fontSize: 11, letterSpacing: 1.2 },
+  micro: { fontSize: 11, letterSpacing: 0.2 },
 };
 
-// ─── 8px base spacing grid ────────────────────────────────────────────────────
 export const SPACING = {
-  xs:  4,
-  sm:  8,
-  md:  16,
-  lg:  24,
-  xl:  32,
+  xs: 4,
+  sm: 8,
+  md: 16,
+  lg: 24,
+  xl: 32,
   xxl: 48,
 };
 
-// ─── Border radius ────────────────────────────────────────────────────────────
 export const BORDER_RADIUS = {
-  sm:   8,
-  md:   14,
-  lg:   20,
-  xl:   26,
-  xxl:  34,
+  sm: 8,
+  md: 14,
+  lg: 16,
+  xl: 24,
+  xxl: 30,
   full: 9999,
 };
 
-// ─── Shadows (3D depth system) ────────────────────────────────────────────────
 export const SHADOWS = {
-  // Floating card — white top glow + deep black drop
   card: {
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.8,
-    shadowRadius: 24,
-    elevation: 16,
-  },
-  // Subtle glass elevation
-  glass: {
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.6,
-    shadowRadius: 18,
-    elevation: 10,
-  },
-  // Bold floating — hero elements
-  deep: {
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.9,
-    shadowRadius: 36,
-    elevation: 24,
-  },
-  // White inner glow (for accent elements)
-  glow: {
-    shadowColor: '#ffffff',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.20,
-    shadowRadius: 16,
+    shadowColor: 'rgba(41,24,79,0.26)',
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.14,
+    shadowRadius: 26,
     elevation: 8,
   },
-  // Gold accent glow
-  glowGold: {
-    shadowColor: GOLD.bright,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.50,
-    shadowRadius: 14,
+  glass: {
+    shadowColor: 'rgba(41,24,79,0.18)',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.10,
+    shadowRadius: 18,
+    elevation: 6,
+  },
+  deep: {
+    shadowColor: 'rgba(23,24,45,0.32)',
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.16,
+    shadowRadius: 32,
     elevation: 10,
+  },
+  glow: {
+    shadowColor: 'rgba(255,94,126,0.30)',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.14,
+    shadowRadius: 20,
+    elevation: 5,
+  },
+  glowGold: {
+    shadowColor: 'rgba(255,138,91,0.28)',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.14,
+    shadowRadius: 20,
+    elevation: 5,
   },
 };

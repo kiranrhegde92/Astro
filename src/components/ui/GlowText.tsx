@@ -1,6 +1,6 @@
 import React from 'react';
-import { Text, StyleSheet, TextStyle } from 'react-native';
-import { COLORS } from '../../constants/theme';
+import { StyleSheet, Text, TextStyle } from 'react-native';
+import { COLORS, FONTS } from '../../constants/theme';
 
 interface GlowTextProps {
   children: React.ReactNode;
@@ -10,29 +10,22 @@ interface GlowTextProps {
   align?: 'left' | 'center' | 'right';
 }
 
-const SIZES = { sm: 13, md: 17, lg: 23, xl: 28, hero: 42 };
-
-const FONT_FAMILY: Record<string, string | undefined> = {
-  sm:   undefined,
-  md:   undefined,
-  lg:   'Cinzel_700Bold',
-  xl:   'Cinzel_700Bold',
-  hero: 'Cinzel_900Black',
-};
-
-const LETTER_SPACING: Record<string, number> = {
-  sm: 0, md: 0.3, lg: 1, xl: 2, hero: 4,
-};
+const SIZES = { sm: 13, md: 17, lg: 24, xl: 32, hero: 42 };
+const FAMILIES = {
+  sm: FONTS.body,
+  md: FONTS.body,
+  lg: FONTS.heading,
+  xl: FONTS.heading,
+  hero: FONTS.display,
+} as const;
 
 export const GlowText = React.memo(function GlowText({
   children,
   size = 'md',
-  color = COLORS.white,
+  color = COLORS.textPrimary,
   style,
   align = 'left',
 }: GlowTextProps) {
-  const font = FONT_FAMILY[size];
-
   return (
     <Text
       style={[
@@ -41,11 +34,9 @@ export const GlowText = React.memo(function GlowText({
           fontSize: SIZES[size],
           color,
           textAlign: align,
-          textShadowColor: 'rgba(255,255,255,0.18)',
-          textShadowRadius: size === 'hero' ? 22 : size === 'xl' ? 16 : 10,
-          fontFamily: font,
-          fontWeight: font ? undefined : '700',
-          letterSpacing: LETTER_SPACING[size],
+          fontFamily: FAMILIES[size],
+          fontWeight: size === 'sm' || size === 'md' ? '600' : undefined,
+          letterSpacing: size === 'hero' ? -0.8 : size === 'xl' ? -0.4 : 0,
         },
         style,
       ]}
@@ -56,5 +47,7 @@ export const GlowText = React.memo(function GlowText({
 });
 
 const styles = StyleSheet.create({
-  text: { textShadowOffset: { width: 0, height: 0 } },
+  text: {
+    includeFontPadding: false,
+  },
 });

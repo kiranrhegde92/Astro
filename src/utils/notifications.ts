@@ -6,6 +6,8 @@
  */
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import type { UserProfile } from '../types/user';
+import { generateDailyReading } from '../content/dailyTemplates';
 
 // Configure how notifications appear when app is in foreground
 Notifications.setNotificationHandler({
@@ -71,16 +73,39 @@ function getDailyMessage(): { title: string; body: string } {
   return COSMIC_MESSAGES[dayOfYear % COSMIC_MESSAGES.length];
 }
 
+function getPersonalizedMessage(user?: UserProfile | null): { title: string; body: string } {
+  if (!user?.western || !user?.vedic || !user?.chinese) {
+    return getDailyMessage();
+  }
+
+  const reading = generateDailyReading(
+    new Date(),
+    user.western.sun,
+    user.vedic.rashi,
+    user.chinese.animal
+  );
+  const firstName = user.name.split(' ')[0];
+  return {
+    title: `Good morning, ${firstName}`,
+    body: reading.unified.cosmicVibe.length > 110
+      ? `${reading.unified.cosmicVibe.slice(0, 107)}...`
+      : reading.unified.cosmicVibe,
+  };
+}
+
 /**
  * Schedule a daily recurring notification at the specified time.
  * Cancels any existing scheduled notifications first.
  */
-export async function scheduleDailyNotification(timeString: string): Promise<void> {
+export async function scheduleDailyNotification(
+  timeString: string,
+  user?: UserProfile | null
+): Promise<void> {
   // Cancel existing scheduled notifications
   await Notifications.cancelAllScheduledNotificationsAsync();
 
   const [hours, minutes] = timeString.split(':').map(Number);
-  const message = getDailyMessage();
+  const message = getPersonalizedMessage(user);
 
   await Notifications.scheduleNotificationAsync({
     content: {

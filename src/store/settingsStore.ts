@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useUserStore } from './userStore';
 
 // Lazy-load notifications to avoid crashing in Expo Go (push tokens removed in SDK 53+)
 const getNotifications = () => import('../utils/notifications');
@@ -8,7 +9,7 @@ interface SettingsState {
   language: string;
   notificationsEnabled: boolean;
   dailyNotificationTime: string; // HH:mm
-  theme: 'dark'; // Only dark theme for cosmic vibe
+  theme: 'aurora';
   setLanguage: (lang: string) => void;
   setNotifications: (enabled: boolean) => void;
   setNotificationTime: (time: string) => void;
@@ -22,7 +23,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   language: 'en',
   notificationsEnabled: true,
   dailyNotificationTime: '08:00',
-  theme: 'dark',
+  theme: 'aurora',
 
   setLanguage: (lang) => {
     set({ language: lang });
@@ -35,7 +36,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         const { requestNotificationPermissions, scheduleDailyNotification } = await getNotifications();
         const granted = await requestNotificationPermissions();
         if (granted) {
-          await scheduleDailyNotification(get().dailyNotificationTime);
+          await scheduleDailyNotification(get().dailyNotificationTime, useUserStore.getState().user);
           set({ notificationsEnabled: true });
         } else {
           set({ notificationsEnabled: false });
@@ -58,7 +59,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     if (get().notificationsEnabled) {
       try {
         const { scheduleDailyNotification } = await getNotifications();
-        await scheduleDailyNotification(time);
+        await scheduleDailyNotification(time, useUserStore.getState().user);
       } catch {}
     }
     get().saveSettings();
@@ -74,7 +75,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         if (settings.notificationsEnabled) {
           getNotifications()
             .then(({ scheduleDailyNotification }) =>
-              scheduleDailyNotification(settings.dailyNotificationTime)
+              scheduleDailyNotification(settings.dailyNotificationTime, useUserStore.getState().user)
             )
             .catch(() => {});
         }

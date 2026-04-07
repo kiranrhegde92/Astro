@@ -15,6 +15,9 @@ import {
   Cinzel_900Black,
 } from '@expo-google-fonts/cinzel';
 import { COLORS } from '../src/constants/theme';
+import { useConnectionsStore } from '../src/store/connectionsStore';
+import { useJournalStore } from '../src/store/journalStore';
+import { useReadingStore } from '../src/store/readingStore';
 import { useUserStore } from '../src/store/userStore';
 import { useSettingsStore } from '../src/store/settingsStore';
 import { parseDeepLink } from '../src/utils/qrCodeUtils';
@@ -22,7 +25,12 @@ import '../src/i18n';
 
 export default function RootLayout() {
   const loadUser = useUserStore((s) => s.loadUser);
+  const syncSubscriptionStatus = useUserStore((s) => s.syncSubscriptionStatus);
   const loadSettings = useSettingsStore((s) => s.loadSettings);
+  const loadReadings = useReadingStore((s) => s.loadReadings);
+  const loadConnections = useConnectionsStore((s) => s.loadConnections);
+  const importSharedProfile = useConnectionsStore((s) => s.importSharedProfile);
+  const loadJournal = useJournalStore((s) => s.loadJournal);
   const router = useRouter();
 
   const [fontsLoaded] = useFonts({
@@ -35,17 +43,33 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    loadUser();
-    loadSettings();
-  }, []);
+    const boot = async () => {
+      await loadUser();
+      syncSubscriptionStatus();
+      await Promise.all([
+        loadSettings(),
+        loadReadings(),
+        loadConnections(),
+        loadJournal(),
+      ]);
+    };
+    boot();
+  }, [loadConnections, loadJournal, loadReadings, loadSettings, loadUser, syncSubscriptionStatus]);
 
   useEffect(() => {
     const handleDeepLink = (event: { url: string }) => {
       const parsed = parseDeepLink(event.url);
-      if (parsed.type === 'profile' && parsed.userId) {
-        Alert.alert('Cosmic Profile', `Opening profile: ${parsed.userId}`);
-      } else if (parsed.type === 'compat' && parsed.userId) {
-        router.push('/(tabs)/compatibility');
+      if ((parsed.type === 'profile' || parsed.type === 'compat') && parsed.payload) {
+        importSharedProfile(parsed.payload, 'qr')
+          .then((savedProfile) => {
+            router.push({
+              pathname: '/(tabs)/compatibility',
+              params: { profileId: savedProfile.id },
+            });
+          })
+          .catch(() => {
+            Alert.alert('Shared profile', 'Unable to open that shared chart.');
+          });
       }
     };
 
@@ -55,23 +79,23 @@ export default function RootLayout() {
 
     const subscription = Linking.addEventListener('url', handleDeepLink);
     return () => subscription.remove();
-  }, []);
+  }, [importSharedProfile, router]);
 
   if (!fontsLoaded) {
     return (
-      <View style={{ flex: 1, backgroundColor: COLORS.deepSpace, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator color={COLORS.violet} />
+      <View style={{ flex: 1, backgroundColor: COLORS.bgDeep, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator color={COLORS.sunOrange} />
       </View>
     );
   }
 
   return (
     <>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: COLORS.deepSpace },
+          contentStyle: { backgroundColor: COLORS.bgDeep },
           animation: 'fade',
         }}
       />

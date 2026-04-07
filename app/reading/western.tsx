@@ -1,127 +1,146 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Platform } from 'react-native';
 import ReAnimated, { FadeInDown } from 'react-native-reanimated';
 import { StarField } from '../../src/components/ui/StarField';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
 import { GradientCard } from '../../src/components/ui/GradientCard';
-import { COLORS, SPACING, BORDER_RADIUS } from '../../src/constants/theme';
+import { SectionTabs } from '../../src/components/ui/SectionTabs';
+import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../../src/constants/theme';
 import { useUserStore } from '../../src/store/userStore';
 import { WESTERN_ZODIAC } from '../../src/constants/zodiacData';
 import { getRulingPlanet, getElement, getModality } from '../../src/engines/western';
 
 export default function WesternReadingScreen() {
+  const reducedMotion = Platform.OS === 'android';
+  const [activeSection, setActiveSection] = useState('core');
   const user = useUserStore((s) => s.user);
 
   if (!user?.western) return null;
 
   const { sun, moon, rising, element, modality, planets } = user.western;
   const sunInfo = WESTERN_ZODIAC.find((z) => z.sign === sun);
+  const tabs = [
+    { key: 'core', label: 'Core' },
+    { key: 'insights', label: 'Insights' },
+    { key: 'learn', label: 'Learn' },
+  ];
 
   return (
     <StarField>
-      <ScreenHeader title="Western Astrology" accentColor={COLORS.western} />
+      <ScreenHeader title="Western Lens" accentColor={COLORS.western} />
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <ReAnimated.View entering={FadeInDown.delay(100).duration(500).springify()}>
+        <ReAnimated.View entering={reducedMotion ? undefined : FadeInDown.delay(100).duration(500).springify()}>
           <Text style={styles.headerEmoji}>{sunInfo?.emoji ?? '\u2648'}</Text>
         </ReAnimated.View>
 
-        {/* Sun Sign */}
-        <ReAnimated.View entering={FadeInDown.delay(200).duration(450).springify().damping(16)}>
-        <GradientCard colors={COLORS.gradientWestern as unknown as readonly string[]}>
-          <Text style={styles.cardTitle}>Sun Sign - Your Core Identity</Text>
-          <Text style={styles.signName}>{sun}</Text>
-          <Text style={styles.signDates}>{sunInfo?.dates}</Text>
-          <Text style={styles.signDesc}>{sunInfo?.description}</Text>
-          <View style={styles.traitsRow}>
-            {sunInfo?.traits.map((t, i) => (
-              <View key={i} style={styles.traitBadge}>
-                <Text style={styles.traitText}>{t}</Text>
+        <SectionTabs tabs={tabs} activeKey={activeSection} onChange={setActiveSection} />
+
+        {activeSection === 'core' && (
+          <>
+            {/* Sun Sign */}
+            <ReAnimated.View entering={reducedMotion ? undefined : FadeInDown.delay(200).duration(450).springify().damping(16)}>
+            <GradientCard colors={COLORS.gradientWestern as unknown as readonly string[]}>
+              <Text style={styles.cardTitle}>Sun Sign - Your Core Identity</Text>
+              <Text style={styles.signName}>{sun}</Text>
+              <Text style={styles.signDates}>{sunInfo?.dates}</Text>
+              <Text style={styles.signDesc}>{sunInfo?.description}</Text>
+              <View style={styles.traitsRow}>
+                {sunInfo?.traits.map((t, i) => (
+                  <View key={i} style={styles.traitBadge}>
+                    <Text style={styles.traitText}>{t}</Text>
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
-          <SourceRef text="Ptolemy's Tetrabiblos - Foundation of Western Astrology" />
-        </GradientCard>
-        </ReAnimated.View>
+              <SourceRef text="Ptolemy's Tetrabiblos - Foundation of Western Astrology" />
+            </GradientCard>
+            </ReAnimated.View>
 
-        {/* Moon Sign */}
-        <ReAnimated.View entering={FadeInDown.delay(320).duration(450).springify().damping(16)}>
-        <GradientCard>
-          <Text style={styles.cardTitle}>Moon Sign - Your Emotional World</Text>
-          <Text style={styles.signName}>{moon}</Text>
-          <Text style={styles.detailText}>
-            Your Moon in {moon} reveals your emotional nature, instincts, and inner world.
-            This is how you process feelings and what makes you feel secure and nurtured.
-          </Text>
-          <View style={styles.infoRow}>
-            <InfoChip label="Element" value={getElement(moon)} />
-            <InfoChip label="Ruler" value={getRulingPlanet(moon)} />
-          </View>
-        </GradientCard>
-        </ReAnimated.View>
+            {/* Moon Sign */}
+            <ReAnimated.View entering={reducedMotion ? undefined : FadeInDown.delay(320).duration(450).springify().damping(16)}>
+            <GradientCard>
+              <Text style={styles.cardTitle}>Moon Sign - Your Emotional World</Text>
+              <Text style={styles.signName}>{moon}</Text>
+              <Text style={styles.detailText}>
+                Your Moon in {moon} reveals your emotional nature, instincts, and inner world.
+                This is how you process feelings and what makes you feel secure and nurtured.
+              </Text>
+              <View style={styles.infoRow}>
+                <InfoChip label="Element" value={getElement(moon)} />
+                <InfoChip label="Ruler" value={getRulingPlanet(moon)} />
+              </View>
+            </GradientCard>
+            </ReAnimated.View>
 
-        {/* Rising Sign */}
-        {rising && (
-          <ReAnimated.View entering={FadeInDown.delay(440).duration(450).springify().damping(16)}>
+            {/* Rising Sign */}
+            {rising && (
+              <ReAnimated.View entering={reducedMotion ? undefined : FadeInDown.delay(440).duration(450).springify().damping(16)}>
+              <GradientCard>
+                <Text style={styles.cardTitle}>Rising Sign - Your Cosmic First Impression</Text>
+                <Text style={styles.signName}>{rising}</Text>
+                <Text style={styles.detailText}>
+                  Your Ascendant in {rising} shapes how others perceive you and the energy you project
+                  into the world. It's the mask you wear and your natural approach to new situations.
+                </Text>
+                <View style={styles.infoRow}>
+                  <InfoChip label="Modality" value={getModality(rising)} />
+                  <InfoChip label="Ruler" value={getRulingPlanet(rising)} />
+                </View>
+              </GradientCard>
+              </ReAnimated.View>
+            )}
+          </>
+        )}
+
+        {activeSection === 'insights' && (
+          <>
+            {/* Element & Modality */}
+            <ReAnimated.View entering={reducedMotion ? undefined : FadeInDown.delay(200).duration(450).springify().damping(16)}>
+            <GradientCard>
+              <Text style={styles.cardTitle}>Your Cosmic Blueprint</Text>
+              <View style={styles.blueprintGrid}>
+                <BlueprintItem label="Element" value={element} emoji={
+                  element === 'Fire' ? '\u{1F525}' : element === 'Earth' ? '\u{1F30D}' :
+                  element === 'Air' ? '\u{1F4A8}' : '\u{1F30A}'
+                } />
+                <BlueprintItem label="Modality" value={modality} emoji={
+                  modality === 'Cardinal' ? '\u{1F3AF}' : modality === 'Fixed' ? '\u{1F48E}' : '\u{1F300}'
+                } />
+                <BlueprintItem label="Ruling Planet" value={getRulingPlanet(sun)} emoji="\u{2B50}" />
+              </View>
+            </GradientCard>
+            </ReAnimated.View>
+
+            {/* Planetary Positions */}
+            <ReAnimated.View entering={reducedMotion ? undefined : FadeInDown.delay(320).duration(450).springify().damping(16)}>
+            <GradientCard>
+              <Text style={styles.cardTitle}>Planetary Positions</Text>
+              <Text style={styles.detailSubtext}>
+                Where the planets were when you were born
+              </Text>
+              {planets.map((p, i) => (
+                <View key={i} style={styles.planetRow}>
+                  <Text style={styles.planetName}>{p.planet}</Text>
+                  <Text style={styles.planetSign}>{p.sign}</Text>
+                  <Text style={styles.planetDegree}>{p.degree.toFixed(1)}{'\u00B0'}</Text>
+                  {p.retrograde && <Text style={styles.retroBadge}>R</Text>}
+                </View>
+              ))}
+              <SourceRef text="Calculated using astronomical orbital mechanics - NASA Ephemeris data" />
+            </GradientCard>
+            </ReAnimated.View>
+          </>
+        )}
+
+        {activeSection === 'learn' && (
+          <ReAnimated.View entering={reducedMotion ? undefined : FadeInDown.delay(200).duration(450).springify().damping(16)}>
           <GradientCard>
-            <Text style={styles.cardTitle}>Rising Sign - Your Cosmic First Impression</Text>
-            <Text style={styles.signName}>{rising}</Text>
-            <Text style={styles.detailText}>
-              Your Ascendant in {rising} shapes how others perceive you and the energy you project
-              into the world. It's the mask you wear and your natural approach to new situations.
-            </Text>
-            <View style={styles.infoRow}>
-              <InfoChip label="Modality" value={getModality(rising)} />
-              <InfoChip label="Ruler" value={getRulingPlanet(rising)} />
-            </View>
+            <Text style={styles.cardTitle}>{'\u{1F4DA}'} Deepen Your Understanding</Text>
+            <BookRef title="The Inner Sky" author="Steven Forrest" desc="The best introduction to Western natal chart interpretation" />
+            <BookRef title="Planets in Transit" author="Robert Hand" desc="Understanding how current planetary movements affect your chart" />
+            <BookRef title="Tetrabiblos" author="Claudius Ptolemy" desc="The foundational text of Western astrology (2nd century CE)" />
           </GradientCard>
           </ReAnimated.View>
         )}
-
-        {/* Element & Modality */}
-        <ReAnimated.View entering={FadeInDown.delay(560).duration(450).springify().damping(16)}>
-        <GradientCard>
-          <Text style={styles.cardTitle}>Your Cosmic Blueprint</Text>
-          <View style={styles.blueprintGrid}>
-            <BlueprintItem label="Element" value={element} emoji={
-              element === 'Fire' ? '\u{1F525}' : element === 'Earth' ? '\u{1F30D}' :
-              element === 'Air' ? '\u{1F4A8}' : '\u{1F30A}'
-            } />
-            <BlueprintItem label="Modality" value={modality} emoji={
-              modality === 'Cardinal' ? '\u{1F3AF}' : modality === 'Fixed' ? '\u{1F48E}' : '\u{1F300}'
-            } />
-            <BlueprintItem label="Ruling Planet" value={getRulingPlanet(sun)} emoji="\u{2B50}" />
-          </View>
-        </GradientCard>
-        </ReAnimated.View>
-
-        {/* Planetary Positions */}
-        <ReAnimated.View entering={FadeInDown.delay(680).duration(450).springify().damping(16)}>
-        <GradientCard>
-          <Text style={styles.cardTitle}>Planetary Positions</Text>
-          <Text style={styles.detailSubtext}>
-            Where the planets were when you were born
-          </Text>
-          {planets.map((p, i) => (
-            <View key={i} style={styles.planetRow}>
-              <Text style={styles.planetName}>{p.planet}</Text>
-              <Text style={styles.planetSign}>{p.sign}</Text>
-              <Text style={styles.planetDegree}>{p.degree.toFixed(1)}{'\u00B0'}</Text>
-              {p.retrograde && <Text style={styles.retroBadge}>R</Text>}
-            </View>
-          ))}
-          <SourceRef text="Calculated using astronomical orbital mechanics - NASA Ephemeris data" />
-        </GradientCard>
-        </ReAnimated.View>
-
-        {/* Recommended Reading */}
-        <ReAnimated.View entering={FadeInDown.delay(800).duration(450).springify().damping(16)}>
-        <GradientCard>
-          <Text style={styles.cardTitle}>{'\u{1F4DA}'} Deepen Your Understanding</Text>
-          <BookRef title="The Inner Sky" author="Steven Forrest" desc="The best introduction to Western natal chart interpretation" />
-          <BookRef title="Planets in Transit" author="Robert Hand" desc="Understanding how current planetary movements affect your chart" />
-          <BookRef title="Tetrabiblos" author="Claudius Ptolemy" desc="The foundational text of Western astrology (2nd century CE)" />
-        </GradientCard>
-        </ReAnimated.View>
 
         <View style={styles.bottomPad} />
       </ScrollView>
@@ -169,49 +188,49 @@ function BookRef({ title, author, desc }: { title: string; author: string; desc:
 const styles = StyleSheet.create({
   container: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.xxl, gap: SPACING.md },
   headerEmoji: { fontSize: 56, textAlign: 'center' },
-  cardTitle: { color: COLORS.white, fontSize: 16, fontWeight: '700', marginBottom: SPACING.sm },
+  cardTitle: { color: COLORS.textPrimary, fontSize: 16, fontFamily: FONTS.heading, marginBottom: SPACING.sm },
   signName: { color: COLORS.starGold, fontSize: 28, fontWeight: '800' },
   signDates: { color: COLORS.textMuted, fontSize: 13, marginTop: 2 },
   signDesc: { color: COLORS.textSecondary, fontSize: 14, lineHeight: 21, marginTop: SPACING.sm },
   traitsRow: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.md, flexWrap: 'wrap' },
   traitBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.55)',
     borderRadius: BORDER_RADIUS.full,
     paddingVertical: 4,
     paddingHorizontal: SPACING.sm,
   },
-  traitText: { color: COLORS.white, fontSize: 13, fontWeight: '600' },
+  traitText: { color: COLORS.textPrimary, fontSize: 13, fontWeight: '600' },
   detailText: { color: COLORS.textSecondary, fontSize: 14, lineHeight: 21 },
   detailSubtext: { color: COLORS.textMuted, fontSize: 13, marginBottom: SPACING.sm },
   infoRow: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.md },
   infoChip: {
     flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: 'rgba(255,255,255,0.55)',
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.sm,
   },
   infoLabel: { color: COLORS.textMuted, fontSize: 10, textTransform: 'uppercase', letterSpacing: 1 },
-  infoValue: { color: COLORS.white, fontSize: 15, fontWeight: '700', marginTop: 2 },
+  infoValue: { color: COLORS.textPrimary, fontSize: 15, fontWeight: '700', marginTop: 2 },
   blueprintGrid: { flexDirection: 'row', gap: SPACING.sm },
   blueprintItem: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: 'rgba(255,255,255,0.55)',
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
   },
   blueprintEmoji: { fontSize: 28 },
   blueprintLabel: { color: COLORS.textMuted, fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, marginTop: 4 },
-  blueprintValue: { color: COLORS.white, fontSize: 14, fontWeight: '700', marginTop: 2 },
+  blueprintValue: { color: COLORS.textPrimary, fontSize: 14, fontWeight: '700', marginTop: 2 },
   planetRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
+    borderBottomColor: COLORS.glassBorder,
   },
   planetName: { color: COLORS.textSecondary, fontSize: 14, width: 100 },
-  planetSign: { color: COLORS.white, fontSize: 14, fontWeight: '600', flex: 1 },
+  planetSign: { color: COLORS.textPrimary, fontSize: 14, fontWeight: '600', flex: 1 },
   planetDegree: { color: COLORS.textMuted, fontSize: 13, width: 50, textAlign: 'right' },
   retroBadge: {
     color: COLORS.sunOrange,
@@ -227,15 +246,15 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
     paddingTop: SPACING.sm,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.05)',
+    borderTopColor: COLORS.glassBorder,
   },
   sourceRefText: { color: COLORS.textMuted, fontSize: 11 },
   bookRef: {
     paddingVertical: SPACING.sm,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
+    borderBottomColor: COLORS.glassBorder,
   },
-  bookTitle: { color: COLORS.white, fontSize: 14, fontWeight: '700' },
+  bookTitle: { color: COLORS.textPrimary, fontSize: 14, fontWeight: '700' },
   bookAuthor: { color: COLORS.textMuted, fontSize: 12 },
   bookDesc: { color: COLORS.textSecondary, fontSize: 13, marginTop: 2 },
   bottomPad: { height: 20 },

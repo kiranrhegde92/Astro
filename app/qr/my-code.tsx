@@ -6,12 +6,13 @@ import { StarField } from '../../src/components/ui/StarField';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
 import { CosmicButton } from '../../src/components/ui/CosmicButton';
 import { QRCodeCard } from '../../src/components/share/QRCodeCard';
-import { COLORS, SPACING, BORDER_RADIUS } from '../../src/constants/theme';
+import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../../src/constants/theme';
 import { useUserStore } from '../../src/store/userStore';
 import { getCosmicDNASummary } from '../../src/engines/unified';
 import { captureAndShare } from '../../src/utils/shareUtils';
 import { QR_THEMES, getQRThemeColors } from '../../src/utils/qrCodeUtils';
 import type { QRThemeName } from '../../src/utils/qrCodeUtils';
+import type { SharedProfilePayload } from '../../src/types/appData';
 
 export default function MyQRCodeScreen() {
   const router = useRouter();
@@ -27,6 +28,21 @@ export default function MyQRCodeScreen() {
     chinese: user.chinese,
     kp: user.kp,
   });
+  const profilePayload: SharedProfilePayload = {
+    version: 1,
+    id: user.id,
+    name: user.name,
+    birthDetails: user.birthDetails,
+    activeSystems: user.activeSystems,
+    profile: {
+      western: user.western,
+      vedic: user.vedic,
+      chinese: user.chinese,
+      kp: user.kp,
+    },
+    cosmicDNA,
+    sharedAt: new Date().toISOString(),
+  };
 
   const handleShare = () => {
     captureAndShare(viewShotRef, 'Scan my Cosmic DNA!');
@@ -34,7 +50,7 @@ export default function MyQRCodeScreen() {
 
   return (
     <StarField>
-      <ScreenHeader title="My Cosmic QR" />
+      <ScreenHeader title="My cosmic QR" />
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <Text style={styles.subtitle}>
           Share your QR code and let others discover your Cosmic DNA instantly
@@ -43,12 +59,12 @@ export default function MyQRCodeScreen() {
         {/* QR Card */}
         <View style={styles.cardWrapper}>
           <QRCodeCard
-            userId={user.id}
             userName={user.name}
             cosmicDNA={cosmicDNA}
             sunSign={user.western.sun}
             rashi={user.vedic.rashi}
             animal={user.chinese.animal}
+            profilePayload={profilePayload}
             gradientColors={getQRThemeColors(selectedTheme)}
             viewShotRef={viewShotRef}
           />
@@ -145,7 +161,7 @@ const styles = StyleSheet.create({
   themeLabel: {
     color: COLORS.textSecondary,
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: FONTS.heading,
     marginBottom: SPACING.sm,
   },
   themesRow: {
@@ -161,7 +177,7 @@ const styles = StyleSheet.create({
   },
   themeOptionSelected: {
     borderColor: COLORS.starGold,
-    backgroundColor: 'rgba(255, 215, 0, 0.1)',
+    backgroundColor: 'rgba(255,255,255,0.68)',
   },
   themePreview: {
     width: 40,
@@ -183,14 +199,16 @@ const styles = StyleSheet.create({
   },
   tips: {
     marginTop: SPACING.xl,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: 'rgba(255,255,255,0.68)',
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.lg,
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
   },
   tipsTitle: {
-    color: COLORS.white,
+    color: COLORS.textPrimary,
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: FONTS.heading,
     marginBottom: SPACING.md,
   },
   tipItem: {

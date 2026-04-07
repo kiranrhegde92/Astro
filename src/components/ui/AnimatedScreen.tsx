@@ -3,7 +3,7 @@
  * Stagger-fades children in from below for a polished cosmic feel.
  */
 import React from 'react';
-import { ViewStyle, StyleProp } from 'react-native';
+import { ViewStyle, StyleProp, Platform } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 interface AnimatedScreenProps {
@@ -13,9 +13,11 @@ interface AnimatedScreenProps {
 }
 
 export function AnimatedScreen({ children, style, delay = 100 }: AnimatedScreenProps) {
+  const reducedMotion = Platform.OS === 'android';
+
   return (
     <Animated.View
-      entering={FadeInDown.delay(delay).duration(500).springify().damping(18)}
+      entering={reducedMotion ? undefined : FadeInDown.delay(delay).duration(500).springify().damping(18)}
       style={[{ flex: 1 }, style]}
     >
       {children}
@@ -33,9 +35,11 @@ interface AnimatedCardProps {
 }
 
 export function AnimatedCard({ children, index = 0, style }: AnimatedCardProps) {
+  const reducedMotion = Platform.OS === 'android';
+
   return (
     <Animated.View
-      entering={FadeInDown.delay(150 + index * 80).duration(450).springify().damping(16)}
+      entering={reducedMotion ? undefined : FadeInDown.delay(150 + index * 80).duration(450).springify().damping(16)}
       style={style}
     >
       {children}

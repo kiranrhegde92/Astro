@@ -2,10 +2,11 @@ import React, { useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import ViewShot from 'react-native-view-shot';
 import { StarField } from '../../src/components/ui/StarField';
+import { OrbIcon } from '../../src/components/ui/OrbIcon';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
 import { CosmicButton } from '../../src/components/ui/CosmicButton';
 import { ShareableCard, DailyVibeCard } from '../../src/components/share/ShareableCard';
-import { COLORS, SPACING, BORDER_RADIUS } from '../../src/constants/theme';
+import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../../src/constants/theme';
 import { useUserStore } from '../../src/store/userStore';
 import { captureAndShare } from '../../src/utils/shareUtils';
 import { getDailyAffirmation, getDailyOpener } from '../../src/content/positiveFraming';
@@ -33,7 +34,7 @@ export default function ShareCardScreen() {
 
   return (
     <StarField>
-      <ScreenHeader title="Share Your Stars" />
+      <ScreenHeader title="Share your stars" />
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <Text style={styles.subtitle}>
           Create beautiful shareable cards for social media
@@ -45,17 +46,23 @@ export default function ShareCardScreen() {
             style={[styles.tab, activeTab === 'cosmic-dna' && styles.tabActive]}
             onPress={() => setActiveTab('cosmic-dna')}
           >
-            <Text style={[styles.tabText, activeTab === 'cosmic-dna' && styles.tabTextActive]}>
-              {'\u2728'} Cosmic DNA
-            </Text>
+            <View style={styles.tabInner}>
+              <OrbIcon icon="sparkles" size={28} accentColor={COLORS.gold} secondaryColor="#fff4cf" active={activeTab === 'cosmic-dna'} />
+              <Text style={[styles.tabText, activeTab === 'cosmic-dna' && styles.tabTextActive]}>
+                Cosmic DNA
+              </Text>
+            </View>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'daily-vibe' && styles.tabActive]}
             onPress={() => setActiveTab('daily-vibe')}
           >
-            <Text style={[styles.tabText, activeTab === 'daily-vibe' && styles.tabTextActive]}>
-              {'\u2B50'} Daily Vibe
-            </Text>
+            <View style={styles.tabInner}>
+              <OrbIcon icon="sunny" size={28} accentColor={COLORS.sunOrange} secondaryColor="#ffe9c7" active={activeTab === 'daily-vibe'} />
+              <Text style={[styles.tabText, activeTab === 'daily-vibe' && styles.tabTextActive]}>
+                Daily Vibe
+              </Text>
+            </View>
           </TouchableOpacity>
         </View>
 
@@ -111,27 +118,33 @@ const styles = StyleSheet.create({
   },
   tabs: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: 'rgba(255,255,255,0.68)',
+    borderRadius: BORDER_RADIUS.lg,
     padding: 4,
     marginBottom: SPACING.lg,
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
   },
   tab: {
     flex: 1,
     paddingVertical: SPACING.sm,
-    borderRadius: BORDER_RADIUS.full,
+    borderRadius: BORDER_RADIUS.md,
     alignItems: 'center',
   },
+  tabInner: {
+    alignItems: 'center',
+    gap: 6,
+  },
   tabActive: {
-    backgroundColor: COLORS.violet,
+    backgroundColor: COLORS.bgMuted,
   },
   tabText: {
     color: COLORS.textMuted,
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: FONTS.heading,
   },
   tabTextActive: {
-    color: COLORS.white,
+    color: COLORS.textPrimary,
   },
   cardWrapper: {
     alignItems: 'center',

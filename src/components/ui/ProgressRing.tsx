@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
-import { COLORS } from '../../constants/theme';
+import { COLORS, FONTS } from '../../constants/theme';
 
 interface ProgressRingProps {
   progress: number; // 0 to 1
@@ -70,14 +70,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   value: {
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: 16,
+    fontFamily: FONTS.heading,
   },
   label: {
     color: COLORS.textMuted,
-    fontSize: 9,
-    fontWeight: '600',
+    fontSize: 10,
+    fontFamily: FONTS.accent,
     textTransform: 'uppercase',
-    marginTop: 1,
+    letterSpacing: 0.8,
+    marginTop: 2,
   },
 });

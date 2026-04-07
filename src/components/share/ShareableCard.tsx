@@ -1,8 +1,9 @@
-import React, { useRef } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import ViewShot from 'react-native-view-shot';
-import { COLORS, SPACING, BORDER_RADIUS } from '../../constants/theme';
+import { OrbIcon } from '../ui/OrbIcon';
+import { BORDER_RADIUS, COLORS, FONTS, SHADOWS, SPACING } from '../../constants/theme';
 import type { CosmicProfile } from '../../types/astrology';
 import { getCosmicDNASummary } from '../../engines/unified';
 
@@ -14,82 +15,87 @@ interface ShareableCardProps {
   viewShotRef?: React.RefObject<ViewShot | null>;
 }
 
+function CardShell({
+  children,
+  colors,
+  viewShotRef,
+}: {
+  children: React.ReactNode;
+  colors: [string, string, ...string[]];
+  viewShotRef?: React.RefObject<ViewShot | null>;
+}) {
+  return (
+    <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 1 }}>
+      <LinearGradient colors={colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.card}>
+        <View style={styles.cardGlow} />
+        <View style={styles.cardContent}>{children}</View>
+      </LinearGradient>
+    </ViewShot>
+  );
+}
+
 export function ShareableCard({
   userName,
   profile,
-  type,
   viewShotRef,
 }: ShareableCardProps) {
   const cosmicDNA = getCosmicDNASummary(profile);
 
   return (
-    <ViewShot
-      ref={viewShotRef}
-      options={{ format: 'png', quality: 1 }}
-    >
-      <LinearGradient
-        colors={['#0a0a2e', '#1a1a4e', '#2d1b69', '#4a00e0'] as [string, string, ...string[]]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.card}
-      >
-        {/* Header */}
-        <Text style={styles.appName}>CosmicSelf</Text>
+    <CardShell colors={['#fffaf1', '#f7efe0', '#eddcc1']} viewShotRef={viewShotRef}>
+      <Text style={styles.appName}>COSMICSELF</Text>
+      <Text style={styles.userName}>{userName}</Text>
 
-        {/* User Name */}
-        <Text style={styles.userName}>{userName}</Text>
+      <View style={styles.heroOrbWrap}>
+        <OrbIcon icon="sparkles" size={86} accentColor={COLORS.gold} secondaryColor="#fff3cf" active />
+      </View>
 
-        {/* Cosmic DNA */}
-        <View style={styles.dnaContainer}>
-          <Text style={styles.dnaLabel}>MY COSMIC DNA</Text>
-          <Text style={styles.dnaValue}>{cosmicDNA}</Text>
-        </View>
+      <View style={styles.dnaContainer}>
+        <Text style={styles.dnaLabel}>MY COSMIC DNA</Text>
+        <Text style={styles.dnaValue}>{cosmicDNA}</Text>
+      </View>
 
-        {/* System Badges */}
-        <View style={styles.systemsGrid}>
-          {/* Western */}
-          <View style={[styles.systemBadge, { borderColor: COLORS.western }]}>
-            <Text style={styles.systemEmoji}>{'\u2648'}</Text>
-            <Text style={styles.systemLabel}>Western</Text>
-            <Text style={styles.systemValue}>{profile.western.sun} Sun</Text>
-            <Text style={styles.systemDetail}>{profile.western.moon} Moon</Text>
-            {profile.western.rising && (
-              <Text style={styles.systemDetail}>{profile.western.rising} Rising</Text>
-            )}
-          </View>
+      <View style={styles.systemsGrid}>
+        <SystemBadge
+          icon="sunny"
+          accent={COLORS.western}
+          secondary="#ece6ff"
+          label="Western"
+          value={`${profile.western.sun} Sun`}
+          detail={`${profile.western.moon} Moon${profile.western.rising ? ` - ${profile.western.rising} Rising` : ''}`}
+        />
+        <SystemBadge
+          icon="moon"
+          accent={COLORS.vedic}
+          secondary="#ffe6d8"
+          label="Vedic"
+          value={profile.vedic.rashi}
+          detail={profile.vedic.nakshatra}
+        />
+        <SystemBadge
+          icon="leaf"
+          accent={COLORS.chinese}
+          secondary="#ffe7db"
+          label="Chinese"
+          value={profile.chinese.element}
+          detail={profile.chinese.animal}
+        />
+        {profile.kp ? (
+          <SystemBadge
+            icon="sparkles"
+            accent={COLORS.kp}
+            secondary="#e1f5ef"
+            label="KP"
+            value={`${profile.kp.predictions.length} insights`}
+            detail="timing lens"
+          />
+        ) : null}
+      </View>
 
-          {/* Vedic */}
-          <View style={[styles.systemBadge, { borderColor: COLORS.vedic }]}>
-            <Text style={styles.systemEmoji}>{'\u{1F549}\uFE0F'}</Text>
-            <Text style={styles.systemLabel}>Vedic</Text>
-            <Text style={styles.systemValue}>{profile.vedic.rashi}</Text>
-            <Text style={styles.systemDetail}>{profile.vedic.nakshatra}</Text>
-          </View>
-
-          {/* Chinese */}
-          <View style={[styles.systemBadge, { borderColor: COLORS.chinese }]}>
-            <Text style={styles.systemEmoji}>{'\u{1F409}'}</Text>
-            <Text style={styles.systemLabel}>Chinese</Text>
-            <Text style={styles.systemValue}>{profile.chinese.element}</Text>
-            <Text style={styles.systemDetail}>{profile.chinese.animal}</Text>
-          </View>
-
-          {/* KP */}
-          {profile.kp && (
-            <View style={[styles.systemBadge, { borderColor: COLORS.kp }]}>
-              <Text style={styles.systemEmoji}>{'\u{1F52D}'}</Text>
-              <Text style={styles.systemLabel}>KP System</Text>
-              <Text style={styles.systemValue}>{profile.kp.predictions.length} Insights</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Footer */}
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>{'\u2728'} cosmicself.app</Text>
-        </View>
-      </LinearGradient>
-    </ViewShot>
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>cosmicself.app</Text>
+      </View>
+    </CardShell>
   );
 }
 
@@ -111,54 +117,86 @@ export function CompatibilityCard({
   viewShotRef?: React.RefObject<ViewShot | null>;
 }) {
   return (
-    <ViewShot
-      ref={viewShotRef}
-      options={{ format: 'png', quality: 1 }}
-    >
-      <LinearGradient
-        colors={['#ff6b6b', '#ee5a24', '#ffd32a'] as [string, string, ...string[]]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.card}
-      >
-        <Text style={styles.appName}>CosmicSelf</Text>
-        <Text style={styles.compatTitle}>Cosmic Compatibility</Text>
+    <CardShell colors={['#fff3ec', '#ffe0d4', '#ffd2c4']} viewShotRef={viewShotRef}>
+      <Text style={styles.appName}>COSMICSELF</Text>
+      <Text style={styles.compatTitle}>Cosmic compatibility</Text>
 
-        <View style={styles.namesRow}>
+      <View style={styles.namesRow}>
+        <View style={styles.nameStack}>
+          <OrbIcon icon="person" size={56} accentColor={COLORS.sunOrange} secondaryColor="#ffe9c7" active />
           <Text style={styles.compatName}>{name1}</Text>
-          <Text style={styles.compatHeart}>{'\u{1F496}'}</Text>
+        </View>
+        <OrbIcon icon="heart" size={52} accentColor={COLORS.coral} secondaryColor="#ffe3da" active />
+        <View style={styles.nameStack}>
+          <OrbIcon icon="person" size={56} accentColor={COLORS.iris} secondaryColor="#ece6ff" active />
           <Text style={styles.compatName}>{name2}</Text>
         </View>
+      </View>
 
-        <Text style={styles.compatScore}>{score}%</Text>
-        <Text style={styles.compatLabel}>Cosmic Match</Text>
+      <Text style={styles.compatScore}>{score}%</Text>
+      <Text style={styles.compatLabel}>overall match</Text>
 
-        <View style={styles.breakdownRow}>
-          <ScoreBadge emoji={'\u2648'} label="Western" score={westernScore} />
-          <ScoreBadge emoji={'\u{1F549}\uFE0F'} label="Vedic" score={vedicScore} />
-          <ScoreBadge emoji={'\u{1F409}'} label="Chinese" score={chineseScore} />
-        </View>
+      <View style={styles.breakdownRow}>
+        <ScoreBadge icon="sunny" label="Western" score={westernScore} accent={COLORS.western} secondary="#ece6ff" />
+        <ScoreBadge icon="moon" label="Vedic" score={vedicScore} accent={COLORS.vedic} secondary="#ffe6d8" />
+        <ScoreBadge icon="leaf" label="Chinese" score={chineseScore} accent={COLORS.chinese} secondary="#ffe7db" />
+      </View>
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>{'\u2728'} cosmicself.app</Text>
-        </View>
-      </LinearGradient>
-    </ViewShot>
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>cosmicself.app</Text>
+      </View>
+    </CardShell>
   );
 }
 
-function ScoreBadge({ emoji, label, score }: { emoji: string; label: string; score: number }) {
+function ScoreBadge({
+  icon,
+  label,
+  score,
+  accent,
+  secondary,
+}: {
+  icon: React.ComponentProps<typeof OrbIcon>['icon'];
+  label: string;
+  score: number;
+  accent: string;
+  secondary: string;
+}) {
   return (
     <View style={styles.scoreBadge}>
-      <Text style={styles.scoreBadgeEmoji}>{emoji}</Text>
+      <OrbIcon icon={icon} size={40} accentColor={accent} secondaryColor={secondary} />
       <Text style={styles.scoreBadgeValue}>{score}%</Text>
       <Text style={styles.scoreBadgeLabel}>{label}</Text>
     </View>
   );
 }
 
+function SystemBadge({
+  icon,
+  accent,
+  secondary,
+  label,
+  value,
+  detail,
+}: {
+  icon: React.ComponentProps<typeof OrbIcon>['icon'];
+  accent: string;
+  secondary: string;
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <View style={[styles.systemBadge, { borderColor: accent }]}>
+      <OrbIcon icon={icon} size={42} accentColor={accent} secondaryColor={secondary} />
+      <Text style={styles.systemLabel}>{label}</Text>
+      <Text style={styles.systemValue}>{value}</Text>
+      <Text style={styles.systemDetail}>{detail}</Text>
+    </View>
+  );
+}
+
 export function DailyVibeCard({
-  userName,
   sunSign,
   vibe,
   affirmation,
@@ -173,33 +211,24 @@ export function DailyVibeCard({
   viewShotRef?: React.RefObject<ViewShot | null>;
 }) {
   return (
-    <ViewShot
-      ref={viewShotRef}
-      options={{ format: 'png', quality: 1 }}
-    >
-      <LinearGradient
-        colors={['#7b2fbe', '#00d2ff', '#0a0a2e'] as [string, string, ...string[]]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.card}
-      >
-        <Text style={styles.appName}>CosmicSelf</Text>
-        <Text style={styles.vibeDate}>{date}</Text>
+    <CardShell colors={['#fffaf1', '#f8e8d6', '#f2d3b0']} viewShotRef={viewShotRef}>
+      <Text style={styles.appName}>COSMICSELF</Text>
+      <Text style={styles.vibeDate}>{date}</Text>
 
-        <Text style={styles.vibeSign}>{sunSign}</Text>
-        <Text style={styles.vibeTitle}>Today's Cosmic Vibe</Text>
-        <Text style={styles.vibeText}>{vibe}</Text>
+      <OrbIcon icon="sunny" size={84} accentColor={COLORS.sunOrange} secondaryColor="#ffe9c7" active />
+      <Text style={styles.vibeSign}>{sunSign}</Text>
+      <Text style={styles.vibeTitle}>Today's cosmic vibe</Text>
+      <Text style={styles.vibeText}>{vibe}</Text>
 
-        <View style={styles.affirmationBox}>
-          <Text style={styles.affirmationLabel}>AFFIRMATION</Text>
-          <Text style={styles.affirmationText}>"{affirmation}"</Text>
-        </View>
+      <View style={styles.affirmationBox}>
+        <Text style={styles.affirmationLabel}>AFFIRMATION</Text>
+        <Text style={styles.affirmationText}>"{affirmation}"</Text>
+      </View>
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>{'\u2728'} cosmicself.app</Text>
-        </View>
-      </LinearGradient>
-    </ViewShot>
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>cosmicself.app</Text>
+      </View>
+    </CardShell>
   );
 }
 
@@ -207,44 +236,55 @@ const styles = StyleSheet.create({
   card: {
     width: 340,
     borderRadius: BORDER_RADIUS.xl,
-    padding: SPACING.lg,
-    alignItems: 'center',
     overflow: 'hidden',
   },
+  cardGlow: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+  },
+  cardContent: {
+    padding: SPACING.lg,
+    alignItems: 'center',
+  },
   appName: {
-    color: COLORS.starGold,
-    fontSize: 14,
-    fontWeight: '800',
-    letterSpacing: 2,
-    textTransform: 'uppercase',
+    color: COLORS.goldMid,
+    fontSize: 13,
+    fontFamily: FONTS.accent,
+    letterSpacing: 2.4,
     marginBottom: SPACING.md,
   },
   userName: {
-    color: COLORS.white,
-    fontSize: 26,
-    fontWeight: '800',
+    color: COLORS.textPrimary,
+    fontSize: 28,
+    fontFamily: FONTS.display,
     textAlign: 'center',
     marginBottom: SPACING.sm,
   },
+  heroOrbWrap: {
+    marginBottom: SPACING.md,
+  },
   dnaContainer: {
-    backgroundColor: 'rgba(255, 215, 0, 0.15)',
-    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: 'rgba(255,255,255,0.62)',
+    borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.md,
     width: '100%',
     alignItems: 'center',
     marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
   },
   dnaLabel: {
-    color: COLORS.starGold,
+    color: COLORS.textMuted,
     fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 2,
+    fontFamily: FONTS.accent,
+    letterSpacing: 1.7,
     marginBottom: 4,
   },
   dnaValue: {
-    color: COLORS.starGold,
+    color: COLORS.textPrimary,
     fontSize: 16,
-    fontWeight: '700',
+    lineHeight: 22,
+    fontFamily: FONTS.heading,
     textAlign: 'center',
   },
   systemsGrid: {
@@ -256,62 +296,149 @@ const styles = StyleSheet.create({
   },
   systemBadge: {
     borderWidth: 1,
-    borderRadius: BORDER_RADIUS.md,
+    borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.sm,
     alignItems: 'center',
     width: 140,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: 'rgba(255,255,255,0.58)',
   },
-  systemEmoji: { fontSize: 24 },
-  systemLabel: { color: COLORS.textMuted, fontSize: 10, fontWeight: '600', letterSpacing: 1, marginTop: 2 },
-  systemValue: { color: COLORS.white, fontSize: 15, fontWeight: '700', marginTop: 2 },
-  systemDetail: { color: COLORS.textSecondary, fontSize: 12 },
+  systemLabel: {
+    color: COLORS.textMuted,
+    fontSize: 10,
+    fontFamily: FONTS.accent,
+    letterSpacing: 0.9,
+    marginTop: 6,
+  },
+  systemValue: {
+    color: COLORS.textPrimary,
+    fontSize: 15,
+    fontFamily: FONTS.heading,
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  systemDetail: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 2,
+  },
   footer: {
     marginTop: SPACING.sm,
     paddingTop: SPACING.sm,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    borderTopColor: COLORS.glassBorder,
     width: '100%',
     alignItems: 'center',
   },
-  footerText: { color: COLORS.textMuted, fontSize: 12, fontWeight: '600' },
-  // Compatibility card
-  compatTitle: { color: COLORS.white, fontSize: 16, fontWeight: '600', marginBottom: SPACING.md },
-  namesRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.md },
-  compatName: { color: COLORS.white, fontSize: 20, fontWeight: '700' },
-  compatHeart: { fontSize: 24 },
-  compatScore: {
-    color: COLORS.white,
-    fontSize: 64,
-    fontWeight: '900',
-    textShadowColor: 'rgba(255,255,255,0.5)',
-    textShadowRadius: 20,
-    textShadowOffset: { width: 0, height: 0 },
+  footerText: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    fontFamily: FONTS.accent,
+    letterSpacing: 0.6,
   },
-  compatLabel: { color: COLORS.textSecondary, fontSize: 14, fontWeight: '600', marginBottom: SPACING.md },
-  breakdownRow: { flexDirection: 'row', gap: SPACING.md, marginBottom: SPACING.sm },
+  compatTitle: {
+    color: COLORS.textPrimary,
+    fontSize: 17,
+    fontFamily: FONTS.heading,
+    marginBottom: SPACING.md,
+  },
+  namesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  nameStack: {
+    alignItems: 'center',
+    gap: 6,
+    width: 110,
+  },
+  compatName: {
+    color: COLORS.textPrimary,
+    fontSize: 16,
+    fontFamily: FONTS.heading,
+    textAlign: 'center',
+  },
+  compatScore: {
+    color: COLORS.textPrimary,
+    fontSize: 64,
+    fontFamily: FONTS.display,
+  },
+  compatLabel: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+    fontFamily: FONTS.accent,
+    letterSpacing: 0.8,
+    marginBottom: SPACING.md,
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
   scoreBadge: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: 'rgba(255,255,255,0.58)',
+    borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.sm,
-    width: 80,
+    width: 82,
+    ...SHADOWS.glass,
   },
-  scoreBadgeEmoji: { fontSize: 18 },
-  scoreBadgeValue: { color: COLORS.white, fontSize: 18, fontWeight: '700' },
-  scoreBadgeLabel: { color: COLORS.textMuted, fontSize: 10 },
-  // Daily vibe card
-  vibeDate: { color: COLORS.textSecondary, fontSize: 12, marginBottom: SPACING.md },
-  vibeSign: { fontSize: 48, marginBottom: SPACING.xs },
-  vibeTitle: { color: COLORS.white, fontSize: 18, fontWeight: '700', marginBottom: SPACING.sm },
-  vibeText: { color: COLORS.white, fontSize: 14, textAlign: 'center', lineHeight: 21, marginBottom: SPACING.md },
+  scoreBadgeValue: {
+    color: COLORS.textPrimary,
+    fontSize: 18,
+    fontFamily: FONTS.heading,
+    marginTop: 6,
+  },
+  scoreBadgeLabel: {
+    color: COLORS.textMuted,
+    fontSize: 10,
+    fontFamily: FONTS.accent,
+  },
+  vibeDate: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    marginBottom: SPACING.md,
+  },
+  vibeSign: {
+    color: COLORS.textPrimary,
+    fontSize: 28,
+    fontFamily: FONTS.heading,
+    marginTop: SPACING.sm,
+  },
+  vibeTitle: {
+    color: COLORS.textPrimary,
+    fontSize: 18,
+    fontFamily: FONTS.heading,
+    marginBottom: SPACING.sm,
+  },
+  vibeText: {
+    color: COLORS.textPrimary,
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 21,
+    marginBottom: SPACING.md,
+  },
   affirmationBox: {
-    backgroundColor: 'rgba(255, 215, 0, 0.1)',
-    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: 'rgba(255,255,255,0.62)',
+    borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.md,
     width: '100%',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
   },
-  affirmationLabel: { color: COLORS.starGold, fontSize: 10, fontWeight: '700', letterSpacing: 2, marginBottom: 4 },
-  affirmationText: { color: COLORS.starGold, fontSize: 14, fontStyle: 'italic', textAlign: 'center' },
+  affirmationLabel: {
+    color: COLORS.goldMid,
+    fontSize: 10,
+    fontFamily: FONTS.accent,
+    letterSpacing: 1.8,
+    marginBottom: 4,
+  },
+  affirmationText: {
+    color: COLORS.textPrimary,
+    fontSize: 14,
+    fontStyle: 'italic',
+    textAlign: 'center',
+  },
 });

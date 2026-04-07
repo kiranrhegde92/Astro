@@ -1,12 +1,15 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { DailyReading } from '../types/astrology';
+import { getDateKey } from '../utils/dateUtils';
 
 interface ReadingState {
   todayReading: DailyReading | null;
   cachedReadings: Record<string, DailyReading>; // key: date string
   setTodayReading: (reading: DailyReading) => void;
   getCachedReading: (date: string) => DailyReading | null;
+  getRecentReadings: (limit?: number) => DailyReading[];
+  clearReadings: () => Promise<void>;
   loadReadings: () => Promise<void>;
   saveReadings: () => Promise<void>;
 }
@@ -27,12 +30,23 @@ export const useReadingStore = create<ReadingState>((set, get) => ({
     return get().cachedReadings[date] ?? null;
   },
 
+  getRecentReadings: (limit = 7) => {
+    return Object.values(get().cachedReadings)
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, limit);
+  },
+
+  clearReadings: async () => {
+    await AsyncStorage.removeItem(STORAGE_KEY);
+    set({ todayReading: null, cachedReadings: {} });
+  },
+
   loadReadings: async () => {
     try {
       const data = await AsyncStorage.getItem(STORAGE_KEY);
       if (data) {
         const cached = JSON.parse(data) as Record<string, DailyReading>;
-        const today = new Date().toISOString().split('T')[0];
+        const today = getDateKey(new Date());
         set({ cachedReadings: cached, todayReading: cached[today] ?? null });
       }
     } catch {}

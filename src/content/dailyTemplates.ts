@@ -1,4 +1,5 @@
 import type { WesternSign, Rashi, ChineseAnimal, DailyReading, PredictionReference } from '../types/astrology';
+import { getDateKey } from '../utils/dateUtils';
 import { getDailyOpener, getDailyAffirmation, getGrowthFraming } from './positiveFraming';
 
 /**
@@ -129,7 +130,7 @@ export function generateDailyReading(
   ];
 
   return {
-    date: date.toISOString().split('T')[0],
+    date: getDateKey(date),
     western: westernReading,
     vedic: vedicReading,
     kp: kpReading,

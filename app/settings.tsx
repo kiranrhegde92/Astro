@@ -1,289 +1,244 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
 import i18n from '../src/i18n';
-import { StarField } from '../src/components/ui/StarField';
-import { ScreenHeader } from '../src/components/ui/ScreenHeader';
-import { GradientCard } from '../src/components/ui/GradientCard';
 import { CosmicButton } from '../src/components/ui/CosmicButton';
-import { COLORS, SPACING, BORDER_RADIUS } from '../src/constants/theme';
+import { GradientCard } from '../src/components/ui/GradientCard';
+import { ScreenHeader } from '../src/components/ui/ScreenHeader';
+import { StarField } from '../src/components/ui/StarField';
+import { BORDER_RADIUS, COLORS, FONTS, SPACING } from '../src/constants/theme';
+import { useConnectionsStore } from '../src/store/connectionsStore';
+import { useJournalStore } from '../src/store/journalStore';
+import { useReadingStore } from '../src/store/readingStore';
 import { useSettingsStore } from '../src/store/settingsStore';
 import { useUserStore } from '../src/store/userStore';
 
 const LANGUAGES = [
-  { code: 'en', name: 'English', native: 'English', emoji: '\u{1F1FA}\u{1F1F8}' },
-  { code: 'hi', name: 'Hindi', native: '\u0939\u093F\u0928\u094D\u0926\u0940', emoji: '\u{1F1EE}\u{1F1F3}' },
-  { code: 'zh', name: 'Chinese', native: '\u4E2D\u6587', emoji: '\u{1F1E8}\u{1F1F3}' },
-  { code: 'kn', name: 'Kannada', native: '\u0C95\u0CA8\u0CCD\u0CA8\u0CA1', emoji: '\u{1F1EE}\u{1F1F3}' },
+  { code: 'en', name: 'English' },
+  { code: 'hi', name: 'Hindi' },
+  { code: 'zh', name: 'Chinese' },
+  { code: 'kn', name: 'Kannada' },
 ];
 
 const NOTIFICATION_TIMES = [
-  { label: '6:00 AM', value: '06:00' },
-  { label: '7:00 AM', value: '07:00' },
-  { label: '8:00 AM', value: '08:00' },
-  { label: '9:00 AM', value: '09:00' },
-  { label: '10:00 AM', value: '10:00' },
+  { label: '6:00 am', value: '06:00' },
+  { label: '7:00 am', value: '07:00' },
+  { label: '8:00 am', value: '08:00' },
+  { label: '9:00 am', value: '09:00' },
+  { label: '10:00 am', value: '10:00' },
 ];
 
-export default function SettingsScreen() {
-  const { t } = useTranslation();
-  const router = useRouter();
-  const user = useUserStore((s) => s.user);
-  const {
-    language,
-    notificationsEnabled,
-    dailyNotificationTime,
-    setLanguage,
-    setNotifications,
-    setNotificationTime,
-  } = useSettingsStore();
+function PickerRow({
+  label,
+  value,
+  onPress,
+}: {
+  label: string;
+  value: string;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.84}>
+      <Text style={styles.rowText}>{label}</Text>
+      <Text style={styles.rowValue}>{value}</Text>
+    </TouchableOpacity>
+  );
+}
 
-  const [showLangPicker, setShowLangPicker] = useState(false);
+export default function SettingsScreen() {
+  const router = useRouter();
+  const user = useUserStore((state) => state.user);
+  const clearUser = useUserStore((state) => state.clearUser);
+  const clearReadings = useReadingStore((state) => state.clearReadings);
+  const clearConnections = useConnectionsStore((state) => state.clearConnections);
+  const clearJournal = useJournalStore((state) => state.clearJournal);
+  const { language, notificationsEnabled, dailyNotificationTime, setLanguage, setNotifications, setNotificationTime } = useSettingsStore();
+  const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
 
   const handleLanguageChange = (code: string) => {
     setLanguage(code);
     i18n.changeLanguage(code);
-    setShowLangPicker(false);
+    setShowLanguagePicker(false);
   };
 
-  const handleClearData = () => {
+  const clearProfileAndReturnToOnboarding = async () => {
+    await Promise.all([clearUser(), clearReadings(), clearConnections(), clearJournal()]);
+    router.dismissAll();
+    router.replace('/(onboarding)/welcome');
+  };
+
+  const handleLogout = () => {
     Alert.alert(
-      'Reset App Data',
-      'This will clear all your data and return to onboarding. This cannot be undone.',
+      'Log Out',
+      'This app stores your profile locally. Logging out clears the saved chart on this device and returns you to onboarding.',
       [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reset',
-          style: 'destructive',
-          onPress: () => {
-            useUserStore.getState().clearUser();
-            router.replace('/');
-          },
-        },
+        { text: 'Log Out', style: 'destructive', onPress: () => void clearProfileAndReturnToOnboarding() },
       ]
     );
   };
-
-  const currentLang = LANGUAGES.find((l) => l.code === language) ?? LANGUAGES[0];
 
   return (
     <StarField>
       <ScreenHeader title="Settings" />
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        <Text style={styles.headline}>Shape the ritual around your routine.</Text>
 
-        {/* Language */}
-        <GradientCard>
-          <Text style={styles.sectionTitle}>{'\u{1F30D}'} Language</Text>
-          <TouchableOpacity
-            style={styles.settingRow}
-            onPress={() => setShowLangPicker(!showLangPicker)}
-          >
-            <Text style={styles.settingLabel}>App Language</Text>
-            <Text style={styles.settingValue}>
-              {currentLang.emoji} {currentLang.native}
-            </Text>
-          </TouchableOpacity>
-
-          {showLangPicker && (
-            <View style={styles.pickerContainer}>
-              {LANGUAGES.map((lang) => (
-                <TouchableOpacity
-                  key={lang.code}
-                  style={[
-                    styles.pickerItem,
-                    language === lang.code && styles.pickerItemActive,
-                  ]}
-                  onPress={() => handleLanguageChange(lang.code)}
-                >
-                  <Text style={styles.pickerEmoji}>{lang.emoji}</Text>
-                  <View style={styles.pickerTextCol}>
-                    <Text style={[
-                      styles.pickerName,
-                      language === lang.code && styles.pickerNameActive,
-                    ]}>{lang.native}</Text>
-                    <Text style={styles.pickerNameSub}>{lang.name}</Text>
-                  </View>
-                  {language === lang.code && (
-                    <Text style={styles.checkmark}>{'\u2713'}</Text>
-                  )}
+        <GradientCard style={styles.section}>
+          <Text style={styles.sectionLabel}>Language</Text>
+          <PickerRow
+            label="App language"
+            value={LANGUAGES.find((item) => item.code === language)?.name ?? 'English'}
+            onPress={() => setShowLanguagePicker((value) => !value)}
+          />
+          {showLanguagePicker ? (
+            <View style={styles.inlineList}>
+              {LANGUAGES.map((item) => (
+                <TouchableOpacity key={item.code} onPress={() => handleLanguageChange(item.code)} style={styles.inlineItem} activeOpacity={0.84}>
+                  <Text style={[styles.inlineText, item.code === language && styles.inlineTextActive]}>{item.name}</Text>
                 </TouchableOpacity>
               ))}
             </View>
-          )}
+          ) : null}
         </GradientCard>
 
-        {/* Notifications */}
-        <GradientCard>
-          <Text style={styles.sectionTitle}>{'\u{1F514}'} Notifications</Text>
-
-          <View style={styles.settingRow}>
-            <View style={styles.settingTextCol}>
-              <Text style={styles.settingLabel}>Daily Cosmic Vibe</Text>
-              <Text style={styles.settingDesc}>Get your morning cosmic reading</Text>
-            </View>
+        <GradientCard style={styles.section}>
+          <Text style={styles.sectionLabel}>Reminder</Text>
+          <View style={styles.switchRow}>
+            <Text style={styles.rowText}>Daily reading notification</Text>
             <Switch
               value={notificationsEnabled}
               onValueChange={setNotifications}
-              trackColor={{ false: 'rgba(255,255,255,0.1)', true: COLORS.starGold }}
-              thumbColor={COLORS.white}
+              trackColor={{ false: 'rgba(40,49,73,0.16)', true: COLORS.sunOrange }}
+              thumbColor="#fffaf1"
             />
           </View>
-
-          {notificationsEnabled && (
+          {notificationsEnabled ? (
             <>
-              <TouchableOpacity
-                style={styles.settingRow}
-                onPress={() => setShowTimePicker(!showTimePicker)}
-              >
-                <Text style={styles.settingLabel}>Notification Time</Text>
-                <Text style={styles.settingValue}>
-                  {NOTIFICATION_TIMES.find((t) => t.value === dailyNotificationTime)?.label ?? '8:00 AM'}
-                </Text>
-              </TouchableOpacity>
-
-              {showTimePicker && (
-                <View style={styles.pickerContainer}>
-                  {NOTIFICATION_TIMES.map((time) => (
+              <PickerRow
+                label="Reminder time"
+                value={NOTIFICATION_TIMES.find((item) => item.value === dailyNotificationTime)?.label ?? '8:00 am'}
+                onPress={() => setShowTimePicker((value) => !value)}
+              />
+              {showTimePicker ? (
+                <View style={styles.inlineList}>
+                  {NOTIFICATION_TIMES.map((item) => (
                     <TouchableOpacity
-                      key={time.value}
-                      style={[
-                        styles.pickerItem,
-                        dailyNotificationTime === time.value && styles.pickerItemActive,
-                      ]}
-                      onPress={() => { setNotificationTime(time.value); setShowTimePicker(false); }}
+                      key={item.value}
+                      onPress={() => {
+                        setNotificationTime(item.value);
+                        setShowTimePicker(false);
+                      }}
+                      style={styles.inlineItem}
+                      activeOpacity={0.84}
                     >
-                      <Text style={[
-                        styles.pickerName,
-                        dailyNotificationTime === time.value && styles.pickerNameActive,
-                      ]}>{time.label}</Text>
-                      {dailyNotificationTime === time.value && (
-                        <Text style={styles.checkmark}>{'\u2713'}</Text>
-                      )}
+                      <Text style={[styles.inlineText, item.value === dailyNotificationTime && styles.inlineTextActive]}>{item.label}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
-              )}
+              ) : null}
             </>
-          )}
+          ) : null}
         </GradientCard>
 
-        {/* Account */}
-        <GradientCard>
-          <Text style={styles.sectionTitle}>{'\u{1F464}'} Account</Text>
-
-          <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>Name</Text>
-            <Text style={styles.settingValue}>{user?.name ?? 'Unknown'}</Text>
-          </View>
-
-          <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>Subscription</Text>
-            <Text style={[styles.settingValue, { color: user?.subscription.tier === 'free' ? COLORS.textSecondary : COLORS.starGold }]}>
-              {user?.subscription.tier === 'free' ? 'Free' : user?.subscription.tier === 'premium' ? 'Premium' : 'Family'}
-              {user?.subscription.status === 'trial' ? ' (Trial)' : ''}
-            </Text>
-          </View>
-
-          {user?.subscription.tier === 'free' && (
-            <CosmicButton
-              title="Upgrade to Premium"
-              onPress={() => router.push('/subscription')}
-              colors={[COLORS.starGold, COLORS.sunOrange]}
-              style={styles.upgradeButton}
-            />
-          )}
-
-          <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>Active Systems</Text>
-            <Text style={styles.settingValue}>{user?.activeSystems.length ?? 0} / 4</Text>
-          </View>
-
-          <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>Cosmic Points</Text>
-            <Text style={[styles.settingValue, { color: COLORS.starGold }]}>
-              {'\u{1F31F}'} {user?.cosmicPoints ?? 0}
-            </Text>
-          </View>
+        <GradientCard style={styles.section}>
+          <Text style={styles.sectionLabel}>Profile snapshot</Text>
+          <Text style={styles.metaLine}>Name - {user?.name ?? 'Unknown'}</Text>
+          <Text style={styles.metaLine}>Plan - {user?.subscription.tier ?? 'free'}</Text>
+          <Text style={styles.metaLine}>Active systems - {user?.activeSystems.length ?? 0}</Text>
+          <Text style={styles.metaLine}>Cosmic points - {user?.cosmicPoints ?? 0}</Text>
         </GradientCard>
 
-        {/* About */}
-        <GradientCard>
-          <Text style={styles.sectionTitle}>{'\u2728'} About</Text>
-
-          <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>Version</Text>
-            <Text style={styles.settingValue}>1.0.0</Text>
-          </View>
-
-          <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>Systems</Text>
-            <Text style={styles.settingValue}>Western + Vedic + Chinese + KP</Text>
-          </View>
-
-          <Text style={styles.aboutText}>
-            CosmicSelf combines 4 ancient astrology traditions into one unified
-            cosmic profile. All readings are positively framed and backed by
-            classical source references.
-          </Text>
+        <GradientCard style={styles.section} accentColor={COLORS.coral}>
+          <Text style={styles.sectionLabel}>Session</Text>
+          <Text style={styles.logoutCopy}>Logging out clears the local chart and takes you back to the beginning.</Text>
+          <CosmicButton title="Log out" onPress={handleLogout} variant="outline" />
         </GradientCard>
-
-        {/* Danger Zone */}
-        <GradientCard>
-          <Text style={[styles.sectionTitle, { color: '#ff6b6b' }]}>{'\u{26A0}\uFE0F'} Data</Text>
-          <CosmicButton
-            title="Reset All Data"
-            onPress={handleClearData}
-            variant="outline"
-            style={styles.dangerButton}
-          />
-        </GradientCard>
-
-        <View style={styles.bottomPad} />
       </ScrollView>
     </StarField>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.xxl, gap: SPACING.lg },
-  sectionTitle: { color: COLORS.white, fontSize: 16, fontFamily: 'PlayfairDisplay_700Bold', marginBottom: SPACING.md },
-  settingRow: {
+  container: {
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.xxl,
+    gap: SPACING.lg,
+  },
+  headline: {
+    color: COLORS.textPrimary,
+    fontSize: 34,
+    lineHeight: 40,
+    fontFamily: FONTS.display,
+    letterSpacing: -0.6,
+  },
+  section: {
+    gap: SPACING.sm,
+  },
+  sectionLabel: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    fontFamily: FONTS.accent,
+    letterSpacing: 1.1,
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: SPACING.md,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.glassBorder,
+  },
+  switchRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: SPACING.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
+    gap: SPACING.md,
+    paddingVertical: 6,
   },
-  settingTextCol: { flex: 1 },
-  settingLabel: { color: COLORS.textSecondary, fontSize: 14, fontWeight: '500' },
-  settingDesc: { color: COLORS.textMuted, fontSize: 11, marginTop: 2 },
-  settingValue: { color: COLORS.white, fontSize: 14, fontWeight: '700' },
-  pickerContainer: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: BORDER_RADIUS.md,
-    marginTop: SPACING.sm,
-    overflow: 'hidden',
+  rowText: {
+    flex: 1,
+    color: COLORS.textPrimary,
+    fontSize: 18,
+    lineHeight: 24,
+    fontFamily: FONTS.heading,
   },
-  pickerItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: SPACING.md,
+  rowValue: {
+    color: COLORS.textSecondary,
+    fontSize: 13,
+    lineHeight: 20,
+    textAlign: 'right',
+  },
+  inlineList: {
     gap: SPACING.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.03)',
+    marginTop: SPACING.xs,
   },
-  pickerItemActive: { backgroundColor: 'rgba(255,215,0,0.08)' },
-  pickerEmoji: { fontSize: 24 },
-  pickerTextCol: { flex: 1 },
-  pickerName: { color: COLORS.white, fontSize: 15, fontWeight: '600' },
-  pickerNameActive: { color: COLORS.starGold },
-  pickerNameSub: { color: COLORS.textMuted, fontSize: 12 },
-  checkmark: { color: COLORS.starGold, fontSize: 18, fontWeight: '700' },
-  upgradeButton: { marginTop: SPACING.sm },
-  aboutText: { color: COLORS.textMuted, fontSize: 13, lineHeight: 20, marginTop: SPACING.sm },
-  dangerButton: { borderColor: '#ff6b6b' },
-  bottomPad: { height: 100 },
+  inlineItem: {
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
+    borderRadius: BORDER_RADIUS.md,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(255,255,255,0.72)',
+  },
+  inlineText: {
+    color: COLORS.textSecondary,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  inlineTextActive: {
+    color: COLORS.textPrimary,
+  },
+  metaLine: {
+    color: COLORS.textPrimary,
+    fontSize: 17,
+    lineHeight: 24,
+    fontFamily: FONTS.heading,
+  },
+  logoutCopy: {
+    color: COLORS.textSecondary,
+    fontSize: 14,
+    lineHeight: 22,
+  },
 });
