@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
   KeyboardAvoidingView, Platform, ActivityIndicator, Alert, ScrollView,
@@ -13,25 +13,32 @@ import { createUserProfile } from '../../src/services/firestoreService';
 
 export default function SignupScreen() {
   const router = useRouter();
+  const emailRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string }>({});
+
+  const validate = () => {
+    const e: typeof errors = {};
+    if (!name.trim()) e.name = 'Name is required';
+    if (!email.trim()) e.email = 'Email is required';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) e.email = 'Enter a valid email';
+    if (!password) e.password = 'Password is required';
+    else if (password.length < 6) e.password = 'Password must be at least 6 characters';
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
 
   const handleSignup = async () => {
-    if (!name.trim() || !email.trim() || !password) {
-      Alert.alert('Missing fields', 'Please fill in all fields.');
-      return;
-    }
-    if (password.length < 6) {
-      Alert.alert('Weak password', 'Password must be at least 6 characters.');
-      return;
-    }
+    if (!validate()) return;
     setLoading(true);
     try {
       const user = await signUp(email.trim().toLowerCase(), password, name.trim());
-      // Create Firestore profile
       await createUserProfile(user.uid, {
         name: name.trim(),
         activeSystems: ['western', 'vedic', 'chinese', 'kp'],
@@ -48,6 +55,8 @@ export default function SignupScreen() {
           ? 'That email is already registered.'
           : e.code === 'auth/invalid-email'
           ? 'Please enter a valid email address.'
+          : e.code === 'auth/network-request-failed'
+          ? 'No internet connection.'
           : 'Sign up failed. Please try again.';
       Alert.alert('Sign up failed', msg);
     } finally {
@@ -57,85 +66,103 @@ export default function SignupScreen() {
 
   return (
     <StarField>
-      <KeyboardAvoidingView
-        style={styles.root}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView
-          contentContainerStyle={styles.container}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Header */}
+      <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+
           <View style={styles.header}>
+            <Ionicons name="sparkles" size={48} color={COLORS.western} />
             <Text style={styles.title}>Begin your journey</Text>
             <Text style={styles.subtitle}>Create your cosmic profile</Text>
           </View>
 
-          {/* Fields */}
           <View style={styles.fields}>
-            <View style={styles.inputWrap}>
-              <Ionicons name="person-outline" size={18} color={COLORS.textMuted} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Your name"
-                placeholderTextColor={COLORS.textMuted}
-                value={name}
-                onChangeText={setName}
-                autoCapitalize="words"
-                autoComplete="name"
-              />
+            {/* Name */}
+            <View>
+              <Text style={styles.label}>Your Name</Text>
+              <View style={[styles.inputWrap, errors.name && styles.inputError]}>
+                <Ionicons name="person-outline" size={18} color={COLORS.textMuted} style={styles.icon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="A name to place in the stars"
+                  placeholderTextColor="rgba(255,255,255,0.35)"
+                  value={name}
+                  onChangeText={t => { setName(t); setErrors(p => ({ ...p, name: undefined })); }}
+                  autoCapitalize="words"
+                  autoComplete="name"
+                  returnKeyType="next"
+                  onSubmitEditing={() => emailRef.current?.focus()}
+                />
+              </View>
+              {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
             </View>
 
-            <View style={styles.inputWrap}>
-              <Ionicons name="mail-outline" size={18} color={COLORS.textMuted} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Email"
-                placeholderTextColor={COLORS.textMuted}
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                autoComplete="email"
-              />
+            {/* Email */}
+            <View>
+              <Text style={styles.label}>Email</Text>
+              <View style={[styles.inputWrap, errors.email && styles.inputError]}>
+                <Ionicons name="mail-outline" size={18} color={COLORS.textMuted} style={styles.icon} />
+                <TextInput
+                  ref={emailRef}
+                  style={styles.input}
+                  placeholder="you@example.com"
+                  placeholderTextColor="rgba(255,255,255,0.35)"
+                  value={email}
+                  onChangeText={t => { setEmail(t); setErrors(p => ({ ...p, email: undefined })); }}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  autoComplete="email"
+                  returnKeyType="next"
+                  onSubmitEditing={() => passwordRef.current?.focus()}
+                />
+              </View>
+              {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
             </View>
 
-            <View style={styles.inputWrap}>
-              <Ionicons name="lock-closed-outline" size={18} color={COLORS.textMuted} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Password (min 6 chars)"
-                placeholderTextColor={COLORS.textMuted}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPass}
-                autoComplete="new-password"
-              />
-              <TouchableOpacity onPress={() => setShowPass(v => !v)} style={styles.eyeBtn}>
-                <Ionicons name={showPass ? 'eye-off-outline' : 'eye-outline'} size={18} color={COLORS.textMuted} />
-              </TouchableOpacity>
+            {/* Password */}
+            <View>
+              <Text style={styles.label}>Password</Text>
+              <View style={[styles.inputWrap, errors.password && styles.inputError]}>
+                <Ionicons name="lock-closed-outline" size={18} color={COLORS.textMuted} style={styles.icon} />
+                <TextInput
+                  ref={passwordRef}
+                  style={styles.input}
+                  placeholder="Min 6 characters"
+                  placeholderTextColor="rgba(255,255,255,0.35)"
+                  value={password}
+                  onChangeText={t => { setPassword(t); setErrors(p => ({ ...p, password: undefined })); }}
+                  secureTextEntry={!showPass}
+                  autoComplete="new-password"
+                  returnKeyType="done"
+                  onSubmitEditing={handleSignup}
+                />
+                <TouchableOpacity onPress={() => setShowPass(v => !v)} style={styles.eyeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Ionicons name={showPass ? 'eye-off-outline' : 'eye-outline'} size={18} color={COLORS.textMuted} />
+                </TouchableOpacity>
+              </View>
+              {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
             </View>
           </View>
 
-          {/* Create account button */}
           <AnimatedPressable onPress={handleSignup} disabled={loading} haptic>
             <View style={styles.btn}>
-              {loading
-                ? <ActivityIndicator color="#fff" />
-                : <Text style={styles.btnText}>Create Account</Text>
-              }
+              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Create Account</Text>}
             </View>
           </AnimatedPressable>
 
-          {/* Sign in link */}
-          <TouchableOpacity onPress={() => router.back()} style={styles.linkBtn}>
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <TouchableOpacity onPress={() => router.back()} style={styles.linkBtn} activeOpacity={0.7}>
             <Text style={styles.linkText}>
-              Already have an account? <Text style={styles.linkAccent}>Sign in</Text>
+              Already have an account?{'  '}
+              <Text style={styles.linkAccent}>Sign in</Text>
             </Text>
           </TouchableOpacity>
 
-          <View style={{ height: SPACING.xl }} />
+          <View style={{ height: SPACING.xxl }} />
         </ScrollView>
       </KeyboardAvoidingView>
     </StarField>
@@ -151,54 +178,49 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     gap: SPACING.lg,
   },
-  header: { gap: SPACING.xs, alignItems: 'center' },
-  title: {
-    fontFamily: FONTS.display,
-    fontSize: 28,
-    color: COLORS.white,
-    letterSpacing: 2,
-    textAlign: 'center',
-  },
-  subtitle: {
-    color: COLORS.textMuted,
-    fontSize: 14,
-    textAlign: 'center',
-    letterSpacing: 0.5,
-  },
+  header: { gap: SPACING.sm, alignItems: 'center' },
+  title: { fontFamily: FONTS.display, fontSize: 26, color: '#fff', letterSpacing: 2, textAlign: 'center' },
+  subtitle: { color: 'rgba(255,255,255,0.55)', fontSize: 14, textAlign: 'center' },
   fields: { gap: SPACING.md },
+  label: { color: 'rgba(255,255,255,0.65)', fontSize: 12, fontFamily: FONTS.accent, letterSpacing: 1, marginBottom: 6 },
   inputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.07)',
+    backgroundColor: 'rgba(0,0,0,0.40)',
     borderRadius: BORDER_RADIUS.md,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
+    borderColor: 'rgba(255,255,255,0.18)',
     paddingHorizontal: SPACING.md,
-    minHeight: 52,
+    minHeight: 54,
   },
-  inputIcon: { marginRight: SPACING.sm },
+  inputError: { borderColor: COLORS.error },
+  icon: { marginRight: 10 },
   input: {
     flex: 1,
-    color: COLORS.white,
-    fontSize: 15,
-    paddingVertical: SPACING.md,
+    color: '#ffffff',
+    fontSize: 16,
+    paddingVertical: 14,
   },
   eyeBtn: { padding: 4 },
+  errorText: { color: COLORS.error, fontSize: 12, marginTop: 4, marginLeft: 2 },
   btn: {
     backgroundColor: COLORS.western,
     borderRadius: BORDER_RADIUS.full,
     paddingVertical: 16,
     alignItems: 'center',
-    minHeight: 52,
+    minHeight: 54,
     justifyContent: 'center',
+    shadowColor: COLORS.western,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  btnText: {
-    color: '#fff',
-    fontSize: 15,
-    fontFamily: FONTS.heading,
-    letterSpacing: 1,
-  },
-  linkBtn: { alignItems: 'center' },
-  linkText: { color: COLORS.textSecondary, fontSize: 14 },
+  btnText: { color: '#fff', fontSize: 15, fontFamily: FONTS.heading, letterSpacing: 1 },
+  divider: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
+  dividerLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.10)' },
+  dividerText: { color: 'rgba(255,255,255,0.40)', fontSize: 13 },
+  linkBtn: { alignItems: 'center', paddingVertical: SPACING.sm },
+  linkText: { color: 'rgba(255,255,255,0.55)', fontSize: 14 },
   linkAccent: { color: COLORS.western, fontFamily: FONTS.heading },
 });
