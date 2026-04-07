@@ -320,7 +320,14 @@ function tropicalToSidereal(tropicalDegree: number, date: Date): number {
  * Each Nakshatra spans 13°20' (13.3333 degrees) of the sidereal zodiac.
  * Each pada spans 3°20' (3.3333 degrees), dividing each Nakshatra into 4 quarters.
  */
-export function getNakshatra(date: Date): { nakshatra: Nakshatra; pada: number } {
+export function getNakshatra(date: Date, birthTime?: string): { nakshatra: Nakshatra; pada: number } {
+  if (birthTime) {
+    const [h, m] = birthTime.split(':').map(Number);
+    if (!isNaN(h) && !isNaN(m)) {
+      date = new Date(date);
+      date.setHours(h, m, 0, 0);
+    }
+  }
   const tropicalLongitude = approximateMoonLongitude(date);
   const siderealLongitude = tropicalToSidereal(tropicalLongitude, date);
 

@@ -14,7 +14,7 @@ export interface VedicChart {
 
 const SIGNS = [
   'Mesha','Vrishabha','Mithuna','Karka','Simha','Kanya',
-  'Tula','Vrishchika','Dhanu','Makara','Kumbha','Meena',
+  'Tula','Vrischika','Dhanu','Makara','Kumbha','Meena',
 ];
 
 const NAKSHATRAS = [

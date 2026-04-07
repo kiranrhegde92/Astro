@@ -17,7 +17,7 @@ export function calculateCosmicProfile(
   lng?: number,
 ): CosmicProfile {
   const western = calculateWesternProfile(birthDate, birthTime, lat, lng);
-  const vedic = calculateVedicProfile(birthDate);
+  const vedic = calculateVedicProfile(birthDate, birthTime);
   const chinese = calculateChineseProfile(birthDate, birthTime);
   // Pass the Vedic currentDasha to KP so predictions use the real dasha planet
   const kp = calculateKPProfile(birthDate, birthTime, vedic.currentDasha);

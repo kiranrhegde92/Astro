@@ -198,9 +198,23 @@ function tropicalToSidereal(tropicalDegree: number, date: Date): number {
 }
 
 /**
+ * Build a Date that incorporates an optional "HH:MM" birth-time string.
+ * If birthTime is omitted the original date is returned unchanged.
+ */
+export function withBirthTime(date: Date, birthTime?: string): Date {
+  if (!birthTime) return date;
+  const [h, m] = birthTime.split(':').map(Number);
+  if (isNaN(h) || isNaN(m)) return date;
+  const d = new Date(date);
+  d.setHours(h, m, 0, 0);
+  return d;
+}
+
+/**
  * Calculate the Vedic Moon sign (Rashi) for a given birth date using the sidereal zodiac.
  */
-export function getRashi(date: Date): Rashi {
+export function getRashi(date: Date, birthTime?: string): Rashi {
+  date = withBirthTime(date, birthTime);
   const tropicalLongitude = approximateMoonLongitude(date);
   const siderealLongitude = tropicalToSidereal(tropicalLongitude, date);
 

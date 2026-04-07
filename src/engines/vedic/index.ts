@@ -52,9 +52,9 @@ export function toSiderealPositions(tropicalPlanets: PlanetPosition[], date: Dat
  *
  * Reference: Brihat Parashara Hora Shastra
  */
-export function calculateVedicProfile(birthDate: Date): VedicProfile {
-  const rashi = getRashi(birthDate);
-  const { nakshatra, pada } = getNakshatra(birthDate);
+export function calculateVedicProfile(birthDate: Date, birthTime?: string): VedicProfile {
+  const rashi = getRashi(birthDate, birthTime);
+  const { nakshatra, pada } = getNakshatra(birthDate, birthTime);
   const dashas = calculateDashas(birthDate, nakshatra, pada);
   const currentDasha = getCurrentDasha(dashas, new Date());
   const remedies = getRemedies(rashi, nakshatra, currentDasha);

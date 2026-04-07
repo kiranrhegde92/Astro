@@ -12,6 +12,7 @@ import { COLORS, FONTS, SPACING, BORDER_RADIUS } from '../../src/constants/theme
 import { useUserStore } from '../../src/store/userStore';
 import { useAuthStore } from '../../src/store/authStore';
 import { calculateUserChart } from '../../src/services/functionsService';
+import { calculateCosmicProfile } from '../../src/engines/unified';
 import type { ChineseProfile, DashaPeriod, KPProfile, PlanetPosition, WesternProfile } from '../../src/types/astrology';
 
 type Status = 'calculating' | 'done' | 'error';
@@ -173,9 +174,47 @@ export default function CosmicRevealScreen() {
       })
       .catch((err) => {
         clearInterval(stepTimer);
-        console.warn('Chart calculation failed:', err);
-        setErrorMsg('Could not connect to the calculation server. Your local profile has been saved — real chart data will sync when you are online.');
-        setStatus('error');
+        console.warn('Chart calculation failed, using local engines:', err);
+
+        // ── Local fallback: compute chart offline ──
+        try {
+          const bd = user!.birthDetails as any;
+          const y = bd.date.getFullYear?.() ?? new Date(bd.date).getFullYear();
+          const m = bd.date.getMonth?.() ?? new Date(bd.date).getMonth();
+          const d = bd.date.getDate?.() ?? new Date(bd.date).getDate();
+          const localBirthDate = new Date(y, m, d);
+          const localBirthTime = bd.birthTimeStr ?? bd.time ?? undefined;
+          const local = calculateCosmicProfile(localBirthDate, localBirthTime);
+
+          if (local.western) {
+            setWesternProfile({
+              sun: local.western.sun,
+              moon: local.western.moon,
+              rising: local.western.rising,
+              element: local.western.element,
+              modality: local.western.modality,
+              planets: local.western.planets ?? [],
+              houses: local.western.houses,
+            });
+          }
+          if (local.vedic) {
+            setVedicProfile(local.vedic);
+          }
+          if (local.chinese) {
+            setChineseProfile(local.chinese);
+          }
+          if (local.kp) {
+            setKPProfile(local.kp);
+          }
+
+          setChart(local);
+          addCosmicPoints(50);
+          setStatus('done');
+        } catch (localErr) {
+          console.warn('Local fallback also failed:', localErr);
+          setErrorMsg('Could not connect to the calculation server. Your local profile has been saved — real chart data will sync when you are online.');
+          setStatus('error');
+        }
       });
 
     return () => clearInterval(stepTimer);

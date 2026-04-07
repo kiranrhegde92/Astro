@@ -59,26 +59,27 @@ export function localToUtc(
   birthTimeLocal: string,
   timezone: string
 ): Date {
-  // Build ISO string with timezone
-  const localString = `${birthDateLocal}T${birthTimeLocal}:00`;
-  // Use Intl to get offset for that timezone at that datetime
-  const localDate = new Date(localString);
+  // Parse wall-clock components
+  const [year, month, day] = birthDateLocal.split('-').map(Number);
+  const [hour, minute] = birthTimeLocal.split(':').map(Number);
 
-  // Get UTC offset in minutes for the given timezone
+  // Build a UTC instant whose wall-clock numbers match the user's local time.
+  const assumedUtcMs = Date.UTC(year, month - 1, day, hour, minute, 0, 0);
+
+  // Derive the timezone's UTC offset by formatting that instant in the
+  // target timezone and measuring the wall-clock shift.
   const formatter = new Intl.DateTimeFormat('en-US', {
     timeZone: timezone,
-    timeZoneName: 'shortOffset',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false,
   });
-  const parts = formatter.formatToParts(localDate);
-  const offsetPart = parts.find(p => p.type === 'timeZoneName')?.value ?? 'GMT+0';
+  const parts = formatter.formatToParts(new Date(assumedUtcMs));
+  const p = (type: string) => parseInt(parts.find(x => x.type === type)?.value ?? '0', 10);
+  const tzHour = p('hour') === 24 ? 0 : p('hour');
+  const tzMs = Date.UTC(p('year'), p('month') - 1, p('day'), tzHour, p('minute'), p('second'));
+  const offsetMs = tzMs - assumedUtcMs; // positive if east of UTC
 
-  const match = offsetPart.match(/GMT([+-])(\d+)(?::(\d+))?/);
-  if (!match) return localDate;
-
-  const sign = match[1] === '+' ? 1 : -1;
-  const hours = parseInt(match[2], 10);
-  const minutes = parseInt(match[3] ?? '0', 10);
-  const offsetMs = sign * (hours * 60 + minutes) * 60 * 1000;
-
-  return new Date(localDate.getTime() - offsetMs);
+  // Actual UTC = wall-clock time minus timezone offset
+  return new Date(assumedUtcMs - offsetMs);
 }
