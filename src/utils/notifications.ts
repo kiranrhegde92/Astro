@@ -1,73 +1,20 @@
 /**
  * Push Notification Utilities for CosmicSelf
  *
- * Handles scheduling daily cosmic vibe notifications using expo-notifications.
- * Morning notification with a gentle, positive cosmic message.
+ * Uses dynamic imports for expo-notifications so the module can be safely
+ * loaded in Expo Go without triggering the SDK-53 push-token side effects.
  */
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import type { UserProfile } from '../types/user';
 import { generateDailyReading } from '../content/dailyTemplates';
 import { registerPushToken } from './notificationTokenHelper';
 
-// Push tokens are unavailable in Expo Go since SDK 53
-const IS_EXPO_GO = Constants.appOwnership === 'expo';
+// Push tokens (and the DevicePushTokenAutoRegistration side-effect module)
+// are unavailable in Expo Go since SDK 53. Never statically import
+// expo-notifications at module level — load it dynamically inside functions.
+export const IS_EXPO_GO = Constants.appOwnership === 'expo';
 
-// Configure how notifications appear when app is in foreground
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
-
-/**
- * Request notification permissions from the user.
- * Returns true if permission was granted.
- */
-export async function requestNotificationPermissions(): Promise<boolean> {
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  let finalStatus = existingStatus;
-
-  if (existingStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
-  }
-
-  if (finalStatus !== 'granted') {
-    return false;
-  }
-
-  // Android requires a notification channel
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('cosmic-daily', {
-      name: 'Daily Cosmic Vibe',
-      importance: Notifications.AndroidImportance.DEFAULT,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#FFD700',
-    });
-  }
-
-  // Register push token — only available in standalone/dev builds, not Expo Go
-  if (!IS_EXPO_GO) {
-    try {
-      const tokenData = await Notifications.getExpoPushTokenAsync();
-      await registerPushToken(tokenData.data);
-    } catch {
-      // Non-critical
-    }
-  }
-
-  return true;
-}
-
-/**
- * Daily cosmic notification messages - gentle, positive, never alarming.
- */
 const COSMIC_MESSAGES = [
   { title: 'Your Stars Are Aligned', body: 'The cosmos has a beautiful message for you today. Open CosmicSelf to discover it.' },
   { title: 'Cosmic Energy Update', body: 'Today brings a wave of positive cosmic energy your way. See what the stars say.' },
@@ -78,9 +25,6 @@ const COSMIC_MESSAGES = [
   { title: 'Celestial Guidance', body: 'Ancient wisdom from 4 traditions has a message for your day. Come see.' },
 ];
 
-/**
- * Get a daily notification message based on the day of the year.
- */
 function getDailyMessage(): { title: string; body: string } {
   const dayOfYear = Math.floor(
     (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000
@@ -89,16 +33,10 @@ function getDailyMessage(): { title: string; body: string } {
 }
 
 function getPersonalizedMessage(user?: UserProfile | null): { title: string; body: string } {
-  if (!user?.western || !user?.vedic || !user?.chinese) {
+  if (!user?.western?.sun || !user?.vedic?.rashi || !user?.chinese?.animal) {
     return getDailyMessage();
   }
-
-  const reading = generateDailyReading(
-    new Date(),
-    user.western.sun,
-    user.vedic.rashi,
-    user.chinese.animal
-  );
+  const reading = generateDailyReading(new Date(), user.western.sun, user.vedic.rashi, user.chinese.animal);
   const firstName = user.name.split(' ')[0];
   return {
     title: `Good morning, ${firstName}`,
@@ -109,14 +47,61 @@ function getPersonalizedMessage(user?: UserProfile | null): { title: string; bod
 }
 
 /**
- * Schedule a daily recurring notification at the specified time.
- * Cancels any existing scheduled notifications first.
+ * Request notification permissions. Returns false in Expo Go (not supported).
+ */
+export async function requestNotificationPermissions(): Promise<boolean> {
+  if (IS_EXPO_GO) return false;
+
+  // Dynamic import avoids the DevicePushTokenAutoRegistration side-effect in Expo Go
+  const Notifications = await import('expo-notifications');
+
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: false,
+      shouldSetBadge: false,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+
+  const { status: existingStatus } = await Notifications.getPermissionsAsync();
+  let finalStatus = existingStatus;
+  if (existingStatus !== 'granted') {
+    const { status } = await Notifications.requestPermissionsAsync();
+    finalStatus = status;
+  }
+  if (finalStatus !== 'granted') return false;
+
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('cosmic-daily', {
+      name: 'Daily Cosmic Vibe',
+      importance: Notifications.AndroidImportance.DEFAULT,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#FFD700',
+    });
+  }
+
+  try {
+    const tokenData = await Notifications.getExpoPushTokenAsync();
+    await registerPushToken(tokenData.data);
+  } catch {
+    // Non-critical
+  }
+
+  return true;
+}
+
+/**
+ * Schedule a daily recurring notification. No-op in Expo Go.
  */
 export async function scheduleDailyNotification(
   timeString: string,
   user?: UserProfile | null
 ): Promise<void> {
-  // Cancel existing scheduled notifications
+  if (IS_EXPO_GO) return;
+
+  const Notifications = await import('expo-notifications');
   await Notifications.cancelAllScheduledNotificationsAsync();
 
   const [hours, minutes] = timeString.split(':').map(Number);
@@ -138,8 +123,10 @@ export async function scheduleDailyNotification(
 }
 
 /**
- * Cancel all scheduled notifications.
+ * Cancel all scheduled notifications. No-op in Expo Go.
  */
 export async function cancelAllNotifications(): Promise<void> {
+  if (IS_EXPO_GO) return;
+  const Notifications = await import('expo-notifications');
   await Notifications.cancelAllScheduledNotificationsAsync();
 }

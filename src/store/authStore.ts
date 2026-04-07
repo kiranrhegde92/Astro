@@ -1,8 +1,11 @@
 import { create } from 'zustand';
 import type { User } from 'firebase/auth';
+import Constants from 'expo-constants';
 import { onAuthChange, signOut } from '../services/authService';
 import { getUserProfile } from '../services/firestoreService';
 import { useUserStore } from './userStore';
+
+const IS_EXPO_GO = Constants.appOwnership === 'expo';
 
 interface AuthState {
   firebaseUser: User | null;
@@ -29,12 +32,14 @@ export const useAuthStore = create<AuthState>((set) => ({
         } catch (e) {
           console.warn('Failed to load Firestore profile:', e);
         }
-        // Request push permissions — lazy import so Expo Go crash can't block route loading
-        setTimeout(() => {
-          import('../utils/notifications')
-            .then(m => m.requestNotificationPermissions())
-            .catch(() => {});
-        }, 3000);
+        // Request push permissions — skip entirely in Expo Go (SDK 53+ removed push support)
+        if (!IS_EXPO_GO) {
+          setTimeout(() => {
+            import('../utils/notifications')
+              .then(m => m.requestNotificationPermissions())
+              .catch(() => {});
+          }, 3000);
+        }
       } else {
         useUserStore.getState().clearUser();
       }
