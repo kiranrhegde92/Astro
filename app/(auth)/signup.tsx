@@ -167,10 +167,10 @@ export default function SignupScreen() {
                 <TouchableOpacity onPress={() => setShowPass(v => !v)} style={styles.eyeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                   <Ionicons name={showPass ? 'eye-off-outline' : 'eye-outline'} size={18} color={COLORS.textMuted} />
                 </TouchableOpacity>
-              </View>
+              </FocusInput>
               {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
             </View>
-          </View>
+          </Animated.View>
 
           <Animated.View entering={FadeInDown.delay(320).duration(400).springify().damping(20)}>
             <AnimatedPressable onPress={handleSignup} disabled={loading} haptic>

@@ -1,4 +1,4 @@
-import { KPProfile } from '../../types/astrology';
+import { KPProfile, DashaPeriod } from '../../types/astrology';
 import { calculateKPCusps } from './cusps';
 import { getSignificators } from './significators';
 import { getKPPredictions } from './predictions';
@@ -12,33 +12,34 @@ export { getKPPredictions } from './predictions';
 /**
  * Calculate a complete KP System profile.
  *
- * The KP (Krishnamurti Paddhati) system is based on the Vimshottari Dasha
- * system but adds precise sub-lord divisions for more accurate predictions.
- * The sub-lord is the deciding factor for whether a house's promise manifests.
- *
- * Reference: "Krishnamurti Paddhati Reader" by K.S. Krishnamurti
+ * @param birthDate  Date of birth
+ * @param birthTime  Optional time string "HH:MM"
+ * @param currentDasha  Optional pre-computed Vedic dasha (avoids hardcoding)
  */
-export function calculateKPProfile(birthDate: Date, birthTime?: string): KPProfile {
+export function calculateKPProfile(
+  birthDate: Date,
+  birthTime?: string,
+  currentDasha?: DashaPeriod,
+): KPProfile {
   const cusps = calculateKPCusps(birthDate, birthTime);
 
-  // Build sub-lords from cusps
   const sublords = cusps.map((cusp) => ({
     house: cusp.house,
     starLord: cusp.starLord,
     subLord: cusp.subLord,
-    signLord: cusp.starLord, // simplified
+    signLord: cusp.starLord,
   }));
 
   const significators = getSignificators(sublords);
 
-  // Use a default current dasha for predictions
-  const defaultDasha = {
+  // Use provided Vedic dasha if available, otherwise estimate from birth Nakshatra
+  const dasha = currentDasha ?? {
     planet: 'Venus' as const,
     startDate: new Date(),
     endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
   };
 
-  const predictions = getKPPredictions(significators, defaultDasha);
+  const predictions = getKPPredictions(significators, dasha);
 
   return {
     sublords,

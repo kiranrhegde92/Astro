@@ -14,7 +14,7 @@ const AREA_EMOJIS: Record<string, string> = {
 };
 
 export default function KPReadingScreen() {
-  const reducedMotion = Platform.OS === 'android';
+  const isAndroid = Platform.OS === 'android';
   const [activeSection, setActiveSection] = useState('core');
   const user = useUserStore((s) => s.user);
 
@@ -31,7 +31,7 @@ export default function KPReadingScreen() {
     <StarField>
       <ScreenHeader title="KP Lens" accentColor={COLORS.kp} />
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <ReAnimated.View entering={reducedMotion ? undefined : FadeInDown.delay(100).duration(500).springify()}>
+        <ReAnimated.View entering={isAndroid ? FadeInDown.duration(280).damping(24) : FadeInDown.delay(100).duration(500).springify()}>
           <Text style={styles.headerEmoji}>{'\u{1F52D}'}</Text>
           <Text style={styles.headerSubtitle}>
             Krishnamurti Paddhati - Precision Event Timing

@@ -1,10 +1,15 @@
 import { Rashi, WesternSign, WesternElement } from '../../types/astrology';
 
 /**
- * Lahiri Ayanamsa offset in degrees (approximate).
- * This is the angular difference between the tropical and sidereal zodiacs.
+ * Compute the Lahiri (Chitrapaksha) ayanamsa for a given date.
+ * The ayanamsa grows by ~50.3 arcseconds (≈0.01397°) per year.
+ * Reference value at J2000.0: 23.85319°.
  */
-const AYANAMSA_OFFSET = 23.5;
+function getLahiriAyanamsa(date: Date): number {
+  const J2000_MS = Date.UTC(2000, 0, 1, 12, 0, 0);
+  const yearsSinceJ2000 = (date.getTime() - J2000_MS) / (365.25 * 86_400_000);
+  return 23.85319 + 0.013970 * yearsSinceJ2000;
+}
 
 export interface RashiInfo {
   name: Rashi;
@@ -184,23 +189,20 @@ function approximateMoonLongitude(date: Date): number {
 }
 
 /**
- * Convert a tropical (Western) ecliptic longitude to sidereal by applying the Lahiri ayanamsa.
+ * Convert a tropical ecliptic longitude to sidereal using the dynamic Lahiri ayanamsa.
  */
-function tropicalToSidereal(tropicalDegree: number): number {
-  let sidereal = tropicalDegree - AYANAMSA_OFFSET;
+function tropicalToSidereal(tropicalDegree: number, date: Date): number {
+  let sidereal = tropicalDegree - getLahiriAyanamsa(date);
   if (sidereal < 0) sidereal += 360;
   return sidereal;
 }
 
 /**
  * Calculate the Vedic Moon sign (Rashi) for a given birth date using the sidereal zodiac.
- *
- * This applies the Lahiri ayanamsa (~23.5 degrees) to convert from the tropical
- * zodiac to the sidereal zodiac used in Vedic astrology.
  */
 export function getRashi(date: Date): Rashi {
   const tropicalLongitude = approximateMoonLongitude(date);
-  const siderealLongitude = tropicalToSidereal(tropicalLongitude);
+  const siderealLongitude = tropicalToSidereal(tropicalLongitude, date);
 
   // Each Rashi spans 30 degrees
   const rashiIndex = Math.floor(siderealLongitude / 30) % 12;

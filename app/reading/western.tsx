@@ -1,17 +1,20 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Platform } from 'react-native';
 import ReAnimated, { FadeInDown } from 'react-native-reanimated';
 import { StarField } from '../../src/components/ui/StarField';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
 import { GradientCard } from '../../src/components/ui/GradientCard';
 import { SectionTabs } from '../../src/components/ui/SectionTabs';
+import { KundliChart } from '../../src/components/chart/KundliChart';
 import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../../src/constants/theme';
 import { useUserStore } from '../../src/store/userStore';
 import { WESTERN_ZODIAC } from '../../src/constants/zodiacData';
 import { getRulingPlanet, getElement, getModality } from '../../src/engines/western';
+import { calculateAspects } from '../../src/engines/common/aspects';
+import { findActiveTransits } from '../../src/engines/common/transits';
 
 export default function WesternReadingScreen() {
-  const reducedMotion = Platform.OS === 'android';
+  const isAndroid = Platform.OS === 'android';
   const [activeSection, setActiveSection] = useState('core');
   const user = useUserStore((s) => s.user);
 
@@ -21,15 +24,19 @@ export default function WesternReadingScreen() {
   const sunInfo = WESTERN_ZODIAC.find((z) => z.sign === sun);
   const tabs = [
     { key: 'core', label: 'Core' },
+    { key: 'chart', label: 'Chart' },
     { key: 'insights', label: 'Insights' },
     { key: 'learn', label: 'Learn' },
   ];
+
+  const aspects = useMemo(() => calculateAspects(planets), [planets]);
+  const transits = useMemo(() => findActiveTransits(planets), [planets]);
 
   return (
     <StarField>
       <ScreenHeader title="Western Lens" accentColor={COLORS.western} />
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <ReAnimated.View entering={reducedMotion ? undefined : FadeInDown.delay(100).duration(500).springify()}>
+        <ReAnimated.View entering={isAndroid ? FadeInDown.duration(280).damping(24) : FadeInDown.delay(100).duration(500).springify()}>
           <Text style={styles.headerEmoji}>{sunInfo?.emoji ?? '\u2648'}</Text>
         </ReAnimated.View>
 
@@ -38,7 +45,7 @@ export default function WesternReadingScreen() {
         {activeSection === 'core' && (
           <>
             {/* Sun Sign */}
-            <ReAnimated.View entering={reducedMotion ? undefined : FadeInDown.delay(200).duration(450).springify().damping(16)}>
+            <ReAnimated.View entering={isAndroid ? FadeInDown.duration(280).damping(24) : FadeInDown.delay(200).duration(450).springify().damping(16)}>
             <GradientCard colors={COLORS.gradientWestern as unknown as readonly string[]}>
               <Text style={styles.cardTitle}>Sun Sign - Your Core Identity</Text>
               <Text style={styles.signName}>{sun}</Text>
@@ -56,7 +63,7 @@ export default function WesternReadingScreen() {
             </ReAnimated.View>
 
             {/* Moon Sign */}
-            <ReAnimated.View entering={reducedMotion ? undefined : FadeInDown.delay(320).duration(450).springify().damping(16)}>
+            <ReAnimated.View entering={isAndroid ? FadeInDown.duration(280).damping(24) : FadeInDown.delay(320).duration(450).springify().damping(16)}>
             <GradientCard>
               <Text style={styles.cardTitle}>Moon Sign - Your Emotional World</Text>
               <Text style={styles.signName}>{moon}</Text>
@@ -73,7 +80,7 @@ export default function WesternReadingScreen() {
 
             {/* Rising Sign */}
             {rising && (
-              <ReAnimated.View entering={reducedMotion ? undefined : FadeInDown.delay(440).duration(450).springify().damping(16)}>
+              <ReAnimated.View entering={isAndroid ? FadeInDown.duration(280).damping(24) : FadeInDown.delay(440).duration(450).springify().damping(16)}>
               <GradientCard>
                 <Text style={styles.cardTitle}>Rising Sign - Your Cosmic First Impression</Text>
                 <Text style={styles.signName}>{rising}</Text>
@@ -91,10 +98,77 @@ export default function WesternReadingScreen() {
           </>
         )}
 
+        {activeSection === 'chart' && (
+          <>
+            {/* Birth Chart */}
+            <ReAnimated.View entering={isAndroid ? FadeInDown.duration(280).damping(24) : FadeInDown.delay(200).duration(450).springify().damping(16)}>
+            <GradientCard colors={COLORS.gradientWestern as unknown as readonly string[]}>
+              <Text style={styles.cardTitle}>Birth Chart (Natal Chart)</Text>
+              <Text style={styles.detailSubtext}>
+                Your tropical zodiac birth chart — planets placed in their birth signs
+              </Text>
+              <KundliChart planets={planets} ascendantSign={rising} style="western" size={280} />
+              <SourceRef text="Natal chart positions from orbital mechanics (Meeus formula)" />
+            </GradientCard>
+            </ReAnimated.View>
+
+            {/* Natal Aspects */}
+            {aspects.length > 0 && (
+              <ReAnimated.View entering={isAndroid ? FadeInDown.duration(280).damping(24) : FadeInDown.delay(320).duration(450).springify().damping(16)}>
+              <GradientCard>
+                <Text style={styles.cardTitle}>Natal Aspects</Text>
+                <Text style={styles.detailSubtext}>
+                  Angular relationships between your planets — how their energies interact
+                </Text>
+                {aspects.slice(0, 8).map((a, i) => (
+                  <View key={i} style={styles.aspectRow}>
+                    <View style={styles.aspectBadge}>
+                      <Text style={styles.aspectBadgeText}>
+                        {a.planet1} {a.type === 'conjunction' ? '\u260C' :
+                         a.type === 'trine' ? '\u25B3' :
+                         a.type === 'square' ? '\u25A1' :
+                         a.type === 'opposition' ? '\u260D' : '\u2736'} {a.planet2}
+                      </Text>
+                    </View>
+                    <Text style={styles.aspectType}>
+                      {a.type.charAt(0).toUpperCase() + a.type.slice(1)} ({a.orb.toFixed(1)}{'\u00B0'} orb)
+                    </Text>
+                    <Text style={styles.aspectInterp}>{a.interpretation}</Text>
+                  </View>
+                ))}
+                <SourceRef text="Robert Hand, Planets in Transit — Aspect Orbs & Interpretations" />
+              </GradientCard>
+              </ReAnimated.View>
+            )}
+
+            {/* Current Transits */}
+            {transits.length > 0 && (
+              <ReAnimated.View entering={isAndroid ? FadeInDown.duration(280).damping(24) : FadeInDown.delay(440).duration(450).springify().damping(16)}>
+              <GradientCard>
+                <Text style={styles.cardTitle}>Today's Transits</Text>
+                <Text style={styles.detailSubtext}>
+                  Current planetary positions activating your birth chart
+                </Text>
+                {transits.map((t, i) => (
+                  <View key={i} style={styles.aspectRow}>
+                    <View style={[styles.aspectBadge, { backgroundColor: 'rgba(115,103,255,0.10)' }]}>
+                      <Text style={[styles.aspectBadgeText, { color: COLORS.western }]}>
+                        {t.transitPlanet} {'\u2192'} {t.natalPlanet}
+                      </Text>
+                    </View>
+                    <Text style={styles.aspectInterp}>{t.interpretation}</Text>
+                  </View>
+                ))}
+              </GradientCard>
+              </ReAnimated.View>
+            )}
+          </>
+        )}
+
         {activeSection === 'insights' && (
           <>
             {/* Element & Modality */}
-            <ReAnimated.View entering={reducedMotion ? undefined : FadeInDown.delay(200).duration(450).springify().damping(16)}>
+            <ReAnimated.View entering={isAndroid ? FadeInDown.duration(280).damping(24) : FadeInDown.delay(200).duration(450).springify().damping(16)}>
             <GradientCard>
               <Text style={styles.cardTitle}>Your Cosmic Blueprint</Text>
               <View style={styles.blueprintGrid}>
@@ -111,7 +185,7 @@ export default function WesternReadingScreen() {
             </ReAnimated.View>
 
             {/* Planetary Positions */}
-            <ReAnimated.View entering={reducedMotion ? undefined : FadeInDown.delay(320).duration(450).springify().damping(16)}>
+            <ReAnimated.View entering={isAndroid ? FadeInDown.duration(280).damping(24) : FadeInDown.delay(320).duration(450).springify().damping(16)}>
             <GradientCard>
               <Text style={styles.cardTitle}>Planetary Positions</Text>
               <Text style={styles.detailSubtext}>
@@ -132,7 +206,7 @@ export default function WesternReadingScreen() {
         )}
 
         {activeSection === 'learn' && (
-          <ReAnimated.View entering={reducedMotion ? undefined : FadeInDown.delay(200).duration(450).springify().damping(16)}>
+          <ReAnimated.View entering={isAndroid ? FadeInDown.duration(280).damping(24) : FadeInDown.delay(200).duration(450).springify().damping(16)}>
           <GradientCard>
             <Text style={styles.cardTitle}>{'\u{1F4DA}'} Deepen Your Understanding</Text>
             <BookRef title="The Inner Sky" author="Steven Forrest" desc="The best introduction to Western natal chart interpretation" />
@@ -258,4 +332,10 @@ const styles = StyleSheet.create({
   bookAuthor: { color: COLORS.textMuted, fontSize: 12 },
   bookDesc: { color: COLORS.textSecondary, fontSize: 13, marginTop: 2 },
   bottomPad: { height: 20 },
+  // Aspect styles
+  aspectRow: { paddingVertical: SPACING.sm, borderBottomWidth: 0.5, borderBottomColor: COLORS.glassBorder },
+  aspectBadge: { backgroundColor: 'rgba(200,180,100,0.12)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, alignSelf: 'flex-start', marginBottom: 4 },
+  aspectBadgeText: { color: COLORS.starGold, fontSize: 11, fontWeight: '700' },
+  aspectType: { color: COLORS.textMuted, fontSize: 11, marginBottom: 2 },
+  aspectInterp: { color: COLORS.textSecondary, fontSize: 13, lineHeight: 19 },
 });

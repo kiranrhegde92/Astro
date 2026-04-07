@@ -90,26 +90,29 @@ export function getWesternSunSign(date: Date): WesternSign {
 /**
  * Approximate the Moon sign from a birth date.
  *
- * This uses a simplified lunar-cycle model. The Moon completes one full orbit
- * (through all 12 signs) in approximately 27.321661 days (sidereal month).
- * We anchor to a known New Moon in Aries and extrapolate.
- *
- * Known reference: 2000-01-06T18:14Z  Moon at ~0 deg Aries (approximate).
+ * Uses a 6-term perturbation model (simplified Brown's lunar theory) for ~1°
+ * accuracy — the same formula used for planetary position tables.
  */
 export function getWesternMoonSign(date: Date): WesternSign {
-  // Reference epoch: 2000-01-06T18:14:00Z — Moon near 0 deg Aries
-  const EPOCH_MS = Date.UTC(2000, 0, 6, 18, 14, 0);
-  const SIDEREAL_MONTH_DAYS = 27.321661;
-  const MS_PER_DAY = 86_400_000;
+  const J2000_MS = Date.UTC(2000, 0, 1, 12, 0, 0);
+  const d = (date.getTime() - J2000_MS) / 86_400_000;
+  const toRad = Math.PI / 180;
 
-  const elapsedDays = (date.getTime() - EPOCH_MS) / MS_PER_DAY;
+  const L = (218.316 + 13.176396 * d) % 360;
+  const M = (134.963 + 13.064993 * d) % 360;
+  const D = (297.850 + 12.190749 * d) % 360;
 
-  // How many full sidereal months have passed
-  const cyclePosition = ((elapsedDays % SIDEREAL_MONTH_DAYS) + SIDEREAL_MONTH_DAYS) % SIDEREAL_MONTH_DAYS;
+  let longitude =
+    L +
+    6.289 * Math.sin(M * toRad) +
+    1.274 * Math.sin((2 * D - M) * toRad) +
+    0.658 * Math.sin(2 * D * toRad) +
+    0.214 * Math.sin(2 * M * toRad) -
+    0.186 * Math.sin((357.528 + 0.9856003 * d) * toRad) -
+    0.114 * Math.sin(2 * (93.272 + 13.229350 * d) * toRad);
 
-  // Each sign spans SIDEREAL_MONTH_DAYS / 12 ≈ 2.277 days
-  const signIndex = Math.floor((cyclePosition / SIDEREAL_MONTH_DAYS) * 12) % 12;
-
+  longitude = ((longitude % 360) + 360) % 360;
+  const signIndex = Math.floor(longitude / 30) % 12;
   return ZODIAC_ORDER[signIndex];
 }
 

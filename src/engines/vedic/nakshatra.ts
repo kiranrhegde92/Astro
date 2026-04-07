@@ -1,9 +1,14 @@
 import { Nakshatra, DashaPlanet } from '../../types/astrology';
 
 /**
- * Lahiri Ayanamsa offset in degrees.
+ * Compute the Lahiri (Chitrapaksha) ayanamsa for a given date.
+ * Rate: ~50.3 arcsec/year = 0.013970°/year. Reference at J2000.0: 23.85319°.
  */
-const AYANAMSA_OFFSET = 23.5;
+function getLahiriAyanamsa(date: Date): number {
+  const J2000_MS = Date.UTC(2000, 0, 1, 12, 0, 0);
+  const yearsSinceJ2000 = (date.getTime() - J2000_MS) / (365.25 * 86_400_000);
+  return 23.85319 + 0.013970 * yearsSinceJ2000;
+}
 
 /**
  * Each Nakshatra spans 13 degrees and 20 minutes (13.3333... degrees).
@@ -301,10 +306,10 @@ function approximateMoonLongitude(date: Date): number {
 }
 
 /**
- * Convert tropical longitude to sidereal using Lahiri ayanamsa.
+ * Convert tropical longitude to sidereal using the dynamic Lahiri ayanamsa.
  */
-function tropicalToSidereal(tropicalDegree: number): number {
-  let sidereal = tropicalDegree - AYANAMSA_OFFSET;
+function tropicalToSidereal(tropicalDegree: number, date: Date): number {
+  let sidereal = tropicalDegree - getLahiriAyanamsa(date);
   if (sidereal < 0) sidereal += 360;
   return sidereal;
 }
@@ -317,7 +322,7 @@ function tropicalToSidereal(tropicalDegree: number): number {
  */
 export function getNakshatra(date: Date): { nakshatra: Nakshatra; pada: number } {
   const tropicalLongitude = approximateMoonLongitude(date);
-  const siderealLongitude = tropicalToSidereal(tropicalLongitude);
+  const siderealLongitude = tropicalToSidereal(tropicalLongitude, date);
 
   const nakshatraIndex = Math.floor(siderealLongitude / NAKSHATRA_SPAN) % 27;
   const positionInNakshatra = siderealLongitude - nakshatraIndex * NAKSHATRA_SPAN;

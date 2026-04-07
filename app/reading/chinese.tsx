@@ -34,7 +34,7 @@ const ANIMAL_TRAITS: Record<string, string> = {
 };
 
 export default function ChineseReadingScreen() {
-  const reducedMotion = Platform.OS === 'android';
+  const isAndroid = Platform.OS === 'android';
   const [activeSection, setActiveSection] = useState('core');
   const user = useUserStore((s) => s.user);
 
@@ -51,7 +51,7 @@ export default function ChineseReadingScreen() {
     <StarField>
       <ScreenHeader title="Chinese Lens" accentColor={COLORS.chinese} />
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <ReAnimated.View entering={reducedMotion ? undefined : FadeInDown.delay(100).duration(500).springify()}>
+        <ReAnimated.View entering={isAndroid ? FadeInDown.duration(280).damping(24) : FadeInDown.delay(100).duration(500).springify()}>
           <Text style={styles.headerEmoji}>{ANIMAL_EMOJIS[animal] ?? '\u{1F409}'}</Text>
         </ReAnimated.View>
 

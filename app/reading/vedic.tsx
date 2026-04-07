@@ -1,15 +1,18 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Platform } from 'react-native';
 import ReAnimated, { FadeInDown } from 'react-native-reanimated';
 import { StarField } from '../../src/components/ui/StarField';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
 import { GradientCard } from '../../src/components/ui/GradientCard';
 import { SectionTabs } from '../../src/components/ui/SectionTabs';
+import { KundliChart } from '../../src/components/chart/KundliChart';
 import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../../src/constants/theme';
 import { useUserStore } from '../../src/store/userStore';
+import { toSiderealPositions } from '../../src/engines/vedic';
+import { findActiveTransits } from '../../src/engines/common/transits';
 
 export default function VedicReadingScreen() {
-  const reducedMotion = Platform.OS === 'android';
+  const isAndroid = Platform.OS === 'android';
   const [activeSection, setActiveSection] = useState('core');
   const user = useUserStore((s) => s.user);
 
@@ -18,9 +21,24 @@ export default function VedicReadingScreen() {
   const { rashi, nakshatra, nakshatraPada, currentDasha, dashas, remedies } = user.vedic;
   const tabs = [
     { key: 'core', label: 'Core' },
+    { key: 'kundli', label: 'Kundli' },
     { key: 'insights', label: 'Insights' },
     { key: 'learn', label: 'Learn' },
   ];
+
+  // Sidereal planet positions for Kundli chart
+  const birthDate = user.birthDetails?.date ? new Date(user.birthDetails.date) : new Date();
+  const siderealPlanets = useMemo(
+    () => user?.western?.planets ? toSiderealPositions(user.western.planets, birthDate) : [],
+    [user?.western?.planets],
+  );
+  const ascendantSign = user?.western?.rising;
+
+  // Active transits
+  const transits = useMemo(
+    () => user?.western?.planets ? findActiveTransits(user.western.planets) : [],
+    [user?.western?.planets],
+  );
 
   const now = new Date();
   const dashaTimeline = dashas.map((d) => {
@@ -37,7 +55,7 @@ export default function VedicReadingScreen() {
     <StarField>
       <ScreenHeader title="Vedic Lens" accentColor={COLORS.vedic} />
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <ReAnimated.View entering={reducedMotion ? undefined : FadeInDown.delay(100).duration(500).springify()}>
+        <ReAnimated.View entering={isAndroid ? FadeInDown.duration(280).damping(24) : FadeInDown.delay(100).duration(500).springify()}>
           <Text style={styles.headerEmoji}>{'\u{1F549}\uFE0F'}</Text>
         </ReAnimated.View>
 
@@ -45,7 +63,7 @@ export default function VedicReadingScreen() {
 
         {activeSection === 'core' && (
           <>
-            <ReAnimated.View entering={reducedMotion ? undefined : FadeInDown.delay(200).duration(450).springify().damping(16)}>
+            <ReAnimated.View entering={isAndroid ? FadeInDown.duration(280).damping(24) : FadeInDown.delay(200).duration(450).springify().damping(16)}>
               <GradientCard colors={COLORS.gradientVedic as unknown as readonly string[]}>
                 <Text style={styles.cardTitle}>Rashi (Moon Sign)</Text>
                 <Text style={styles.mainValue}>{rashi}</Text>
@@ -58,7 +76,7 @@ export default function VedicReadingScreen() {
               </GradientCard>
             </ReAnimated.View>
 
-            <ReAnimated.View entering={reducedMotion ? undefined : FadeInDown.delay(320).duration(450).springify().damping(16)}>
+            <ReAnimated.View entering={isAndroid ? FadeInDown.duration(280).damping(24) : FadeInDown.delay(320).duration(450).springify().damping(16)}>
               <GradientCard colors={COLORS.gradientVedic as unknown as readonly string[]}>
                 <Text style={styles.cardTitle}>Nakshatra (Lunar Mansion)</Text>
                 <Text style={styles.mainValue}>{nakshatra}</Text>
@@ -82,9 +100,80 @@ export default function VedicReadingScreen() {
           </>
         )}
 
+        {activeSection === 'kundli' && (
+          <>
+            {/* Rashi Kundli (Birth Chart) */}
+            <ReAnimated.View entering={isAndroid ? FadeInDown.duration(280).damping(24) : FadeInDown.delay(200).duration(450).springify().damping(16)}>
+              <GradientCard colors={COLORS.gradientVedic as unknown as readonly string[]}>
+                <Text style={styles.cardTitle}>Rashi Kundli (Birth Chart)</Text>
+                <Text style={styles.subtitleText}>
+                  South Indian style chart showing your planetary positions in the sidereal zodiac.
+                  The diagonal line marks your Lagna (Ascendant).
+                </Text>
+                <KundliChart
+                  planets={siderealPlanets}
+                  ascendantSign={ascendantSign}
+                  style="vedic"
+                  size={280}
+                />
+                <SourceRef text="Brihat Parashara Hora Shastra - Graha Sthiti (Planetary Placements)" />
+              </GradientCard>
+            </ReAnimated.View>
+
+            {/* Sidereal Planet Positions Table */}
+            <ReAnimated.View entering={isAndroid ? FadeInDown.duration(280).damping(24) : FadeInDown.delay(320).duration(450).springify().damping(16)}>
+              <GradientCard>
+                <Text style={styles.cardTitle}>Graha Sthiti (Planet Positions)</Text>
+                <Text style={styles.subtitleText}>Sidereal positions using Lahiri ayanamsa</Text>
+                <View style={styles.planetTableHeader}>
+                  <Text style={[styles.planetCol, { flex: 1.2 }]}>Graha</Text>
+                  <Text style={[styles.planetCol, { flex: 1.4 }]}>Rashi</Text>
+                  <Text style={styles.planetCol}>Degree</Text>
+                </View>
+                {siderealPlanets.map((p, i) => (
+                  <View key={i} style={styles.planetRow}>
+                    <Text style={[styles.planetName, { flex: 1.2 }]}>
+                      {p.planet === 'NorthNode' ? 'Rahu' : p.planet === 'SouthNode' ? 'Ketu' : p.planet}
+                      {p.retrograde ? ' (R)' : ''}
+                    </Text>
+                    <Text style={[styles.planetSign, { flex: 1.4 }]}>{p.sign}</Text>
+                    <Text style={styles.planetDeg}>{p.degree.toFixed(1)}{'\u00B0'}</Text>
+                  </View>
+                ))}
+              </GradientCard>
+            </ReAnimated.View>
+
+            {/* Current Transits */}
+            {transits.length > 0 && (
+              <ReAnimated.View entering={isAndroid ? FadeInDown.duration(280).damping(24) : FadeInDown.delay(440).duration(450).springify().damping(16)}>
+                <GradientCard>
+                  <Text style={styles.cardTitle}>Gochar (Current Transits)</Text>
+                  <Text style={styles.subtitleText}>
+                    How today's planetary positions interact with your birth chart
+                  </Text>
+                  {transits.map((t, i) => (
+                    <View key={i} style={styles.transitRow}>
+                      <View style={styles.transitBadge}>
+                        <Text style={styles.transitBadgeText}>
+                          {t.transitPlanet} {t.aspect === 'conjunction' ? '\u2606' :
+                           t.aspect === 'trine' ? '\u25B3' :
+                           t.aspect === 'square' ? '\u25A1' :
+                           t.aspect === 'opposition' ? '\u2641' : '\u2736'} {t.natalPlanet}
+                        </Text>
+                      </View>
+                      <Text style={styles.transitText}>{t.interpretation}</Text>
+                    </View>
+                  ))}
+                  <SourceRef text="Phaladeepika - Gochar Phala (Transit Effects)" />
+                </GradientCard>
+              </ReAnimated.View>
+            )}
+          </>
+        )}
+
         {activeSection === 'insights' && (
           <>
-            <ReAnimated.View entering={reducedMotion ? undefined : FadeInDown.delay(200).duration(450).springify().damping(16)}>
+            <ReAnimated.View entering={isAndroid ? FadeInDown.duration(280).damping(24) : FadeInDown.delay(200).duration(450).springify().damping(16)}>
               <GradientCard>
                 <Text style={styles.cardTitle}>Vimshottari Dasha Timeline</Text>
                 <Text style={styles.subtitleText}>
@@ -128,7 +217,7 @@ export default function VedicReadingScreen() {
               </GradientCard>
             </ReAnimated.View>
 
-            <ReAnimated.View entering={reducedMotion ? undefined : FadeInDown.delay(320).duration(450).springify().damping(16)}>
+            <ReAnimated.View entering={isAndroid ? FadeInDown.duration(280).damping(24) : FadeInDown.delay(320).duration(450).springify().damping(16)}>
               <GradientCard colors={COLORS.gradientVedic as unknown as readonly string[]}>
                 <Text style={styles.cardTitle}>{'\u{1F48E}'} Cosmic Enhancements (Remedies)</Text>
                 <Text style={styles.subtitleText}>
@@ -158,7 +247,7 @@ export default function VedicReadingScreen() {
         )}
 
         {activeSection === 'learn' && (
-          <ReAnimated.View entering={reducedMotion ? undefined : FadeInDown.delay(200).duration(450).springify().damping(16)}>
+          <ReAnimated.View entering={isAndroid ? FadeInDown.duration(280).damping(24) : FadeInDown.delay(200).duration(450).springify().damping(16)}>
             <GradientCard>
               <Text style={styles.cardTitle}>{'\u{1F4DA}'} Deepen Your Understanding</Text>
               <BookRef title="Brihat Parashara Hora Shastra" desc="The foundational text of Vedic astrology by Sage Parashara" />
@@ -243,5 +332,17 @@ const styles = StyleSheet.create({
   bookTitle: { color: COLORS.textPrimary, fontSize: 14, fontWeight: '700' },
   bookDesc: { color: COLORS.textSecondary, fontSize: 13, marginTop: 2 },
   bottomPad: { height: 20 },
+  // Planet table
+  planetTableHeader: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: COLORS.glassBorder, paddingBottom: 6, marginBottom: 4 },
+  planetCol: { flex: 1, color: COLORS.textMuted, fontSize: 10, fontWeight: '700', letterSpacing: 1 },
+  planetRow: { flexDirection: 'row', paddingVertical: 5, borderBottomWidth: 0.5, borderBottomColor: 'rgba(36,40,74,0.06)' },
+  planetName: { flex: 1, color: COLORS.textPrimary, fontSize: 13, fontWeight: '600' },
+  planetSign: { flex: 1, color: COLORS.textSecondary, fontSize: 13 },
+  planetDeg: { flex: 1, color: COLORS.textMuted, fontSize: 13, textAlign: 'right' },
+  // Transit rows
+  transitRow: { paddingVertical: SPACING.sm, borderBottomWidth: 0.5, borderBottomColor: COLORS.glassBorder },
+  transitBadge: { backgroundColor: 'rgba(130,120,220,0.10)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, alignSelf: 'flex-start', marginBottom: 4 },
+  transitBadgeText: { color: COLORS.vedic, fontSize: 11, fontWeight: '700' },
+  transitText: { color: COLORS.textSecondary, fontSize: 13, lineHeight: 19 },
 });
 
