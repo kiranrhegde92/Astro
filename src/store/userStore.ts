@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { UserProfile, BirthDetails, AstrologySystem, Subscription } from '../types/user';
 import type { WesternProfile, VedicProfile, ChineseProfile, KPProfile } from '../types/astrology';
 import { getDateKey, getDayDifference } from '../utils/dateUtils';
+import { normalizeUserProfile } from '../utils/normalizeUserProfile';
 import { updateUserProfile } from '../services/firestoreService';
 import { currentUser } from '../services/authService';
 
@@ -39,7 +40,7 @@ export const useUserStore = create<UserState>((set, get) => ({
   isLoading: true,
 
   setUser: (user) => {
-    set({ user });
+    set({ user: normalizeUserProfile(user) });
     get().saveUser();
   },
 
@@ -226,15 +227,7 @@ export const useUserStore = create<UserState>((set, get) => ({
     try {
       const data = await AsyncStorage.getItem(STORAGE_KEY);
       if (data) {
-        const user = JSON.parse(data) as UserProfile;
-        user.birthDetails.date = new Date(user.birthDetails.date);
-        user.createdAt = new Date(user.createdAt);
-        if (user.subscription.expiresAt) {
-          user.subscription.expiresAt = new Date(user.subscription.expiresAt);
-        }
-        if (user.subscription.trialEndsAt) {
-          user.subscription.trialEndsAt = new Date(user.subscription.trialEndsAt);
-        }
+        const user = normalizeUserProfile(JSON.parse(data) as UserProfile);
         set({ user, isLoading: false });
         get().syncSubscriptionStatus();
       } else {

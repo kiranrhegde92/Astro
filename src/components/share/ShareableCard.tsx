@@ -86,7 +86,7 @@ export function ShareableCard({
             accent={COLORS.kp}
             secondary="#e1f5ef"
             label="KP"
-            value={`${profile.kp.predictions.length} insights`}
+            value={`${profile.kp.predictions?.length ?? 0} insights`}
             detail="timing lens"
           />
         ) : null}

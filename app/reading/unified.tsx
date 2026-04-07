@@ -30,6 +30,7 @@ export default function UnifiedReadingScreen() {
   const western = user.western;
   const vedic = user.vedic;
   const chinese = user.chinese;
+  const currentDashaPlanet = vedic.currentDasha?.planet ?? vedic.dashas[0]?.planet ?? 'Sun';
   const profile = { western, vedic, chinese, kp: user.kp };
   const cosmicDNA = getCosmicDNASummary(profile);
   const today = new Date();
@@ -128,7 +129,7 @@ export default function UnifiedReadingScreen() {
             <GradientCard>
               <Text style={styles.cardTitle}>{'\u{23F0}'} Life Timing (Vedic + KP Combined)</Text>
               <Text style={styles.insightText}>
-                Your current {user.vedic.currentDasha.planet} Mahadasha period
+                Your current {currentDashaPlanet} Mahadasha period
                 {user.kp ? ', combined with KP sub-lord analysis,' : ''}
                 suggests this is a powerful time for:
               </Text>

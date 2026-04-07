@@ -19,6 +19,7 @@ function getSource(reading: DailyReading, tradition: 'western' | 'vedic' | 'chin
 
 export function getReadingExplainers(user: UserProfile, reading: DailyReading): ReadingExplainItem[] {
   const items: ReadingExplainItem[] = [];
+  const currentDashaPlanet = user.vedic?.currentDasha?.planet ?? user.vedic?.dashas?.[0]?.planet ?? 'Sun';
 
   if (user.western && reading.western) {
     items.push({
@@ -37,7 +38,7 @@ export function getReadingExplainers(user: UserProfile, reading: DailyReading): 
       title: 'Vedic',
       accent: COLORS.vedic,
       summary: reading.vedic.dasha,
-      detail: `This comes from your ${user.vedic.rashi} Rashi, ${user.vedic.nakshatra} Nakshatra, and current ${user.vedic.currentDasha.planet} Mahadasha. Trust the Vedic lens when you are trying to understand timing, karmic weight, or why a life chapter feels especially loaded.`,
+      detail: `This comes from your ${user.vedic.rashi} Rashi, ${user.vedic.nakshatra} Nakshatra, and current ${currentDashaPlanet} Mahadasha. Trust the Vedic lens when you are trying to understand timing, karmic weight, or why a life chapter feels especially loaded.`,
       source: getSource(reading, 'vedic'),
     });
   }

@@ -35,10 +35,41 @@ export default function MyQRCodeScreen() {
     birthDetails: user.birthDetails,
     activeSystems: user.activeSystems,
     profile: {
-      western: user.western,
-      vedic: user.vedic,
-      chinese: user.chinese,
-      kp: user.kp,
+      // Keep QR payload compact enough for offline scanning.
+      western: {
+        sun: user.western.sun,
+        moon: user.western.moon,
+        rising: user.western.rising,
+        element: user.western.element,
+        modality: user.western.modality,
+        planets: [],
+      },
+      vedic: {
+        rashi: user.vedic.rashi,
+        nakshatra: user.vedic.nakshatra,
+        nakshatraPada: user.vedic.nakshatraPada,
+        moonSign: user.vedic.moonSign,
+        dashas: [],
+        currentDasha: user.vedic.currentDasha,
+        remedies: [],
+      },
+      chinese: {
+        animal: user.chinese.animal,
+        element: user.chinese.element,
+        yinYang: user.chinese.yinYang,
+        luckyNumbers: [],
+        luckyColors: user.chinese.luckyColors.slice(0, 2),
+        compatibleAnimals: [],
+        incompatibleAnimals: [],
+      },
+      kp: user.kp
+        ? {
+            sublords: [],
+            cusps: [],
+            significators: [],
+            predictions: [],
+          }
+        : undefined,
     },
     cosmicDNA,
     sharedAt: new Date().toISOString(),

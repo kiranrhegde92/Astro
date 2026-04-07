@@ -79,27 +79,40 @@ export function generatePeriodForecast(
   profile: CosmicProfile,
   window: ForecastWindow
 ): PeriodForecast {
+  const westernSun = profile.western?.sun ?? 'Leo';
+  const westernElement = profile.western?.element ?? 'Fire';
+  const westernModality = profile.western?.modality ?? 'Cardinal';
+  const vedicRashi = profile.vedic?.rashi ?? 'Simha';
+  const vedicDashas = Array.isArray(profile.vedic?.dashas) ? profile.vedic.dashas : [];
+  const chineseAnimal = profile.chinese?.animal ?? 'Dragon';
+  const chineseElement = profile.chinese?.element ?? 'Wood';
   const seed = getSeed(date, profile);
   const brightOffset = window === 'week' ? (seed % 3) + 1 : (seed % 9) + 4;
   const cautionOffset = brightOffset + (window === 'week' ? 3 : 9);
   const brightWindow = formatRange(addDays(date, brightOffset), addDays(date, brightOffset + (window === 'week' ? 2 : 5)));
   const cautionWindow = formatRange(addDays(date, cautionOffset), addDays(date, cautionOffset + (window === 'week' ? 1 : 4)));
 
-  const westernFocus = WESTERN_FOCUS[profile.western.element];
-  const vedicFocus = DASHA_FOCUS[profile.vedic.currentDasha.planet];
-  const chineseFocus = CHINESE_FOCUS[profile.chinese.element];
+  const currentDashaPlanet =
+    profile.vedic?.currentDasha?.planet ??
+    vedicDashas[0]?.planet ??
+    'Sun';
+  const westernFocus = WESTERN_FOCUS[westernElement] ?? WESTERN_FOCUS.Fire;
+  const vedicFocus = DASHA_FOCUS[currentDashaPlanet] ?? DASHA_FOCUS.Sun;
+  const chineseFocus = CHINESE_FOCUS[chineseElement] ?? CHINESE_FOCUS.Wood;
   const monthTone = MONTH_TONES[seed % MONTH_TONES.length];
-  const kpSignal =
-    profile.kp?.predictions[seed % profile.kp.predictions.length]?.area ?? 'timing';
+  const kpPredictions = profile.kp?.predictions ?? [];
+  const kpSignal = kpPredictions.length
+    ? kpPredictions[seed % kpPredictions.length]?.area ?? 'timing'
+    : 'timing';
 
   const title = window === 'week' ? 'Next 7 days' : 'Next 30 days';
   const headline =
     window === 'week'
-      ? `${profile.western.sun} drive meets ${profile.vedic.currentDasha.planet} timing this week.`
-      : `${profile.chinese.element} ${profile.chinese.animal} rhythm shapes the month ahead.`;
+      ? `${westernSun} drive meets ${currentDashaPlanet} timing this week.`
+      : `${chineseElement} ${chineseAnimal} rhythm shapes the month ahead.`;
   const summary =
     window === 'week'
-      ? `Your ${profile.vedic.rashi} Rashi and ${profile.chinese.animal} temperament point to a shorter cycle built around recovery, focus, and better timing.`
+      ? `Your ${vedicRashi} Rashi and ${chineseAnimal} temperament point to a shorter cycle built around recovery, focus, and better timing.`
       : `${monthTone} Your chart wants steadier choices, clearer priorities, and practical momentum instead of scattered effort.`;
 
   const focusAreas = [
@@ -107,22 +120,22 @@ export function generatePeriodForecast(
       label: 'Western',
       text:
         window === 'week'
-          ? `Use your ${profile.western.element.toLowerCase()} element for ${westernFocus}.`
-          : `Your ${profile.western.modality.toLowerCase()} style does best when the month has one anchor priority.`,
+          ? `Use your ${westernElement.toLowerCase()} element for ${westernFocus}.`
+          : `Your ${westernModality.toLowerCase()} style does best when the month has one anchor priority.`,
     },
     {
       label: 'Vedic',
       text:
         window === 'week'
-          ? `${profile.vedic.currentDasha.planet} Mahadasha favors ${vedicFocus}.`
-          : `The ${profile.vedic.currentDasha.planet} period keeps asking for patience before payoff.`,
+          ? `${currentDashaPlanet} Mahadasha favors ${vedicFocus}.`
+          : `The ${currentDashaPlanet} period keeps asking for patience before payoff.`,
     },
     {
       label: 'Chinese',
       text:
         window === 'week'
-          ? `${profile.chinese.element} energy supports ${chineseFocus}.`
-          : `The ${profile.chinese.animal} in you benefits from rhythm, routine, and fewer reactive pivots.`,
+          ? `${chineseElement} energy supports ${chineseFocus}.`
+          : `The ${chineseAnimal} in you benefits from rhythm, routine, and fewer reactive pivots.`,
     },
     {
       label: 'KP',

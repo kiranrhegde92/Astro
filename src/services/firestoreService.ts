@@ -7,6 +7,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { UserProfile } from '../types/user';
+import { normalizeUserProfile } from '../utils/normalizeUserProfile';
 
 // ─── User profile ─────────────────────────────────────────────────────────────
 
@@ -22,19 +23,7 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
   const snap = await getDoc(doc(db, 'users', uid));
   if (!snap.exists()) return null;
   const data = snap.data();
-  return {
-    ...data,
-    birthDetails: {
-      ...data.birthDetails,
-      date: data.birthDetails?.date?.toDate?.() ?? new Date(data.birthDetails?.date),
-    },
-    createdAt: data.createdAt?.toDate?.() ?? new Date(),
-    subscription: {
-      ...data.subscription,
-      expiresAt: data.subscription?.expiresAt?.toDate?.(),
-      trialEndsAt: data.subscription?.trialEndsAt?.toDate?.(),
-    },
-  } as UserProfile;
+  return normalizeUserProfile({ ...data, id: uid } as Partial<UserProfile>);
 }
 
 export async function updateUserProfile(uid: string, updates: Partial<UserProfile>): Promise<void> {
