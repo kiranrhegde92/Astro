@@ -3,6 +3,13 @@ import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
   KeyboardAvoidingView, Platform, ActivityIndicator, Alert, ScrollView,
 } from 'react-native';
+import Animated, {
+  FadeInDown,
+  interpolateColor,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { StarField } from '../../src/components/ui/StarField';
@@ -10,6 +17,28 @@ import { AnimatedPressable } from '../../src/components/ui/AnimatedPressable';
 import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../../src/constants/theme';
 import { signUp } from '../../src/services/authService';
 import { createUserProfile } from '../../src/services/firestoreService';
+
+function FocusInput({ error, children }: { error?: boolean; children: React.ReactNode }) {
+  const focused = useSharedValue(0);
+  const borderStyle = useAnimatedStyle(() => ({
+    borderColor: error
+      ? COLORS.error
+      : interpolateColor(focused.value, [0, 1], ['rgba(36,40,74,0.16)', COLORS.western]),
+  }));
+  return (
+    <Animated.View style={[styles.inputWrap, borderStyle]}>
+      {React.Children.map(children, (child) => {
+        if (React.isValidElement(child) && child.type === TextInput) {
+          return React.cloneElement(child as React.ReactElement<any>, {
+            onFocus: (e: any) => { focused.value = withTiming(1, { duration: 180 }); (child.props as any).onFocus?.(e); },
+            onBlur:  (e: any) => { focused.value = withTiming(0, { duration: 180 }); (child.props as any).onBlur?.(e);  },
+          });
+        }
+        return child;
+      })}
+    </Animated.View>
+  );
+}
 
 export default function SignupScreen() {
   const router = useRouter();
@@ -69,17 +98,17 @@ export default function SignupScreen() {
       <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
-          <View style={styles.header}>
+          <Animated.View entering={FadeInDown.delay(80).duration(420).springify().damping(20)} style={styles.header}>
             <Ionicons name="sparkles" size={48} color={COLORS.western} />
             <Text style={styles.title}>Begin your journey</Text>
             <Text style={styles.subtitle}>Create your cosmic profile</Text>
-          </View>
+          </Animated.View>
 
-          <View style={styles.fields}>
+          <Animated.View entering={FadeInDown.delay(200).duration(420).springify().damping(20)} style={styles.fields}>
             {/* Name */}
             <View>
               <Text style={styles.label}>Your Name</Text>
-              <View style={[styles.inputWrap, errors.name && styles.inputError]}>
+              <FocusInput error={!!errors.name}>
                 <Ionicons name="person-outline" size={18} color={COLORS.textMuted} style={styles.icon} />
                 <TextInput
                   style={styles.input}
@@ -92,14 +121,14 @@ export default function SignupScreen() {
                   returnKeyType="next"
                   onSubmitEditing={() => emailRef.current?.focus()}
                 />
-              </View>
+              </FocusInput>
               {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
             </View>
 
             {/* Email */}
             <View>
               <Text style={styles.label}>Email</Text>
-              <View style={[styles.inputWrap, errors.email && styles.inputError]}>
+              <FocusInput error={!!errors.email}>
                 <Ionicons name="mail-outline" size={18} color={COLORS.textMuted} style={styles.icon} />
                 <TextInput
                   ref={emailRef}
@@ -114,14 +143,14 @@ export default function SignupScreen() {
                   returnKeyType="next"
                   onSubmitEditing={() => passwordRef.current?.focus()}
                 />
-              </View>
+              </FocusInput>
               {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
             </View>
 
             {/* Password */}
             <View>
               <Text style={styles.label}>Password</Text>
-              <View style={[styles.inputWrap, errors.password && styles.inputError]}>
+              <FocusInput error={!!errors.password}>
                 <Ionicons name="lock-closed-outline" size={18} color={COLORS.textMuted} style={styles.icon} />
                 <TextInput
                   ref={passwordRef}
@@ -143,24 +172,28 @@ export default function SignupScreen() {
             </View>
           </View>
 
-          <AnimatedPressable onPress={handleSignup} disabled={loading} haptic>
-            <View style={styles.btn}>
-              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Create Account</Text>}
+          <Animated.View entering={FadeInDown.delay(320).duration(400).springify().damping(20)}>
+            <AnimatedPressable onPress={handleSignup} disabled={loading} haptic>
+              <View style={styles.btn}>
+                {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Create Account</Text>}
+              </View>
+            </AnimatedPressable>
+          </Animated.View>
+
+          <Animated.View entering={FadeInDown.delay(420).duration(380).springify().damping(20)}>
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or</Text>
+              <View style={styles.dividerLine} />
             </View>
-          </AnimatedPressable>
 
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          <TouchableOpacity onPress={() => router.back()} style={styles.linkBtn} activeOpacity={0.7}>
-            <Text style={styles.linkText}>
-              Already have an account?{'  '}
-              <Text style={styles.linkAccent}>Sign in</Text>
-            </Text>
-          </TouchableOpacity>
+            <TouchableOpacity onPress={() => router.back()} style={styles.linkBtn} activeOpacity={0.7}>
+              <Text style={styles.linkText}>
+                Already have an account?{'  '}
+                <Text style={styles.linkAccent}>Sign in</Text>
+              </Text>
+            </TouchableOpacity>
+          </Animated.View>
 
           <View style={{ height: SPACING.xxl }} />
         </ScrollView>
@@ -188,12 +221,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.82)',
     borderRadius: BORDER_RADIUS.md,
-    borderWidth: 1,
-    borderColor: 'rgba(36,40,74,0.16)',
+    borderWidth: 1.5,
     paddingHorizontal: SPACING.md,
     minHeight: 54,
   },
-  inputError: { borderColor: COLORS.error },
   icon: { marginRight: 10 },
   input: {
     flex: 1,

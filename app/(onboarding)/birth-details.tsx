@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { StarField } from '../../src/components/ui/StarField';
@@ -161,12 +162,14 @@ export default function BirthDetailsScreen() {
       <ScreenHeader title="Birth ritual" />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          <Text style={styles.step}>Step 1 of 3</Text>
-          <Text style={styles.headline}>Tell the chart where{'\n'}your story began.</Text>
-          <Text style={styles.copy}>Name and birth date are enough to start. Time and place sharpen the details.</Text>
+          <Animated.Text entering={FadeInDown.delay(60).duration(380).springify().damping(20)} style={styles.step}>Step 1 of 3</Animated.Text>
+          <Animated.View entering={FadeInDown.delay(140).duration(400).springify().damping(20)}>
+            <Text style={styles.headline}>Tell the chart where{'\n'}your story began.</Text>
+            <Text style={styles.copy}>Name and birth date are enough to start. Time and place sharpen the details.</Text>
+          </Animated.View>
 
           {/* Name */}
-          <View style={styles.fieldGroup}>
+          <Animated.View entering={FadeInDown.delay(240).duration(380).springify().damping(20)} style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>Your name</Text>
             <View style={[styles.inputWrap, errors.name && styles.inputError]}>
               <Ionicons name="person-outline" size={16} color={COLORS.textMuted} style={styles.icon} />
@@ -183,10 +186,10 @@ export default function BirthDetailsScreen() {
               />
             </View>
             {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
-          </View>
+          </Animated.View>
 
           {/* Birth date */}
-          <View style={styles.fieldGroup}>
+          <Animated.View entering={FadeInDown.delay(340).duration(380).springify().damping(20)} style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>Birth date</Text>
             <View style={styles.dateRow}>
               <View style={styles.dateCell}>
@@ -234,10 +237,10 @@ export default function BirthDetailsScreen() {
                 {errors.year && <Text style={styles.errorText}>{errors.year}</Text>}
               </View>
             </View>
-          </View>
+          </Animated.View>
 
           {/* Birth time */}
-          <View style={styles.fieldGroup}>
+          <Animated.View entering={FadeInDown.delay(420).duration(380).springify().damping(20)} style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>Birth time <Text style={styles.optionalTag}>(optional)</Text></Text>
             <View style={styles.dateRow}>
               <View style={styles.dateCell}>
@@ -273,10 +276,10 @@ export default function BirthDetailsScreen() {
                 <Text style={styles.optional}>Needed for rising sign & house timing.</Text>
               </View>
             </View>
-          </View>
+          </Animated.View>
 
           {/* Birth place */}
-          <View style={styles.fieldGroup}>
+          <Animated.View entering={FadeInDown.delay(500).duration(380).springify().damping(20)} style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>Birth place <Text style={styles.optionalTag}>(optional)</Text></Text>
             <View style={styles.inputWrap}>
               <Ionicons name="location-outline" size={16} color={COLORS.textMuted} style={styles.icon} />
@@ -292,9 +295,12 @@ export default function BirthDetailsScreen() {
                 onSubmitEditing={handleContinue}
               />
             </View>
-          </View>
+          </Animated.View>
 
+          <Animated.View entering={FadeInDown.delay(600).duration(380).springify().damping(20)}>
           <CosmicButton title="Continue" onPress={handleContinue} disabled={!name.trim() || !day || !month || !year} loading={loading} />
+
+          </Animated.View>
 
           <View style={{ height: SPACING.xxl }} />
         </ScrollView>

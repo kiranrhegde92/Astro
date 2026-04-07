@@ -1,7 +1,17 @@
-import React from 'react';
-import { ActivityIndicator, StyleProp, StyleSheet, Text, TouchableOpacity, ViewStyle } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BORDER_RADIUS, COLORS, SHADOWS, SPACING, FONTS } from '../../constants/theme';
+import { AnimatedPressable } from './AnimatedPressable';
 
 interface CosmicButtonProps {
   title: string;
@@ -28,28 +38,63 @@ export function CosmicButton({
       ? [COLORS.bgElevated, COLORS.bgCard]
       : [...COLORS.gradientPrimary]);
 
+  // Shimmer sweep animation (primary only)
+  const shimmer = useSharedValue(-1);
+  const [btnWidth, setBtnWidth] = useState(0);
+
+  useEffect(() => {
+    if (variant !== 'primary' || disabled || loading) return;
+    shimmer.value = withRepeat(
+      withSequence(
+        withDelay(1600, withTiming(2, { duration: 800, easing: Easing.inOut(Easing.quad) })),
+        withTiming(-1, { duration: 0 })
+      ),
+      -1,
+      false
+    );
+    return () => { shimmer.value = -1; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [variant, disabled, loading]);
+
+  const shimmerStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: btnWidth > 0 ? (shimmer.value + 1) / 3 * (btnWidth + 60) - 30 : -100 },
+    ],
+  }));
+
   if (variant === 'outline') {
     return (
-      <TouchableOpacity
-        onPress={onPress}
-        disabled={disabled}
-        style={[styles.base, styles.outlineButton, disabled && styles.disabled, style]}
-        activeOpacity={0.84}
-      >
-        <Text style={styles.outlineText}>{title}</Text>
-      </TouchableOpacity>
+      <AnimatedPressable onPress={onPress} disabled={disabled} scaleTo={0.97} style={style}>
+        <View style={[styles.base, styles.outlineButton, disabled && styles.disabled]}>
+          <Text style={styles.outlineText}>{title}</Text>
+        </View>
+      </AnimatedPressable>
     );
   }
 
   return (
-    <TouchableOpacity onPress={onPress} disabled={disabled || loading} activeOpacity={0.9} style={[disabled && styles.disabled, style]}>
-      <LinearGradient colors={gradientColors as [string, string, ...string[]]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.base, SHADOWS.glowGold]}>
-        {loading
-          ? <ActivityIndicator color="#fffaf1" />
-          : <Text style={[styles.text, variant === 'secondary' && styles.secondaryText]}>{title}</Text>
-        }
-      </LinearGradient>
-    </TouchableOpacity>
+    <AnimatedPressable onPress={onPress} disabled={disabled || loading} scaleTo={0.97} haptic style={style}>
+      <View style={disabled ? styles.disabled : undefined}>
+        <LinearGradient
+          colors={gradientColors as [string, string, ...string[]]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={[styles.base, SHADOWS.glowGold]}
+          onLayout={(e) => setBtnWidth(e.nativeEvent.layout.width)}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fffaf1" />
+          ) : (
+            <Text style={[styles.text, variant === 'secondary' && styles.secondaryText]}>{title}</Text>
+          )}
+
+          {/* Shimmer sweep overlay */}
+          {!loading && !disabled && variant === 'primary' && (
+            <Animated.View style={[styles.shimmer, shimmerStyle]} pointerEvents="none" />
+          )}
+        </LinearGradient>
+      </View>
+    </AnimatedPressable>
   );
 }
 
@@ -62,6 +107,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.18)',
+    overflow: 'hidden',
   },
   text: {
     color: '#fffaf1',
@@ -84,5 +130,13 @@ const styles = StyleSheet.create({
   },
   disabled: {
     opacity: 0.45,
+  },
+  shimmer: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 52,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    transform: [{ rotate: '18deg' }],
   },
 });

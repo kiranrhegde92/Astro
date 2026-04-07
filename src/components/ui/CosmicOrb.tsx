@@ -11,6 +11,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Ellipse, Line, RadialGradient, Stop } from 'react-native-svg';
 
+const isAndroid = Platform.OS === 'android';
+
 interface CosmicOrbProps {
   size?: number;
   primaryColor?: string;
@@ -22,39 +24,53 @@ export function CosmicOrb({
   primaryColor = '#f08a5d',
   secondaryColor = '#6a73d9',
 }: CosmicOrbProps) {
-  const reducedMotion = Platform.OS === 'android';
   const float = useSharedValue(0);
   const orbit = useSharedValue(0);
+  const pulse = useSharedValue(1);
 
   useEffect(() => {
-    if (reducedMotion) {
-      float.value = 0;
-      orbit.value = 0;
-      return;
-    }
-
     float.value = withRepeat(
       withSequence(
-        withTiming(1, { duration: 3200, easing: Easing.inOut(Easing.sin) }),
-        withTiming(0, { duration: 3200, easing: Easing.inOut(Easing.sin) })
+        withTiming(1, { duration: isAndroid ? 2600 : 3200, easing: Easing.inOut(Easing.sin) }),
+        withTiming(0, { duration: isAndroid ? 2600 : 3200, easing: Easing.inOut(Easing.sin) })
       ),
       -1,
       true
     );
 
-    orbit.value = withRepeat(withTiming(1, { duration: 15000, easing: Easing.linear }), -1, false);
-  }, [float, orbit, reducedMotion]);
+    orbit.value = withRepeat(
+      withTiming(1, { duration: isAndroid ? 12000 : 15000, easing: Easing.linear }),
+      -1,
+      false
+    );
+
+    // Heartbeat: lub-dub pattern, then rest
+    pulse.value = withRepeat(
+      withSequence(
+        withTiming(1.048, { duration: 300, easing: Easing.out(Easing.quad) }),
+        withTiming(1.0,   { duration: 260, easing: Easing.in(Easing.quad) }),
+        withTiming(1.030, { duration: 240, easing: Easing.out(Easing.quad) }),
+        withTiming(1.0,   { duration: 220, easing: Easing.in(Easing.quad) }),
+        withTiming(1.0,   { duration: 1900, easing: Easing.linear }) // rest
+      ),
+      -1,
+      false
+    );
+  }, [float, orbit, pulse]);
 
   const wrapStyle = useAnimatedStyle(() => ({
     transform: [
-      { translateY: reducedMotion ? 0 : interpolate(float.value, [0, 1], [-6, 10]) },
-      { rotateZ: `${reducedMotion ? 0 : interpolate(float.value, [0, 1], [-1.4, 1.4])}deg` },
+      { translateY: interpolate(float.value, [0, 1], [-6, 10]) },
+      { rotateZ: `${interpolate(float.value, [0, 1], [-1.4, 1.4])}deg` },
     ],
   }));
 
   const coreStyle = useAnimatedStyle(() => ({
-    transform: reducedMotion
-      ? [{ scale: 1 }]
+    transform: isAndroid
+      // Exclude perspective on Android to avoid SVG disappearing bug
+      ? [
+          { scale: interpolate(float.value, [0, 1], [0.98, 1.02]) * pulse.value },
+        ]
       : [
           { perspective: 1100 },
           { rotateX: `${interpolate(float.value, [0, 1], [6, 11])}deg` },
@@ -63,13 +79,17 @@ export function CosmicOrb({
         ],
   }));
 
+  const pulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulse.value }],
+  }));
+
   const orbitStyle = useAnimatedStyle(() => ({
-    transform: [{ rotateZ: `${reducedMotion ? 0 : orbit.value * 360}deg` }],
+    transform: [{ rotateZ: `${orbit.value * 360}deg` }],
   }));
 
   const glowStyle = useAnimatedStyle(() => ({
-    opacity: reducedMotion ? 0.24 : interpolate(float.value, [0, 1], [0.2, 0.38]),
-    transform: [{ scale: reducedMotion ? 1 : interpolate(float.value, [0, 1], [0.94, 1.12]) }],
+    opacity: interpolate(float.value, [0, 1], [0.20, 0.38]),
+    transform: [{ scale: interpolate(float.value, [0, 1], [0.94, 1.12]) }],
   }));
 
   const center = size / 2;
@@ -78,29 +98,31 @@ export function CosmicOrb({
 
   return (
     <Animated.View style={[styles.wrap, { width: size, height: size }, wrapStyle]}>
-      <Animated.View style={[StyleSheet.absoluteFillObject, coreStyle]}>
-        <Svg width={size} height={size}>
-          <Defs>
-            <RadialGradient id="sunCore" cx="35%" cy="32%" r="70%">
-              <Stop offset="0%" stopColor="#fffaf1" />
-              <Stop offset="28%" stopColor="#ffe6c1" />
-              <Stop offset="52%" stopColor="#f7c57c" />
-              <Stop offset="100%" stopColor={primaryColor} />
-            </RadialGradient>
-            <RadialGradient id="sunGlow" cx="50%" cy="50%" r="50%">
-              <Stop offset="0%" stopColor={secondaryColor} stopOpacity="0.24" />
-              <Stop offset="100%" stopColor={secondaryColor} stopOpacity="0" />
-            </RadialGradient>
-          </Defs>
+      <Animated.View style={[StyleSheet.absoluteFillObject, pulseStyle]}>
+        <Animated.View style={[StyleSheet.absoluteFillObject, coreStyle]}>
+          <Svg width={size} height={size}>
+            <Defs>
+              <RadialGradient id="sunCore" cx="35%" cy="32%" r="70%">
+                <Stop offset="0%" stopColor="#fffaf1" />
+                <Stop offset="28%" stopColor="#ffe6c1" />
+                <Stop offset="52%" stopColor="#f7c57c" />
+                <Stop offset="100%" stopColor={primaryColor} />
+              </RadialGradient>
+              <RadialGradient id="sunGlow" cx="50%" cy="50%" r="50%">
+                <Stop offset="0%" stopColor={secondaryColor} stopOpacity="0.24" />
+                <Stop offset="100%" stopColor={secondaryColor} stopOpacity="0" />
+              </RadialGradient>
+            </Defs>
 
-          <Ellipse cx={center} cy={center + size * 0.3} rx={size * 0.2} ry={size * 0.06} fill="rgba(27,34,51,0.12)" />
-          <Circle cx={center} cy={center} r={size * 0.48} fill="url(#sunGlow)" />
-          <Circle cx={center} cy={center} r={size * 0.36} fill="none" stroke="rgba(40,49,73,0.10)" strokeWidth="1.3" />
-          <Circle cx={center} cy={center} r={size * 0.24} fill="url(#sunCore)" />
-          <Circle cx={center - size * 0.055} cy={center - size * 0.055} r={size * 0.04} fill="rgba(255,255,255,0.62)" />
-          <Circle cx={center - size * 0.23} cy={center + size * 0.22} r={size * 0.02} fill="rgba(255,255,255,0.88)" />
-          <Line x1={center - size * 0.4} y1={center} x2={center + size * 0.4} y2={center} stroke="rgba(40,49,73,0.10)" strokeWidth="1" />
-        </Svg>
+            <Ellipse cx={center} cy={center + size * 0.3} rx={size * 0.2} ry={size * 0.06} fill="rgba(27,34,51,0.12)" />
+            <Circle cx={center} cy={center} r={size * 0.48} fill="url(#sunGlow)" />
+            <Circle cx={center} cy={center} r={size * 0.36} fill="none" stroke="rgba(40,49,73,0.10)" strokeWidth="1.3" />
+            <Circle cx={center} cy={center} r={size * 0.24} fill="url(#sunCore)" />
+            <Circle cx={center - size * 0.055} cy={center - size * 0.055} r={size * 0.04} fill="rgba(255,255,255,0.62)" />
+            <Circle cx={center - size * 0.23} cy={center + size * 0.22} r={size * 0.02} fill="rgba(255,255,255,0.88)" />
+            <Line x1={center - size * 0.4} y1={center} x2={center + size * 0.4} y2={center} stroke="rgba(40,49,73,0.10)" strokeWidth="1" />
+          </Svg>
+        </Animated.View>
       </Animated.View>
 
       <Animated.View pointerEvents="none" style={[styles.orbitLayer, orbitStyle]}>

@@ -17,15 +17,16 @@ interface AnimatedPressableProps {
   haptic?: boolean;
 }
 
+const isAndroid = Platform.OS === 'android';
+
 export function AnimatedPressable({
   children,
   onPress,
   style,
-  scaleTo = 0.985,
+  scaleTo = 0.96,
   disabled = false,
   haptic = false,
 }: AnimatedPressableProps) {
-  const reducedMotion = Platform.OS === 'android';
   const press = useRef(new Animated.Value(0)).current;
 
   const onPressIn = () => {
@@ -35,8 +36,8 @@ export function AnimatedPressable({
     }
     Animated.spring(press, {
       toValue: 1,
-      tension: 160,
-      friction: 14,
+      tension: 180,
+      friction: 12,
       useNativeDriver: true,
     }).start();
   };
@@ -45,55 +46,44 @@ export function AnimatedPressable({
     if (disabled) return;
     Animated.spring(press, {
       toValue: 0,
-      tension: 150,
-      friction: 16,
+      tension: 160,
+      friction: 14,
       useNativeDriver: true,
     }).start();
   };
 
+  // Android at half rotation angle to avoid GPU stress with SVG children
+  const rotateAngle = isAndroid ? '3deg' : '6deg';
+  const rotateAngleNeg = isAndroid ? '-3deg' : '-6deg';
+
   const animatedStyle = {
-    transform: reducedMotion
-      ? [
-          {
-            scale: press.interpolate({
-              inputRange: [0, 1],
-              outputRange: [1, scaleTo],
-            }),
-          },
-          {
-            translateY: press.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, 2],
-            }),
-          },
-        ]
-      : [
-          { perspective: 900 },
-          {
-            scale: press.interpolate({
-              inputRange: [0, 1],
-              outputRange: [1, scaleTo],
-            }),
-          },
-          {
-            translateY: press.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, 2],
-            }),
-          },
-          {
-            rotateX: press.interpolate({
-              inputRange: [0, 1],
-              outputRange: ['0deg', '6deg'],
-            }),
-          },
-          {
-            rotateY: press.interpolate({
-              inputRange: [0, 1],
-              outputRange: ['0deg', '-6deg'],
-            }),
-          },
-        ],
+    transform: [
+      { perspective: 900 },
+      {
+        scale: press.interpolate({
+          inputRange: [0, 1],
+          outputRange: [1, scaleTo],
+        }),
+      },
+      {
+        translateY: press.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0, 2],
+        }),
+      },
+      {
+        rotateX: press.interpolate({
+          inputRange: [0, 1],
+          outputRange: ['0deg', rotateAngle],
+        }),
+      },
+      {
+        rotateY: press.interpolate({
+          inputRange: [0, 1],
+          outputRange: ['0deg', rotateAngleNeg],
+        }),
+      },
+    ],
   };
 
   return (
