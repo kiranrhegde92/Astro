@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { Alert, View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { StarField } from '../../src/components/ui/StarField';
 import { CosmicButton } from '../../src/components/ui/CosmicButton';
 import { CosmicOrb } from '../../src/components/ui/CosmicOrb';
@@ -10,6 +11,8 @@ import { GradientCard } from '../../src/components/ui/GradientCard';
 import { OrbIcon } from '../../src/components/ui/OrbIcon';
 import { AnimatedCard } from '../../src/components/ui/AnimatedScreen';
 import { BORDER_RADIUS, COLORS, FONTS, SHADOWS, SPACING } from '../../src/constants/theme';
+import { useAuthStore } from '../../src/store/authStore';
+import { useUserStore } from '../../src/store/userStore';
 
 const LANGUAGES = [
   { code: 'en', native: 'English' },
@@ -95,14 +98,38 @@ const SYSTEMS = [
 export default function WelcomeScreen() {
   const router = useRouter();
   const { i18n } = useTranslation();
+  const logout = useAuthStore((s) => s.logout);
+  const clearUser = useUserStore((s) => s.clearUser);
   const [selectedLang, setSelectedLang] = useState<SupportedLanguage>(() => {
     const code = i18n.language?.split('-')[0];
     return LANGUAGES.some((lang) => lang.code === code) ? (code as SupportedLanguage) : 'en';
   });
   const copy = useMemo(() => WELCOME_COPY[selectedLang] ?? WELCOME_COPY.en, [selectedLang]);
 
+  const handleLogout = () => {
+    Alert.alert(
+      'Log out',
+      'Sign out and return to the login screen?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Log out', style: 'destructive',
+          onPress: async () => {
+            await Promise.all([logout(), clearUser()]);
+            router.replace('/(auth)/login');
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <StarField>
+      {/* Logout button — top-right corner */}
+      <TouchableOpacity style={styles.logoutCorner} onPress={handleLogout} activeOpacity={0.7}>
+        <Ionicons name="log-out-outline" size={22} color={COLORS.textMuted} />
+      </TouchableOpacity>
+
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <AnimatedCard index={0}>
           <View style={styles.posterWrap}>
@@ -169,6 +196,13 @@ export default function WelcomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  logoutCorner: {
+    position: 'absolute',
+    top: 52,
+    right: SPACING.lg,
+    zIndex: 10,
+    padding: 8,
+  },
   container: {
     flexGrow: 1,
     paddingHorizontal: SPACING.lg,
