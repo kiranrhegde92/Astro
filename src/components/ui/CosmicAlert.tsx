@@ -138,7 +138,7 @@ export function CosmicAlertModal({ visible, title, message, buttons, onDismiss }
 const styles = StyleSheet.create({
   scrim: {
     flex: 1,
-    backgroundColor: 'rgba(100, 80, 160, 0.30)',
+    backgroundColor: 'rgba(20, 10, 50, 0.62)',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: SPACING.xl,
