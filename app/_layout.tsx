@@ -30,6 +30,23 @@ function hasBirthDate(user: ReturnType<typeof useUserStore.getState>['user']) {
   return birthDate instanceof Date && !Number.isNaN(birthDate.getTime());
 }
 
+function isAllowedOnboardingScreen(
+  user: ReturnType<typeof useUserStore.getState>['user'],
+  screen?: string
+) {
+  if (!screen) return false;
+
+  if (!hasBirthDate(user)) {
+    return screen === 'welcome' || screen === 'birth-details';
+  }
+
+  if (!Array.isArray(user?.activeSystems) || user.activeSystems.length === 0) {
+    return screen === 'system-picker';
+  }
+
+  return screen === 'cosmic-reveal';
+}
+
 function hasCompletedProfile(user: ReturnType<typeof useUserStore.getState>['user']) {
   if (!user) return false;
   if (user.onboardingComplete) return true;
@@ -113,8 +130,9 @@ export default function RootLayout() {
     }
 
     if (entryRoute?.startsWith('/(onboarding)/')) {
-      const targetScreen = entryRoute.split('/').pop();
-      if (!inOnboarding || onboardingScreen !== targetScreen) router.replace(entryRoute);
+      if (!inOnboarding || !isAllowedOnboardingScreen(user, onboardingScreen)) {
+        router.replace(entryRoute);
+      }
       return;
     }
   }, [authReady, firebaseUser, fontsLoaded, profileLoading, router, segments, user]);
