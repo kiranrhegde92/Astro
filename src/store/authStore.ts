@@ -22,7 +22,14 @@ export const useAuthStore = create<AuthState>((set) => ({
   profileLoading: false,
 
   initialize: () => {
+    // Safety net: if Firebase auth never fires (offline / emulator network),
+    // unblock the loading screen after 4 seconds so the app isn't stuck forever.
+    const timeout = setTimeout(() => {
+      set((s) => s.authReady ? s : { authReady: true, profileLoading: false });
+    }, 4000);
+
     const unsubscribe = onAuthChange(async (user) => {
+      clearTimeout(timeout);
       // Mark profileLoading=true BEFORE authReady so routing waits.
       set({ firebaseUser: user, authReady: true, profileLoading: !!user });
 
@@ -51,7 +58,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         useUserStore.getState().clearUser();
       }
     });
-    return unsubscribe;
+    return () => { clearTimeout(timeout); unsubscribe(); };
   },
 
   logout: async () => {
