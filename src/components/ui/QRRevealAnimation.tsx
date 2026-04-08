@@ -1,11 +1,13 @@
 /**
  * QRRevealAnimation
  *
- * Tap the QR card → full-screen modal appears.
- * Phase 1: Rashi medallion shown at 75° tilt (edge-on perspective).
- * Phase 2: Card rotates to 0° (face-on) — reveals the QR code.
+ * Reference-inspired (enco.fi "tree QR"):
+ *   Phase 1 — QR grid shown at ~55° tilt (isometric perspective).
+ *             Rashi zodiac symbol floats above the surface.
+ *   Phase 2 — Card rotates to 0° (flat, face-on), symbol descends and fades.
+ *             Pure colorful scannable QR is revealed.
  *
- * Pure Reanimated — no 3D library required.
+ * Stack: react-native-svg for QR pixels · Reanimated for animation
  */
 
 import React, { useEffect, useMemo } from 'react';
@@ -26,57 +28,135 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import QRCode from 'react-native-qrcode-svg';
+import Svg, { Rect, G } from 'react-native-svg';
+// @ts-ignore – qrcode is a CJS dep used by react-native-qrcode-svg internally
+import QR from 'qrcode';
 import { BORDER_RADIUS, COLORS, FONTS, SPACING } from '../../constants/theme';
 
 // ─── Screen metrics ──────────────────────────────────────────────────────────
 
 const { width: SW, height: SH } = Dimensions.get('window');
-const CARD = Math.min(SW - 64, 300);
+const QR_VIEW = Math.min(SW - 80, 290);
 
 // ─── Rashi metadata ──────────────────────────────────────────────────────────
 
 const RASHI: Record<
   string,
-  { symbol: string; western: string; element: string; grad: readonly [string, string, string]; accent: string }
+  {
+    symbol: string;
+    western: string;
+    element: string;
+    accent: string;
+    accent2: string;
+    grad: readonly [string, string];
+  }
 > = {
-  Mesha:     { symbol: '♈', western: 'Aries',       element: 'Fire',  accent: '#ff6b6b', grad: ['#2a0808', '#6b1010', '#ff6b6b'] },
-  Vrishabha: { symbol: '♉', western: 'Taurus',      element: 'Earth', accent: '#6bcf7f', grad: ['#07200f', '#1a5c30', '#6bcf7f'] },
-  Mithuna:   { symbol: '♊', western: 'Gemini',      element: 'Air',   accent: '#74b9ff', grad: ['#041830', '#0a4a8c', '#74b9ff'] },
-  Karka:     { symbol: '♋', western: 'Cancer',       element: 'Water', accent: '#81ecec', grad: ['#042020', '#066060', '#81ecec'] },
-  Simha:     { symbol: '♌', western: 'Leo',         element: 'Fire',  accent: '#fdcb6e', grad: ['#231000', '#7a3500', '#fdcb6e'] },
-  Kanya:     { symbol: '♍', western: 'Virgo',       element: 'Earth', accent: '#a8e6cf', grad: ['#0a1f16', '#215c3a', '#a8e6cf'] },
-  Tula:      { symbol: '♎', western: 'Libra',       element: 'Air',   accent: '#fd79a8', grad: ['#230010', '#6b0038', '#fd79a8'] },
-  Vrischika: { symbol: '♏', western: 'Scorpio',     element: 'Water', accent: '#a29bfe', grad: ['#0d0a2a', '#2d1f8a', '#a29bfe'] },
-  Dhanu:     { symbol: '♐', western: 'Sagittarius', element: 'Fire',  accent: '#ff9f7f', grad: ['#200600', '#7a1c00', '#ff9f7f'] },
-  Makara:    { symbol: '♑', western: 'Capricorn',   element: 'Earth', accent: '#55efc4', grad: ['#041a14', '#0a5740', '#55efc4'] },
-  Kumbha:    { symbol: '♒', western: 'Aquarius',    element: 'Air',   accent: '#a29bfe', grad: ['#080420', '#1e1060', '#a29bfe'] },
-  Meena:     { symbol: '♓', western: 'Pisces',      element: 'Water', accent: '#c9b1ff', grad: ['#120826', '#3a1a6e', '#c9b1ff'] },
+  Mesha:     { symbol: '♈', western: 'Aries',       element: 'Fire',  accent: '#ff6b6b', accent2: '#ff9f7f', grad: ['#2a0808', '#6b1010'] },
+  Vrishabha: { symbol: '♉', western: 'Taurus',      element: 'Earth', accent: '#6bcf7f', accent2: '#a8e6cf', grad: ['#07200f', '#1a5c30'] },
+  Mithuna:   { symbol: '♊', western: 'Gemini',      element: 'Air',   accent: '#74b9ff', accent2: '#a29bfe', grad: ['#041830', '#0a4a8c'] },
+  Karka:     { symbol: '♋', western: 'Cancer',      element: 'Water', accent: '#81ecec', accent2: '#55efc4', grad: ['#042020', '#066060'] },
+  Simha:     { symbol: '♌', western: 'Leo',         element: 'Fire',  accent: '#fdcb6e', accent2: '#ff9f7f', grad: ['#231000', '#7a3500'] },
+  Kanya:     { symbol: '♍', western: 'Virgo',       element: 'Earth', accent: '#a8e6cf', accent2: '#6bcf7f', grad: ['#0a1f16', '#215c3a'] },
+  Tula:      { symbol: '♎', western: 'Libra',       element: 'Air',   accent: '#fd79a8', accent2: '#e17fc8', grad: ['#230010', '#6b0038'] },
+  Vrischika: { symbol: '♏', western: 'Scorpio',     element: 'Water', accent: '#a29bfe', accent2: '#c9b1ff', grad: ['#0d0a2a', '#2d1f8a'] },
+  Dhanu:     { symbol: '♐', western: 'Sagittarius', element: 'Fire',  accent: '#ff9f7f', accent2: '#fdcb6e', grad: ['#200600', '#7a1c00'] },
+  Makara:    { symbol: '♑', western: 'Capricorn',   element: 'Earth', accent: '#55efc4', accent2: '#81ecec', grad: ['#041a14', '#0a5740'] },
+  Kumbha:    { symbol: '♒', western: 'Aquarius',    element: 'Air',   accent: '#a29bfe', accent2: '#74b9ff', grad: ['#080420', '#1e1060'] },
+  Meena:     { symbol: '♓', western: 'Pisces',      element: 'Water', accent: '#c9b1ff', accent2: '#fd79a8', grad: ['#120826', '#3a1a6e'] },
 };
 
-// ─── Deterministic constellation dots ────────────────────────────────────────
+// ─── QR matrix builder ───────────────────────────────────────────────────────
 
-function constellationDots(rashi: string) {
-  const seed = rashi.split('').reduce((s, c) => s + c.charCodeAt(0), 0);
-  return Array.from({ length: 18 }, (_, i) => {
-    const a = Math.abs(Math.sin((seed + i * 1234.567) * 9973));
-    const b = Math.abs(Math.sin((seed + i * 2345.678) * 8761));
-    const c = Math.abs(Math.sin((seed + i * 3456.789) * 7654));
-    return { x: 0.05 + a * 0.9, y: 0.05 + b * 0.9, r: 1 + Math.floor(c * 3) };
-  });
+function buildMatrix(value: string): { matrix: boolean[][]; size: number } {
+  try {
+    const qr = QR.create(value, { errorCorrectionLevel: 'M' });
+    const { data, size } = qr.modules;
+    const matrix: boolean[][] = [];
+    for (let r = 0; r < size; r++) {
+      const row: boolean[] = [];
+      for (let c = 0; c < size; c++) {
+        row.push(!!data[r * size + c]);
+      }
+      matrix.push(row);
+    }
+    return { matrix, size };
+  } catch {
+    return { matrix: [], size: 0 };
+  }
 }
 
-// Background stars (fixed across all signs)
-const BG_STARS = Array.from({ length: 50 }, (_, i) => {
+// ─── Isometric QR SVG ────────────────────────────────────────────────────────
+
+type QRSvgProps = {
+  matrix: boolean[][];
+  size: number;
+  accent: string;
+  accent2: string;
+  viewSize: number;
+};
+
+function QRSvgGrid({ matrix, size, accent, accent2, viewSize }: QRSvgProps) {
+  if (!size) return null;
+
+  const QUIET = 3; // quiet zone in modules
+  const total = size + QUIET * 2;
+  const mod = viewSize / total;
+  const off = QUIET * mod;
+  const r = Math.max(1, mod * 0.22);
+
+  const rects = useMemo(() => {
+    const els: React.ReactElement[] = [];
+    for (let row = 0; row < size; row++) {
+      for (let col = 0; col < size; col++) {
+        const isDark = matrix[row][col];
+
+        // Finder pattern regions (top-left, top-right, bottom-left 7×7)
+        const isFinder =
+          (col < 7 && row < 7) ||
+          (col >= size - 7 && row < 7) ||
+          (col < 7 && row >= size - 7);
+
+        const x = off + col * mod;
+        const y = off + row * mod;
+        const s = mod - mod * 0.12; // slight gap between modules
+
+        let fill: string;
+        if (isDark) {
+          fill = isFinder ? accent : accent2;
+        } else {
+          fill = isFinder ? `${accent}20` : 'rgba(255,255,255,0.07)';
+        }
+
+        els.push(
+          <Rect
+            key={`${row}-${col}`}
+            x={x}
+            y={y}
+            width={s}
+            height={s}
+            rx={isDark ? r : r * 0.5}
+            fill={fill}
+          />
+        );
+      }
+    }
+    return els;
+  }, [matrix, size, accent, accent2, mod, off, r]);
+
+  return (
+    <Svg width={viewSize} height={viewSize}>
+      <G>{rects}</G>
+    </Svg>
+  );
+}
+
+// ─── Background stars ────────────────────────────────────────────────────────
+
+const BG_STARS = Array.from({ length: 60 }, (_, i) => {
   const a = Math.abs(Math.sin(i * 987.654 * 13337));
   const b = Math.abs(Math.sin(i * 654.321 * 17777));
   const c = Math.abs(Math.sin(i * 321.123 * 11111));
-  return {
-    left: a * SW,
-    top: b * SH,
-    size: 0.8 + c * 2,
-    opacity: 0.15 + c * 0.5,
-  };
+  return { left: a * SW, top: b * SH, size: 0.6 + c * 2.2, opacity: 0.1 + c * 0.55 };
 });
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -92,45 +172,56 @@ type Props = {
 
 export function QRRevealAnimation({ visible, rashi, deepLink, userName, cosmicDNA, onClose }: Props) {
   const info = RASHI[rashi] ?? RASHI.Vrischika;
-  const dots = useMemo(() => constellationDots(rashi), [rashi]);
+  const { matrix, size } = useMemo(() => buildMatrix(deepLink), [deepLink]);
 
-  // rotateX: 75° (side/edge) → 0° (face/top)
-  const rotateX = useSharedValue(75);
+  // rotateX: 56° (isometric tilt) → 0° (flat face-on)
+  const rotateX = useSharedValue(56);
 
   useEffect(() => {
     if (visible) {
-      rotateX.value = 75;
+      rotateX.value = 56;
       rotateX.value = withDelay(
         700,
         withTiming(0, {
-          duration: 2600,
-          easing: Easing.bezier(0.22, 1, 0.36, 1), // easeOutQuint — dramatic deceleration
+          duration: 2800,
+          easing: Easing.bezier(0.16, 1, 0.3, 1),
         }),
       );
     }
   }, [visible]);
 
-  // The whole card tilts
-  const cardStyle = useAnimatedStyle(() => ({
+  // QR container: starts tilted, rotates flat
+  const qrContainerStyle = useAnimatedStyle(() => ({
     transform: [
-      { perspective: 900 },
+      { perspective: 950 },
       { rotateX: `${rotateX.value}deg` },
     ],
   }));
 
-  // Rashi face: fully visible when tilted, fades out as card flattens
-  const rashiStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(rotateX.value, [0, 38, 75], [0, 0, 1], 'clamp'),
+  // Zodiac symbol: inside the tilted container → appears to float above QR
+  // translateY(-) moves it "up" through the perspective projection
+  const symbolStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: interpolate(rotateX.value, [0, 56], [0, -QR_VIEW * 0.28], 'clamp') },
+      { scale: interpolate(rotateX.value, [0, 14, 56], [0, 0.4, 1.3], 'clamp') },
+    ],
+    opacity: interpolate(rotateX.value, [0, 10, 56], [0, 0, 1], 'clamp'),
   }));
 
-  // QR face: invisible while tilted, fades in as card flattens
-  const qrStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(rotateX.value, [0, 38, 75], [1, 0, 0], 'clamp'),
+  // Glow ring behind symbol fades with symbol
+  const glowStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(rotateX.value, [0, 10, 56], [0, 0, 0.45], 'clamp'),
   }));
 
-  // Backdrop dims in
+  // QR label row fades in as it flattens
+  const labelStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(rotateX.value, [0, 15, 35], [1, 0.5, 0], 'clamp'),
+    transform: [{ translateY: interpolate(rotateX.value, [0, 56], [0, 6], 'clamp') }],
+  }));
+
+  // Backdrop
   const backdropStyle = useAnimatedStyle(() => ({
-    backgroundColor: `rgba(10, 6, 30, ${interpolate(rotateX.value, [0, 75], [0.92, 0.78], 'clamp')})`,
+    backgroundColor: `rgba(8, 4, 26, ${interpolate(rotateX.value, [0, 56], [0.93, 0.8], 'clamp')})`,
   }));
 
   return (
@@ -138,88 +229,59 @@ export function QRRevealAnimation({ visible, rashi, deepLink, userName, cosmicDN
       <Animated.View style={[StyleSheet.absoluteFill, backdropStyle]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
 
-        {/* Background star field */}
+        {/* Stars */}
         {BG_STARS.map((s, i) => (
           <View
             key={i}
             pointerEvents="none"
-            style={[
-              styles.bgStar,
-              { left: s.left, top: s.top, width: s.size, height: s.size, opacity: s.opacity },
-            ]}
+            style={[styles.star, { left: s.left, top: s.top, width: s.size, height: s.size, opacity: s.opacity }]}
           />
         ))}
 
-        {/* Stage — prevents backdrop press inside */}
+        {/* Stage */}
         <Pressable onPress={() => {}} style={styles.stage}>
 
-          {/* Sign label */}
+          {/* Sign label row */}
           <Text style={[styles.signName, { color: info.accent }]}>
             {info.western.toUpperCase()}  ·  {rashi.toUpperCase()}
           </Text>
           <Text style={styles.elementBadge}>{info.element}</Text>
 
-          {/* Animated card */}
-          <Animated.View style={[styles.card, cardStyle]}>
+          {/* Tilted QR card */}
+          <Animated.View style={[styles.qrCard, qrContainerStyle]}>
+            <LinearGradient
+              colors={[info.grad[0], info.grad[1]]}
+              start={{ x: 0.2, y: 0 }}
+              end={{ x: 0.8, y: 1 }}
+              style={styles.qrCardInner}
+            >
+              {/* Colorful QR grid */}
+              <QRSvgGrid
+                matrix={matrix}
+                size={size}
+                accent={info.accent}
+                accent2={info.accent2}
+                viewSize={QR_VIEW}
+              />
 
-            {/* ── Rashi face ──────────────────────────────────────────── */}
-            <Animated.View style={[StyleSheet.absoluteFill, rashiStyle]} pointerEvents="none">
-              <LinearGradient
-                colors={info.grad as [string, string, string]}
-                start={{ x: 0.3, y: 0 }}
-                end={{ x: 0.7, y: 1 }}
-                style={styles.face}
-              >
-                {/* Constellation dots */}
-                {dots.map((d, i) => (
-                  <View
-                    key={i}
-                    style={[
-                      styles.dot,
-                      {
-                        left: d.x * CARD - d.r,
-                        top: d.y * CARD - d.r,
-                        width: d.r * 2,
-                        height: d.r * 2,
-                        borderRadius: d.r,
-                        backgroundColor: `rgba(255,255,255,${0.35 + d.r * 0.12})`,
-                      },
-                    ]}
-                  />
-                ))}
-
-                {/* Glow halo behind symbol */}
-                <View style={[styles.glow, { backgroundColor: `${info.accent}28`, shadowColor: info.accent }]} />
-
-                {/* Zodiac symbol */}
-                <Text style={[styles.zodiacSymbol, { color: info.accent }]}>{info.symbol}</Text>
-                <Text style={[styles.westernLabel, { color: info.accent }]}>{info.western}</Text>
-                <Text style={styles.rashiLatinLabel}>{rashi}</Text>
-              </LinearGradient>
-            </Animated.View>
-
-            {/* ── QR face ─────────────────────────────────────────────── */}
-            <Animated.View style={[StyleSheet.absoluteFill, qrStyle]} pointerEvents="none">
-              <LinearGradient
-                colors={['#fffaf1', '#f0e6ff', '#e8d8ff']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.face}
-              >
-                <Text style={styles.qrAppName}>COSMICSELF</Text>
-                <Text style={styles.qrName}>{userName}</Text>
-                <Text style={styles.qrDNA} numberOfLines={2}>{cosmicDNA}</Text>
-
-                <View style={styles.qrBox}>
-                  <QRCode value={deepLink} size={CARD * 0.58} color="#17182d" backgroundColor="transparent" quietZone={6} />
-                </View>
-
-                <Text style={styles.qrScan}>Scan to read my Cosmic DNA</Text>
-                <Text style={[styles.rashiChip, { borderColor: `${info.accent}60`, color: info.accent }]}>
-                  {info.symbol}  {rashi}
+              {/* Zodiac symbol floats above surface during tilt */}
+              <Animated.View style={[styles.symbolOverlay, symbolStyle]} pointerEvents="none">
+                <Animated.View style={[styles.symbolGlow, { backgroundColor: `${info.accent}30`, shadowColor: info.accent }, glowStyle]} />
+                <Text style={[styles.symbolText, { color: info.accent, textShadowColor: info.accent }]}>
+                  {info.symbol}
                 </Text>
-              </LinearGradient>
-            </Animated.View>
+                <Text style={[styles.symbolWestern, { color: info.accent }]}>{info.western}</Text>
+              </Animated.View>
+            </LinearGradient>
+          </Animated.View>
+
+          {/* User + DNA label — visible when flat */}
+          <Animated.View style={[styles.userRow, labelStyle]}>
+            <Text style={styles.userName}>{userName}</Text>
+            <Text style={styles.dna} numberOfLines={1}>{cosmicDNA}</Text>
+            <Text style={[styles.rashiChip, { borderColor: `${info.accent}55`, color: info.accent }]}>
+              {info.symbol}  {rashi}
+            </Text>
           </Animated.View>
 
           <Text style={styles.hint}>tap outside to dismiss</Text>
@@ -232,7 +294,7 @@ export function QRRevealAnimation({ visible, rashi, deepLink, userName, cosmicDN
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  bgStar: {
+  star: {
     position: 'absolute',
     borderRadius: 99,
     backgroundColor: '#ffffff',
@@ -241,125 +303,96 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: SPACING.sm,
+    gap: SPACING.xs,
+    paddingHorizontal: SPACING.xl,
   },
   signName: {
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: FONTS.accent,
     letterSpacing: 2.5,
     textAlign: 'center',
   },
   elementBadge: {
-    color: 'rgba(255,250,241,0.48)',
+    color: 'rgba(255,250,241,0.38)',
     fontSize: 10,
     fontFamily: FONTS.accent,
     letterSpacing: 2,
     textTransform: 'uppercase',
     marginBottom: SPACING.sm,
   },
-  card: {
-    width: CARD,
-    height: CARD,
+  qrCard: {
+    width: QR_VIEW,
+    height: QR_VIEW,
     borderRadius: BORDER_RADIUS.xxl,
     overflow: 'hidden',
-    // Elevation so the card casts a glow at bottom
     shadowColor: '#7367ff',
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.55,
-    shadowRadius: 30,
-    elevation: 20,
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.6,
+    shadowRadius: 28,
+    elevation: 18,
   },
-  face: {
+  qrCardInner: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: SPACING.xs,
-    padding: SPACING.md,
   },
-  // Rashi face
-  dot: {
+  symbolOverlay: {
     position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  glow: {
+  symbolGlow: {
     position: 'absolute',
-    width: CARD * 0.72,
-    height: CARD * 0.72,
-    borderRadius: CARD * 0.36,
+    width: QR_VIEW * 0.55,
+    height: QR_VIEW * 0.55,
+    borderRadius: QR_VIEW * 0.275,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.9,
     shadowRadius: 40,
   },
-  zodiacSymbol: {
-    fontSize: 110,
-    lineHeight: 120,
+  symbolText: {
+    fontSize: 96,
+    lineHeight: 104,
     textAlign: 'center',
-    // text glow via shadow
     textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 24,
-    textShadowColor: 'rgba(255,255,255,0.6)',
+    textShadowRadius: 28,
   },
-  westernLabel: {
-    fontSize: 22,
+  symbolWestern: {
+    fontSize: 16,
     fontFamily: FONTS.display,
     letterSpacing: 1,
     textAlign: 'center',
+    marginTop: -4,
   },
-  rashiLatinLabel: {
-    color: 'rgba(255,255,255,0.52)',
-    fontSize: 11,
-    fontFamily: FONTS.accent,
-    letterSpacing: 2.2,
-    textTransform: 'uppercase',
+  userRow: {
+    alignItems: 'center',
+    gap: 3,
+    marginTop: SPACING.sm,
   },
-  // QR face
-  qrAppName: {
-    color: COLORS.textMuted,
-    fontSize: 10,
-    fontFamily: FONTS.accent,
-    letterSpacing: 3,
-    marginBottom: 2,
-  },
-  qrName: {
+  userName: {
     color: COLORS.textPrimary,
-    fontSize: 18,
+    fontSize: 17,
     fontFamily: FONTS.display,
-    textAlign: 'center',
+    letterSpacing: 0.3,
   },
-  qrDNA: {
+  dna: {
     color: COLORS.textSecondary,
     fontSize: 11,
     textAlign: 'center',
-    marginBottom: SPACING.xs,
-    paddingHorizontal: SPACING.sm,
-  },
-  qrBox: {
-    backgroundColor: 'rgba(255,255,255,0.85)',
-    borderRadius: BORDER_RADIUS.lg,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: COLORS.glassBorder,
-    marginVertical: SPACING.xs,
-  },
-  qrScan: {
-    color: COLORS.textMuted,
-    fontSize: 11,
-    fontFamily: FONTS.accent,
-    letterSpacing: 0.8,
-    textAlign: 'center',
-    marginTop: 2,
+    maxWidth: QR_VIEW,
   },
   rashiChip: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: FONTS.accent,
     letterSpacing: 0.8,
     borderWidth: 1,
     borderRadius: BORDER_RADIUS.full,
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 3,
     marginTop: 4,
   },
   hint: {
-    color: 'rgba(255,250,241,0.28)',
+    color: 'rgba(255,250,241,0.22)',
     fontSize: 10,
     fontFamily: FONTS.accent,
     letterSpacing: 1.2,

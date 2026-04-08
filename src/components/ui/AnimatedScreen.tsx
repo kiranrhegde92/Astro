@@ -46,6 +46,7 @@ export function AnimatedCard({ children, index = 0, style }: AnimatedCardProps) 
         .springify()
         .damping(isAndroid ? 22 : 16)}
       style={style}
+      pointerEvents="box-none"
     >
       {children}
     </Animated.View>
