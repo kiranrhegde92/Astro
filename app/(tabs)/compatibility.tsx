@@ -178,6 +178,7 @@ export default function CompatibilityScreen() {
       setResult(nextResult);
       setPartnerName(partnerLabel);
       setActivePartnerProfile(partnerProfile);
+      setActiveSection('result');
       await addCompatibilityHistory(historyEntry);
       if (partnerId) {
         await updateSavedProfile(partnerId, { lastComparedAt: historyEntry.createdAt });
@@ -275,6 +276,21 @@ export default function CompatibilityScreen() {
 
         {activeSection === 'setup' && (
           <>
+            {savedProfiles.length ? (
+              <GradientCard style={styles.savedCard} accentColor={COLORS.tide}>
+                <Text style={styles.sectionLabel}>Saved people — tap to compare</Text>
+                {savedProfiles.map((profile) => (
+                  <SavedProfileRow
+                    key={profile.id}
+                    profile={profile}
+                    active={profile.id === selectedProfileId}
+                    onPress={() => void handleCompareSaved(profile)}
+                    onRemove={() => void removeSavedProfile(profile.id)}
+                  />
+                ))}
+              </GradientCard>
+            ) : null}
+
             <GradientCard style={styles.modeCard} accentColor={COLORS.coral}>
               <Text style={styles.sectionLabel}>Relationship mode</Text>
               <View style={styles.modeRow}>
@@ -294,7 +310,7 @@ export default function CompatibilityScreen() {
             </GradientCard>
 
             <GradientCard style={styles.formCard} accentColor={COLORS.iris}>
-              <Text style={styles.sectionLabel}>Partner details</Text>
+              <Text style={styles.sectionLabel}>Enter details manually</Text>
               <TextInput
                 style={styles.input}
                 value={name}
@@ -373,25 +389,6 @@ export default function CompatibilityScreen() {
               />
               <CosmicButton title="Scan or paste a shared profile" onPress={() => router.push('/qr/scan')} variant="outline" />
             </View>
-
-            <View style={styles.hero}>
-              <CosmicOrb size={172} primaryColor={COLORS.coral} secondaryColor={COLORS.iris} />
-            </View>
-
-            {savedProfiles.length ? (
-              <GradientCard style={styles.savedCard} accentColor={COLORS.tide}>
-                <Text style={styles.sectionLabel}>Saved people</Text>
-                {savedProfiles.map((profile) => (
-                  <SavedProfileRow
-                    key={profile.id}
-                    profile={profile}
-                    active={profile.id === selectedProfileId}
-                    onPress={() => void handleCompareSaved(profile)}
-                    onRemove={() => void removeSavedProfile(profile.id)}
-                  />
-                ))}
-              </GradientCard>
-            ) : null}
           </>
         )}
 
@@ -435,22 +432,28 @@ export default function CompatibilityScreen() {
           </>
         ) : null}
 
-        {activeSection === 'history' && compatibilityHistory.length ? (
+        {activeSection === 'history' && (
           <GradientCard style={styles.historyCard}>
             <Text style={styles.sectionLabel}>Recent comparisons</Text>
-            {compatibilityHistory.slice(0, 6).map((entry) => (
-              <View key={entry.id} style={styles.historyRow}>
-                <View style={styles.historyTop}>
-                  <Text style={styles.historyName}>{entry.partnerName}</Text>
-                  <Text style={styles.historyScore}>{entry.result.overall}%</Text>
+            {compatibilityHistory.length ? (
+              compatibilityHistory.slice(0, 6).map((entry) => (
+                <View key={entry.id} style={styles.historyRow}>
+                  <View style={styles.historyTop}>
+                    <Text style={styles.historyName}>{entry.partnerName}</Text>
+                    <Text style={styles.historyScore}>{entry.result.overall}%</Text>
+                  </View>
+                  <Text style={styles.historyMeta}>
+                    {entry.mode} - {formatDisplayDate(entry.createdAt.slice(0, 10))}
+                  </Text>
                 </View>
-                <Text style={styles.historyMeta}>
-                  {entry.mode} - {formatDisplayDate(entry.createdAt.slice(0, 10))}
-                </Text>
-              </View>
-            ))}
+              ))
+            ) : (
+              <Text style={styles.historyEmpty}>
+                No comparisons yet. Run a match and the result will appear here.
+              </Text>
+            )}
           </GradientCard>
-        ) : null}
+        )}
       </ScrollView>
       {alertModal}
     </StarField>
@@ -723,6 +726,11 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.accent,
     letterSpacing: 0.7,
     textTransform: 'capitalize',
+  },
+  historyEmpty: {
+    color: COLORS.textSecondary,
+    fontSize: 14,
+    lineHeight: 22,
   },
   hiddenCard: {
     position: 'absolute',

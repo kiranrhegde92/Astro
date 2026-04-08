@@ -273,7 +273,7 @@ export default function BirthDetailsScreen() {
                 {errors.minute && <Text style={styles.errorText}>{errors.minute}</Text>}
               </View>
               <View style={{ flex: 1.6, paddingLeft: SPACING.sm }}>
-                <Text style={styles.optional}>Needed for rising sign & house timing.</Text>
+                <Text style={styles.optional}>Affects Rashi, Nakshatra, rising sign, and house timing accuracy.</Text>
               </View>
             </View>
           </Animated.View>

@@ -19,13 +19,7 @@ import { fetchDailyReading } from '../../src/services/functionsService';
 import { useJournalStore } from '../../src/store/journalStore';
 import { useReadingStore } from '../../src/store/readingStore';
 import { useUserStore } from '../../src/store/userStore';
-import { formatDisplayDate, getDateKey } from '../../src/utils/dateUtils';
-
-function getCosmicEnergy(date: Date): number {
-  const day = date.getFullYear() * 1000 + date.getMonth() * 32 + date.getDate();
-  const seed = Math.sin(day * 9973) * 10000;
-  return 62 + Math.floor((seed - Math.floor(seed)) * 34);
-}
+import { getDateKey } from '../../src/utils/dateUtils';
 
 function getGreeting(date: Date) {
   const hour = date.getHours();
@@ -97,7 +91,6 @@ export default function TodayScreen() {
   const todayReading = useReadingStore((state) => state.todayReading);
   const getCachedReading = useReadingStore((state) => state.getCachedReading);
   const setTodayReading = useReadingStore((state) => state.setTodayReading);
-  const getRecentReadings = useReadingStore((state) => state.getRecentReadings);
   const getEntryForDate = useJournalStore((state) => state.getEntryForDate);
   const [retryKey, setRetryKey] = useState(0);
   const [forecastWindow, setForecastWindow] = useState<ForecastWindow>('week');
@@ -159,7 +152,6 @@ export default function TodayScreen() {
     return null; // loading — useEffect will populate todayReading
   })();
 
-  const energy = useMemo(() => getCosmicEnergy(today), [today]);
   const greeting = useMemo(() => getGreeting(today), [today]);
   const firstName = user?.name?.split(' ')[0] ?? 'you';
   const journalEntry = getEntryForDate(todayKey);
@@ -172,10 +164,6 @@ export default function TodayScreen() {
       kp: user.kp,
     };
   }, [user?.chinese, user?.kp, user?.vedic, user?.western]);
-  const recentReadings = useMemo(
-    () => getRecentReadings(3).filter((item) => item.date !== todayKey),
-    [getRecentReadings, todayKey, todayReading]
-  );
   const forecast = useMemo(
     () => (profile ? generatePeriodForecast(today, profile, forecastWindow) : null),
     [forecastWindow, profile, today]
@@ -215,7 +203,6 @@ export default function TodayScreen() {
   const tabs = [
     { key: 'overview', label: 'Overview' },
     { key: 'forecast', label: 'Forecast' },
-    { key: 'archive', label: 'Archive' },
   ];
 
   return (
@@ -257,11 +244,9 @@ export default function TodayScreen() {
 
             <AnimatedCard index={1}>
               <LinearGradient colors={COLORS.gradientInkSoft} style={styles.signalBoard}>
-                <SignalCell label="Energy" value={`${energy}%`} />
+                <SignalCell label="Day streak" value={user.streak} />
                 <View style={styles.signalDivider} />
-                <SignalCell label="Streak" value={user.streak} />
-                <View style={styles.signalDivider} />
-                <SignalCell label="Points" value={user.cosmicPoints} />
+                <SignalCell label="Cosmic points" value={user.cosmicPoints} />
               </LinearGradient>
             </AnimatedCard>
 
@@ -315,24 +300,6 @@ export default function TodayScreen() {
               <ExplainPanel items={explainItems} />
             </AnimatedCard>
           </>
-        )}
-
-        {activeSection === 'archive' && (
-          <AnimatedCard index={0}>
-            <GradientCard style={styles.archiveCard} accentColor={COLORS.tide}>
-              <Text style={styles.panelLabel}>Reading archive</Text>
-              {recentReadings.length ? (
-                recentReadings.map((item) => (
-                  <View key={item.date} style={styles.archiveRow}>
-                    <Text style={styles.archiveDate}>{formatDisplayDate(item.date)}</Text>
-                    <Text style={styles.archiveText}>{item.unified.cosmicVibe}</Text>
-                  </View>
-                ))
-              ) : (
-                <Text style={styles.archiveEmpty}>Your recent readings will stack here as you build a rhythm.</Text>
-              )}
-            </GradientCard>
-          </AnimatedCard>
         )}
 
         <View style={styles.bottomPad} />
@@ -540,32 +507,6 @@ const styles = StyleSheet.create({
   },
   actions: {
     gap: SPACING.md,
-  },
-  archiveCard: {
-    gap: SPACING.sm,
-  },
-  archiveRow: {
-    gap: 4,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.glassBorder,
-  },
-  archiveDate: {
-    color: COLORS.textMuted,
-    fontSize: 11,
-    fontFamily: FONTS.accent,
-    letterSpacing: 0.8,
-  },
-  archiveText: {
-    color: COLORS.textPrimary,
-    fontSize: 15,
-    lineHeight: 22,
-    fontFamily: FONTS.heading,
-  },
-  archiveEmpty: {
-    color: COLORS.textSecondary,
-    fontSize: 14,
-    lineHeight: 22,
   },
   bottomPad: {
     height: 40,
