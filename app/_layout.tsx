@@ -51,7 +51,6 @@ export default function RootLayout() {
   const firebaseUser = useAuthStore((s) => s.firebaseUser);
 
   const loadUser = useUserStore((s) => s.loadUser);
-  const userLoading = useUserStore((s) => s.isLoading);
   const user = useUserStore((s) => s.user);
   const syncSubscriptionStatus = useUserStore((s) => s.syncSubscriptionStatus);
 
@@ -64,7 +63,7 @@ export default function RootLayout() {
   const router = useRouter();
   const segments = useSegments();
 
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     PlayfairDisplay_400Regular,
     PlayfairDisplay_700Bold,
     PlayfairDisplay_900Black,
@@ -86,16 +85,19 @@ export default function RootLayout() {
   }, [authReady, loadConnections, loadJournal, loadReadings, loadSettings, syncSubscriptionStatus]);
 
   useEffect(() => {
-    if (!authReady || !fontsLoaded || profileLoading || userLoading) return;
+    if (!authReady || !fontsLoaded || profileLoading) return;
 
     const inAuth = segments[0] === '(auth)';
     const inOnboarding = segments[0] === '(onboarding)';
     const onboardingScreen = segments.slice(1)[0];
     const entryRoute = getEntryRoute(user);
 
+    const inTabs = segments[0] === '(tabs)';
+    const atRoot = !segments[0]; // root index.tsx
+
     if (!firebaseUser) {
       if (entryRoute === '/(tabs)/today') {
-        if (inAuth || inOnboarding) router.replace(entryRoute);
+        if (inAuth || inOnboarding || atRoot) router.replace(entryRoute);
       } else if (entryRoute?.startsWith('/(onboarding)/')) {
         const targetScreen = entryRoute.split('/').pop();
         if (!inOnboarding || onboardingScreen !== targetScreen) router.replace(entryRoute);
@@ -106,7 +108,7 @@ export default function RootLayout() {
     }
 
     if (entryRoute === '/(tabs)/today') {
-      if (inAuth || inOnboarding) router.replace(entryRoute);
+      if (inAuth || inOnboarding || atRoot) router.replace(entryRoute);
       return;
     }
 
@@ -115,7 +117,7 @@ export default function RootLayout() {
       if (!inOnboarding || onboardingScreen !== targetScreen) router.replace(entryRoute);
       return;
     }
-  }, [authReady, firebaseUser, fontsLoaded, profileLoading, router, segments, user, userLoading]);
+  }, [authReady, firebaseUser, fontsLoaded, profileLoading, router, segments, user]);
 
   useEffect(() => {
     const handleDeepLink = (event: { url: string }) => {
@@ -139,7 +141,8 @@ export default function RootLayout() {
     return () => subscription.remove();
   }, [importSharedProfile, router]);
 
-  if (!fontsLoaded || !authReady || userLoading) {
+
+  if (!authReady) {
     return (
       <View style={{ flex: 1, backgroundColor: COLORS.bgDeep, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator color={COLORS.western} />

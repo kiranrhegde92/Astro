@@ -26,7 +26,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     // unblock the loading screen after 4 seconds so the app isn't stuck forever.
     const timeout = setTimeout(() => {
       set((s) => s.authReady ? s : { authReady: true, profileLoading: false });
-    }, 4000);
+    }, 3000);
 
     const unsubscribe = onAuthChange(async (user) => {
       clearTimeout(timeout);
