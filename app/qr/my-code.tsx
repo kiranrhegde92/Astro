@@ -6,11 +6,12 @@ import { StarField } from '../../src/components/ui/StarField';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
 import { CosmicButton } from '../../src/components/ui/CosmicButton';
 import { QRCodeCard } from '../../src/components/share/QRCodeCard';
+import { QRRevealAnimation } from '../../src/components/ui/QRRevealAnimation';
 import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../../src/constants/theme';
 import { useUserStore } from '../../src/store/userStore';
 import { getCosmicDNASummary } from '../../src/engines/unified';
 import { captureAndShare } from '../../src/utils/shareUtils';
-import { QR_THEMES, getQRThemeColors } from '../../src/utils/qrCodeUtils';
+import { QR_THEMES, getQRThemeColors, generateProfileLink } from '../../src/utils/qrCodeUtils';
 import type { QRThemeName } from '../../src/utils/qrCodeUtils';
 import type { SharedProfilePayload } from '../../src/types/appData';
 
@@ -19,6 +20,7 @@ export default function MyQRCodeScreen() {
   const user = useUserStore((s) => s.user);
   const viewShotRef = useRef<ViewShot>(null);
   const [selectedTheme, setSelectedTheme] = useState<QRThemeName>('Cosmic Night');
+  const [revealOpen, setRevealOpen] = useState(false);
 
   if (!user?.western || !user?.vedic || !user?.chinese) return null;
 
@@ -75,6 +77,8 @@ export default function MyQRCodeScreen() {
     sharedAt: new Date().toISOString(),
   };
 
+  const deepLink = generateProfileLink(profilePayload);
+
   const handleShare = () => {
     captureAndShare(viewShotRef, 'Scan my Cosmic DNA!');
   };
@@ -87,8 +91,8 @@ export default function MyQRCodeScreen() {
           Share your QR code and let others discover your Cosmic DNA instantly
         </Text>
 
-        {/* QR Card */}
-        <View style={styles.cardWrapper}>
+        {/* QR Card — tap to trigger 3D Rashi reveal */}
+        <TouchableOpacity style={styles.cardWrapper} onPress={() => setRevealOpen(true)} activeOpacity={0.9}>
           <QRCodeCard
             userName={user.name}
             cosmicDNA={cosmicDNA}
@@ -99,7 +103,7 @@ export default function MyQRCodeScreen() {
             gradientColors={getQRThemeColors(selectedTheme)}
             viewShotRef={viewShotRef}
           />
-        </View>
+        </TouchableOpacity>
 
         {/* Theme Picker */}
         <Text style={styles.themeLabel}>Choose Your Theme</Text>
@@ -160,6 +164,15 @@ export default function MyQRCodeScreen() {
 
         <View style={styles.bottomPad} />
       </ScrollView>
+
+      <QRRevealAnimation
+        visible={revealOpen}
+        rashi={user.vedic.rashi}
+        deepLink={deepLink}
+        userName={user.name}
+        cosmicDNA={cosmicDNA}
+        onClose={() => setRevealOpen(false)}
+      />
     </StarField>
   );
 }
