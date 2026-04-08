@@ -190,7 +190,7 @@ export default function ProfileScreen() {
                 { value: user.subscription.tier, label: 'Plan' },
               ].map((m) => (
                 <View key={m.label} style={styles.chip}>
-                  <Text style={[styles.chipValue, { textTransform: 'capitalize' }]}>{m.value}</Text>
+                  <Text style={styles.chipValue}>{m.value}</Text>
                   <Text style={styles.chipLabel}>{m.label}</Text>
                 </View>
               ))}
@@ -203,8 +203,6 @@ export default function ProfileScreen() {
           <GradientCard style={styles.card} colors={COLORS.gradientSilver}>
             <Text style={styles.sectionLabel}>Navigate</Text>
             {[
-              { label: 'Compatibility', icon: 'people-outline' as const, path: '/(tabs)/compatibility' as const },
-              { label: 'Journal & Cosmos', icon: 'book-outline' as const, path: '/(tabs)/cosmos' as const },
               { label: 'Share card', icon: 'share-social-outline' as const, path: '/share/card' as const },
               { label: 'My QR code', icon: 'qr-code-outline' as const, path: '/qr/my-code' as const },
               { label: 'Notifications & more', icon: 'notifications-outline' as const, path: '/settings' as const },
