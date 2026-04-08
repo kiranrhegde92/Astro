@@ -20,6 +20,7 @@ import { useJournalStore } from '../../src/store/journalStore';
 import { useReadingStore } from '../../src/store/readingStore';
 import { useUserStore } from '../../src/store/userStore';
 import { getDateKey } from '../../src/utils/dateUtils';
+import { normalizeUserProfile } from '../../src/utils/normalizeUserProfile';
 
 function getGreeting(date: Date) {
   const hour = date.getHours();
@@ -97,6 +98,7 @@ export default function TodayScreen() {
   const [activeSection, setActiveSection] = useState('overview');
   const today = useMemo(() => new Date(), []);
   const todayKey = getDateKey(today);
+  const safeUser = useMemo(() => (user ? normalizeUserProfile(user) : null), [user]);
 
   useEffect(() => {
     if (!user?.western?.sun || !user?.vedic?.rashi || !user?.chinese?.animal) return;
@@ -153,25 +155,25 @@ export default function TodayScreen() {
   })();
 
   const greeting = useMemo(() => getGreeting(today), [today]);
-  const firstName = user?.name?.split(' ')[0] ?? 'you';
+  const firstName = safeUser?.name?.split(' ')[0] ?? user?.name?.split(' ')[0] ?? 'you';
   const journalEntry = getEntryForDate(todayKey);
   const profile = useMemo(() => {
-    if (!user?.western?.sun || !user?.vedic?.rashi || !user?.chinese?.animal) return null;
+    if (!safeUser?.western || !safeUser?.vedic || !safeUser?.chinese) return null;
     return {
-      western: user.western,
-      vedic: user.vedic,
-      chinese: user.chinese,
-      kp: user.kp,
+      western: safeUser.western,
+      vedic: safeUser.vedic,
+      chinese: safeUser.chinese,
+      kp: safeUser.kp,
     };
-  }, [user?.chinese, user?.kp, user?.vedic, user?.western]);
+  }, [safeUser]);
   const forecast = useMemo(
     () => (profile ? generatePeriodForecast(today, profile, forecastWindow) : null),
     [forecastWindow, profile, today]
   );
   const explainItems = useMemo(() => {
-    if (!user || !reading) return [];
-    return getReadingExplainers(user, reading);
-  }, [reading, user]);
+    if (!safeUser || !reading) return [];
+    return getReadingExplainers(safeUser, reading);
+  }, [reading, safeUser]);
 
   if (!user || !reading) {
     return (

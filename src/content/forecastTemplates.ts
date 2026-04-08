@@ -1,4 +1,4 @@
-import type { CosmicProfile, PredictionReference } from '../types/astrology';
+import type { CosmicProfile, DashaPlanet, PredictionReference } from '../types/astrology';
 
 export type ForecastWindow = 'week' | 'month';
 
@@ -24,7 +24,7 @@ const WESTERN_FOCUS: Record<CosmicProfile['western']['element'], string> = {
   Water: 'trusting feeling before over-explaining it',
 };
 
-const DASHA_FOCUS: Record<CosmicProfile['vedic']['currentDasha']['planet'], string> = {
+const DASHA_FOCUS: Record<DashaPlanet, string> = {
   Ketu: 'letting go of stale attachments so the next chapter can breathe',
   Venus: 'softening the pace and choosing what feels nourishing',
   Sun: 'stepping into visibility without diluting your standards',
@@ -63,7 +63,7 @@ function formatRange(start: Date, end: Date) {
   return `${startLabel} - ${endLabel}`;
 }
 
-function getSeed(date: Date, profile: CosmicProfile) {
+function getSeed(date: Date, profile: Partial<CosmicProfile>) {
   return (
     date.getFullYear() +
     date.getMonth() * 13 +
@@ -74,16 +74,31 @@ function getSeed(date: Date, profile: CosmicProfile) {
   );
 }
 
+function getCurrentDashaPlanet(profile: Partial<CosmicProfile>): DashaPlanet {
+  const currentDashaPlanet = profile.vedic?.currentDasha?.planet;
+  if (currentDashaPlanet && currentDashaPlanet in DASHA_FOCUS) {
+    return currentDashaPlanet as DashaPlanet;
+  }
+
+  const firstDashaPlanet = Array.isArray(profile.vedic?.dashas)
+    ? profile.vedic.dashas.find((period) => period?.planet)?.planet
+    : undefined;
+  if (firstDashaPlanet && firstDashaPlanet in DASHA_FOCUS) {
+    return firstDashaPlanet as DashaPlanet;
+  }
+
+  return 'Sun';
+}
+
 export function generatePeriodForecast(
   date: Date,
-  profile: CosmicProfile,
+  profile: Partial<CosmicProfile>,
   window: ForecastWindow
 ): PeriodForecast {
   const westernSun = profile.western?.sun ?? 'Leo';
   const westernElement = profile.western?.element ?? 'Fire';
   const westernModality = profile.western?.modality ?? 'Cardinal';
   const vedicRashi = profile.vedic?.rashi ?? 'Simha';
-  const vedicDashas = Array.isArray(profile.vedic?.dashas) ? profile.vedic.dashas : [];
   const chineseAnimal = profile.chinese?.animal ?? 'Dragon';
   const chineseElement = profile.chinese?.element ?? 'Wood';
   const seed = getSeed(date, profile);
@@ -92,10 +107,7 @@ export function generatePeriodForecast(
   const brightWindow = formatRange(addDays(date, brightOffset), addDays(date, brightOffset + (window === 'week' ? 2 : 5)));
   const cautionWindow = formatRange(addDays(date, cautionOffset), addDays(date, cautionOffset + (window === 'week' ? 1 : 4)));
 
-  const currentDashaPlanet =
-    profile.vedic?.currentDasha?.planet ??
-    vedicDashas[0]?.planet ??
-    'Sun';
+  const currentDashaPlanet = getCurrentDashaPlanet(profile);
   const westernFocus = WESTERN_FOCUS[westernElement] ?? WESTERN_FOCUS.Fire;
   const vedicFocus = DASHA_FOCUS[currentDashaPlanet] ?? DASHA_FOCUS.Sun;
   const chineseFocus = CHINESE_FOCUS[chineseElement] ?? CHINESE_FOCUS.Wood;

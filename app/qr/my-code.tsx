@@ -1,11 +1,11 @@
-import React, { useRef, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { AppState, View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useIsFocused } from '@react-navigation/native';
 import ViewShot from 'react-native-view-shot';
 import { StarField } from '../../src/components/ui/StarField';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
 import { CosmicButton } from '../../src/components/ui/CosmicButton';
-import { QRCodeCard } from '../../src/components/share/QRCodeCard';
 import { QRRevealAnimation } from '../../src/components/ui/QRRevealAnimation';
 import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../../src/constants/theme';
 import { useUserStore } from '../../src/store/userStore';
@@ -20,7 +20,23 @@ export default function MyQRCodeScreen() {
   const user = useUserStore((s) => s.user);
   const viewShotRef = useRef<ViewShot>(null);
   const [selectedTheme, setSelectedTheme] = useState<QRThemeName>('Cosmic Night');
-  const [revealOpen, setRevealOpen] = useState(false);
+  const [revealVersion, setRevealVersion] = useState(0);
+  const isFocused = useIsFocused();
+  const themeColors = React.useMemo(() => getQRThemeColors(selectedTheme), [selectedTheme]);
+
+  useEffect(() => {
+    if (!isFocused) return;
+    setRevealVersion((value) => value + 1);
+  }, [isFocused, selectedTheme]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active' && isFocused) {
+        setRevealVersion((value) => value + 1);
+      }
+    });
+    return () => subscription.remove();
+  }, [isFocused]);
 
   if (!user?.western || !user?.vedic || !user?.chinese) return null;
 
@@ -88,25 +104,25 @@ export default function MyQRCodeScreen() {
       <ScreenHeader title="My cosmic QR" />
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <Text style={styles.subtitle}>
-          Share your QR code and let others discover your Cosmic DNA instantly
+          Your rashi rises as a living sigil, then settles into a scan-ready QR.
         </Text>
 
-        {/* QR Card — tap to trigger 3D Rashi reveal */}
-        <TouchableOpacity style={styles.cardWrapper} onPress={() => setRevealOpen(true)} activeOpacity={0.9}>
-          <QRCodeCard
-            userName={user.name}
-            cosmicDNA={cosmicDNA}
-            sunSign={user.western.sun}
-            rashi={user.vedic.rashi}
-            animal={user.chinese.animal}
-            profilePayload={profilePayload}
-            gradientColors={getQRThemeColors(selectedTheme)}
-            viewShotRef={viewShotRef}
-          />
-        </TouchableOpacity>
+        {/* Inline QR reveal stage */}
+        <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 1 }}>
+          <View style={styles.revealWrap}>
+            <QRRevealAnimation
+              key={`${user.id}-${selectedTheme}-${revealVersion}`}
+              rashi={user.vedic.rashi}
+              deepLink={deepLink}
+              userName={user.name}
+              cosmicDNA={cosmicDNA}
+              themeColors={themeColors}
+            />
+          </View>
+        </ViewShot>
 
         {/* Theme Picker */}
-        <Text style={styles.themeLabel}>Choose Your Theme</Text>
+        <Text style={styles.themeLabel}>Choose the atmosphere</Text>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -164,15 +180,6 @@ export default function MyQRCodeScreen() {
 
         <View style={styles.bottomPad} />
       </ScrollView>
-
-      <QRRevealAnimation
-        visible={revealOpen}
-        rashi={user.vedic.rashi}
-        deepLink={deepLink}
-        userName={user.name}
-        cosmicDNA={cosmicDNA}
-        onClose={() => setRevealOpen(false)}
-      />
     </StarField>
   );
 }
@@ -197,9 +204,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: SPACING.sm,
     marginBottom: SPACING.lg,
+    paddingHorizontal: SPACING.sm,
   },
-  cardWrapper: {
-    alignItems: 'center',
+  revealWrap: {
     marginBottom: SPACING.lg,
   },
   themeLabel: {

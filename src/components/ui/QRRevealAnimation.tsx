@@ -1,25 +1,9 @@
-/**
- * QRRevealAnimation
- *
- * Reference-inspired (enco.fi "tree QR"):
- *   Phase 1 — QR grid shown at ~55° tilt (isometric perspective).
- *             Rashi zodiac symbol floats above the surface.
- *   Phase 2 — Card rotates to 0° (flat, face-on), symbol descends and fades.
- *             Pure colorful scannable QR is revealed.
- *
- * Stack: react-native-svg for QR pixels · Reanimated for animation
- */
-
 import React, { useEffect, useMemo } from 'react';
-import {
-  Dimensions,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Dimensions, Platform, StyleSheet, Text, View } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useIsFocused } from '@react-navigation/native';
 import Animated, {
+  cancelAnimation,
   Easing,
   interpolate,
   useAnimatedStyle,
@@ -28,374 +12,518 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Rect, G } from 'react-native-svg';
-// @ts-ignore – qrcode is a CJS dep used by react-native-qrcode-svg internally
-import QR from 'qrcode';
-import { BORDER_RADIUS, COLORS, FONTS, SPACING } from '../../constants/theme';
+import QRCode from 'react-native-qrcode-svg';
+import { BORDER_RADIUS, COLORS, FONTS, SHADOWS, SPACING } from '../../constants/theme';
 
-// ─── Screen metrics ──────────────────────────────────────────────────────────
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const PANEL_WIDTH = Math.min(SCREEN_WIDTH - 44, 360);
+const STAGE_SIZE = Math.min(PANEL_WIDTH - 32, 292);
+const QR_SIZE = STAGE_SIZE - 54;
 
-const { width: SW, height: SH } = Dimensions.get('window');
-const QR_VIEW = Math.min(SW - 80, 290);
+type ZodiacIconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
-// ─── Rashi metadata ──────────────────────────────────────────────────────────
-
-const RASHI: Record<
-  string,
-  {
-    symbol: string;
-    western: string;
-    element: string;
-    accent: string;
-    accent2: string;
-    grad: readonly [string, string];
-  }
-> = {
-  Mesha:     { symbol: '♈', western: 'Aries',       element: 'Fire',  accent: '#ff6b6b', accent2: '#ff9f7f', grad: ['#2a0808', '#6b1010'] },
-  Vrishabha: { symbol: '♉', western: 'Taurus',      element: 'Earth', accent: '#6bcf7f', accent2: '#a8e6cf', grad: ['#07200f', '#1a5c30'] },
-  Mithuna:   { symbol: '♊', western: 'Gemini',      element: 'Air',   accent: '#74b9ff', accent2: '#a29bfe', grad: ['#041830', '#0a4a8c'] },
-  Karka:     { symbol: '♋', western: 'Cancer',      element: 'Water', accent: '#81ecec', accent2: '#55efc4', grad: ['#042020', '#066060'] },
-  Simha:     { symbol: '♌', western: 'Leo',         element: 'Fire',  accent: '#fdcb6e', accent2: '#ff9f7f', grad: ['#231000', '#7a3500'] },
-  Kanya:     { symbol: '♍', western: 'Virgo',       element: 'Earth', accent: '#a8e6cf', accent2: '#6bcf7f', grad: ['#0a1f16', '#215c3a'] },
-  Tula:      { symbol: '♎', western: 'Libra',       element: 'Air',   accent: '#fd79a8', accent2: '#e17fc8', grad: ['#230010', '#6b0038'] },
-  Vrischika: { symbol: '♏', western: 'Scorpio',     element: 'Water', accent: '#a29bfe', accent2: '#c9b1ff', grad: ['#0d0a2a', '#2d1f8a'] },
-  Dhanu:     { symbol: '♐', western: 'Sagittarius', element: 'Fire',  accent: '#ff9f7f', accent2: '#fdcb6e', grad: ['#200600', '#7a1c00'] },
-  Makara:    { symbol: '♑', western: 'Capricorn',   element: 'Earth', accent: '#55efc4', accent2: '#81ecec', grad: ['#041a14', '#0a5740'] },
-  Kumbha:    { symbol: '♒', western: 'Aquarius',    element: 'Air',   accent: '#a29bfe', accent2: '#74b9ff', grad: ['#080420', '#1e1060'] },
-  Meena:     { symbol: '♓', western: 'Pisces',      element: 'Water', accent: '#c9b1ff', accent2: '#fd79a8', grad: ['#120826', '#3a1a6e'] },
-};
-
-// ─── QR matrix builder ───────────────────────────────────────────────────────
-
-function buildMatrix(value: string): { matrix: boolean[][]; size: number } {
-  try {
-    const qr = QR.create(value, { errorCorrectionLevel: 'M' });
-    const { data, size } = qr.modules;
-    const matrix: boolean[][] = [];
-    for (let r = 0; r < size; r++) {
-      const row: boolean[] = [];
-      for (let c = 0; c < size; c++) {
-        row.push(!!data[r * size + c]);
-      }
-      matrix.push(row);
-    }
-    return { matrix, size };
-  } catch {
-    return { matrix: [], size: 0 };
-  }
-}
-
-// ─── Isometric QR SVG ────────────────────────────────────────────────────────
-
-type QRSvgProps = {
-  matrix: boolean[][];
-  size: number;
+type RashiInfo = {
+  symbol: string;
+  western: string;
+  element: string;
+  icon: ZodiacIconName;
   accent: string;
   accent2: string;
-  viewSize: number;
+  grad: readonly [string, string];
 };
 
-function QRSvgGrid({ matrix, size, accent, accent2, viewSize }: QRSvgProps) {
-  if (!size) return null;
+const RASHI: Record<string, RashiInfo> = {
+  Mesha: { symbol: '\u2648', western: 'Aries', element: 'Fire', icon: 'zodiac-aries', accent: '#ff6b6b', accent2: '#ff9f7f', grad: ['#2a0808', '#6b1010'] },
+  Vrishabha: { symbol: '\u2649', western: 'Taurus', element: 'Earth', icon: 'zodiac-taurus', accent: '#6bcf7f', accent2: '#a8e6cf', grad: ['#07200f', '#1a5c30'] },
+  Mithuna: { symbol: '\u264A', western: 'Gemini', element: 'Air', icon: 'zodiac-gemini', accent: '#74b9ff', accent2: '#a29bfe', grad: ['#041830', '#0a4a8c'] },
+  Karka: { symbol: '\u264B', western: 'Cancer', element: 'Water', icon: 'zodiac-cancer', accent: '#81ecec', accent2: '#55efc4', grad: ['#042020', '#066060'] },
+  Simha: { symbol: '\u264C', western: 'Leo', element: 'Fire', icon: 'zodiac-leo', accent: '#fdcb6e', accent2: '#ff9f7f', grad: ['#231000', '#7a3500'] },
+  Kanya: { symbol: '\u264D', western: 'Virgo', element: 'Earth', icon: 'zodiac-virgo', accent: '#a8e6cf', accent2: '#6bcf7f', grad: ['#0a1f16', '#215c3a'] },
+  Tula: { symbol: '\u264E', western: 'Libra', element: 'Air', icon: 'zodiac-libra', accent: '#fd79a8', accent2: '#e17fc8', grad: ['#230010', '#6b0038'] },
+  Vrischika: { symbol: '\u264F', western: 'Scorpio', element: 'Water', icon: 'zodiac-scorpio', accent: '#a29bfe', accent2: '#c9b1ff', grad: ['#0d0a2a', '#2d1f8a'] },
+  Dhanu: { symbol: '\u2650', western: 'Sagittarius', element: 'Fire', icon: 'zodiac-sagittarius', accent: '#ff9f7f', accent2: '#fdcb6e', grad: ['#200600', '#7a1c00'] },
+  Makara: { symbol: '\u2651', western: 'Capricorn', element: 'Earth', icon: 'zodiac-capricorn', accent: '#55efc4', accent2: '#81ecec', grad: ['#041a14', '#0a5740'] },
+  Kumbha: { symbol: '\u2652', western: 'Aquarius', element: 'Air', icon: 'zodiac-aquarius', accent: '#a29bfe', accent2: '#74b9ff', grad: ['#080420', '#1e1060'] },
+  Meena: { symbol: '\u2653', western: 'Pisces', element: 'Water', icon: 'zodiac-pisces', accent: '#c9b1ff', accent2: '#fd79a8', grad: ['#120826', '#3a1a6e'] },
+};
 
-  const QUIET = 3; // quiet zone in modules
-  const total = size + QUIET * 2;
-  const mod = viewSize / total;
-  const off = QUIET * mod;
-  const r = Math.max(1, mod * 0.22);
+const DECOR_POINTS: ReadonlyArray<{
+  top?: number;
+  right?: number;
+  bottom?: number;
+  left?: number;
+}> = [
+  { top: 18, left: 30 },
+  { top: 42, right: 34 },
+  { bottom: 42, left: 34 },
+  { bottom: 20, right: 28 },
+] as const;
 
-  const rects = useMemo(() => {
-    const els: React.ReactElement[] = [];
-    for (let row = 0; row < size; row++) {
-      for (let col = 0; col < size; col++) {
-        const isDark = matrix[row][col];
-
-        // Finder pattern regions (top-left, top-right, bottom-left 7×7)
-        const isFinder =
-          (col < 7 && row < 7) ||
-          (col >= size - 7 && row < 7) ||
-          (col < 7 && row >= size - 7);
-
-        const x = off + col * mod;
-        const y = off + row * mod;
-        const s = mod - mod * 0.12; // slight gap between modules
-
-        let fill: string;
-        if (isDark) {
-          fill = isFinder ? accent : accent2;
-        } else {
-          fill = isFinder ? `${accent}20` : 'rgba(255,255,255,0.07)';
-        }
-
-        els.push(
-          <Rect
-            key={`${row}-${col}`}
-            x={x}
-            y={y}
-            width={s}
-            height={s}
-            rx={isDark ? r : r * 0.5}
-            fill={fill}
-          />
-        );
-      }
-    }
-    return els;
-  }, [matrix, size, accent, accent2, mod, off, r]);
-
-  return (
-    <Svg width={viewSize} height={viewSize}>
-      <G>{rects}</G>
-    </Svg>
-  );
-}
-
-// ─── Background stars ────────────────────────────────────────────────────────
-
-const BG_STARS = Array.from({ length: 60 }, (_, i) => {
-  const a = Math.abs(Math.sin(i * 987.654 * 13337));
-  const b = Math.abs(Math.sin(i * 654.321 * 17777));
-  const c = Math.abs(Math.sin(i * 321.123 * 11111));
-  return { left: a * SW, top: b * SH, size: 0.6 + c * 2.2, opacity: 0.1 + c * 0.55 };
+const FLOOR_TILES = Array.from({ length: 25 }, (_, index) => {
+  const row = Math.floor(index / 5);
+  const col = index % 5;
+  return {
+    key: `tile-${row}-${col}`,
+    top: 22 + row * 44,
+    left: 22 + col * 44,
+    emphasis: row === col || row + col === 4 || index % 4 === 0,
+  };
 });
 
-// ─── Component ────────────────────────────────────────────────────────────────
-
 type Props = {
-  visible: boolean;
   rashi: string;
   deepLink: string;
   userName: string;
   cosmicDNA: string;
-  onClose: () => void;
+  themeColors?: readonly string[];
 };
 
-export function QRRevealAnimation({ visible, rashi, deepLink, userName, cosmicDNA, onClose }: Props) {
-  const info = RASHI[rashi] ?? RASHI.Vrischika;
-  const { matrix, size } = useMemo(() => buildMatrix(deepLink), [deepLink]);
+function withAlpha(color: string, alpha: string) {
+  return color.startsWith('#') && color.length === 7 ? `${color}${alpha}` : color;
+}
 
-  // rotateX: 56° (isometric tilt) → 0° (flat face-on)
-  const rotateX = useSharedValue(56);
+export function QRRevealAnimation({ rashi, deepLink, userName, cosmicDNA, themeColors }: Props) {
+  const info = RASHI[rashi] ?? RASHI.Vrischika;
+  const progress = useSharedValue(0);
+  const isFocused = useIsFocused();
+  const themeKey = themeColors?.join('|') ?? '';
+
+  const panelTint = useMemo(() => {
+    const palette = themeColors?.length ? themeColors : [info.accent, info.accent2, COLORS.iris];
+    return [
+      withAlpha(palette[0] ?? info.accent, '12'),
+      withAlpha(palette[1] ?? info.accent2, '20'),
+      withAlpha(palette[2] ?? info.accent, '14'),
+    ] as [string, string, string];
+  }, [info.accent, info.accent2, themeColors]);
 
   useEffect(() => {
-    if (visible) {
-      rotateX.value = 56;
-      rotateX.value = withDelay(
-        700,
-        withTiming(0, {
-          duration: 2800,
-          easing: Easing.bezier(0.16, 1, 0.3, 1),
-        }),
-      );
-    }
-  }, [visible]);
+    if (!isFocused) return;
+    cancelAnimation(progress);
+    progress.value = 0;
+    progress.value = withDelay(
+      260,
+      withTiming(1, {
+        duration: Platform.OS === 'android' ? 5200 : 5800,
+        easing: Easing.bezier(0.2, 0.8, 0.2, 1),
+      }),
+    );
+  }, [deepLink, isFocused, progress, rashi, themeKey]);
 
-  // QR container: starts tilted, rotates flat
-  const qrContainerStyle = useAnimatedStyle(() => ({
+  const stageStyle = useAnimatedStyle(() => ({
     transform: [
-      { perspective: 950 },
-      { rotateX: `${rotateX.value}deg` },
+      { perspective: 1400 },
+      { rotateX: `${interpolate(progress.value, [0, 1], [62, 0], 'clamp')}deg` },
+      { rotateZ: `${interpolate(progress.value, [0, 1], [-14, 0], 'clamp')}deg` },
+      { translateY: interpolate(progress.value, [0, 1], [26, 0], 'clamp') },
+      { scale: interpolate(progress.value, [0, 1], [0.9, 1], 'clamp') },
     ],
   }));
 
-  // Zodiac symbol: inside the tilted container → appears to float above QR
-  // translateY(-) moves it "up" through the perspective projection
-  const symbolStyle = useAnimatedStyle(() => ({
+  const gridStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(progress.value, [0, 0.64, 0.9, 1], [0.96, 0.92, 0.28, 0.12], 'clamp'),
+    transform: [{ scale: interpolate(progress.value, [0, 1], [0.94, 1], 'clamp') }],
+  }));
+
+  const qrStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(progress.value, [0, 0.5, 0.88, 1], [0.02, 0.06, 0.82, 1], 'clamp'),
+    transform: [{ scale: interpolate(progress.value, [0, 1], [0.72, 1], 'clamp') }],
+  }));
+
+  const revealBeamStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(progress.value, [0.58, 0.74, 0.96, 1], [0, 0.52, 0.22, 0], 'clamp'),
     transform: [
-      { translateY: interpolate(rotateX.value, [0, 56], [0, -QR_VIEW * 0.28], 'clamp') },
-      { scale: interpolate(rotateX.value, [0, 14, 56], [0, 0.4, 1.3], 'clamp') },
+      { translateY: interpolate(progress.value, [0.54, 1], [-QR_SIZE * 0.52, QR_SIZE * 0.52], 'clamp') },
     ],
-    opacity: interpolate(rotateX.value, [0, 10, 56], [0, 0, 1], 'clamp'),
   }));
 
-  // Glow ring behind symbol fades with symbol
-  const glowStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(rotateX.value, [0, 10, 56], [0, 0, 0.45], 'clamp'),
+  const totemStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(progress.value, [0, 0.68, 0.88, 1], [1, 1, 0.22, 0], 'clamp'),
+    transform: [
+      { translateY: interpolate(progress.value, [0, 1], [-32, 18], 'clamp') },
+      { scale: interpolate(progress.value, [0, 1], [1.14, 0.76], 'clamp') },
+    ],
   }));
 
-  // QR label row fades in as it flattens
-  const labelStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(rotateX.value, [0, 15, 35], [1, 0.5, 0], 'clamp'),
-    transform: [{ translateY: interpolate(rotateX.value, [0, 56], [0, 6], 'clamp') }],
+  const shadowStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(progress.value, [0, 1], [0.14, 0.26], 'clamp'),
+    transform: [
+      { scaleX: interpolate(progress.value, [0, 1], [0.62, 1], 'clamp') },
+      { scaleY: interpolate(progress.value, [0, 1], [0.24, 0.84], 'clamp') },
+      { translateY: interpolate(progress.value, [0, 1], [20, 28], 'clamp') },
+    ],
   }));
 
-  // Backdrop
-  const backdropStyle = useAnimatedStyle(() => ({
-    backgroundColor: `rgba(8, 4, 26, ${interpolate(rotateX.value, [0, 56], [0.93, 0.8], 'clamp')})`,
+  const metaStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(progress.value, [0, 0.3, 1], [0.4, 0.88, 1], 'clamp'),
+    transform: [{ translateY: interpolate(progress.value, [0, 1], [8, 0], 'clamp') }],
   }));
 
   return (
-    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
-      <Animated.View style={[StyleSheet.absoluteFill, backdropStyle]}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+    <View style={styles.shell}>
+      <LinearGradient colors={COLORS.gradientSilver} style={styles.panel}>
+        <LinearGradient colors={panelTint} style={StyleSheet.absoluteFillObject} />
 
-        {/* Stars */}
-        {BG_STARS.map((s, i) => (
-          <View
-            key={i}
-            pointerEvents="none"
-            style={[styles.star, { left: s.left, top: s.top, width: s.size, height: s.size, opacity: s.opacity }]}
-          />
-        ))}
-
-        {/* Stage */}
-        <Pressable onPress={() => {}} style={styles.stage}>
-
-          {/* Sign label row */}
-          <Text style={[styles.signName, { color: info.accent }]}>
-            {info.western.toUpperCase()}  ·  {rashi.toUpperCase()}
+        <Animated.View style={[styles.header, metaStyle]}>
+          <Text style={[styles.eyebrow, { color: info.accent }]}>
+            {info.western.toUpperCase()} SIGNAL
           </Text>
-          <Text style={styles.elementBadge}>{info.element}</Text>
+          <Text style={styles.title}>{userName}&apos;s {rashi} code</Text>
+          <Text style={styles.subtitle}>
+            The sign rises first from the side, then settles into the QR.
+          </Text>
+        </Animated.View>
 
-          {/* Tilted QR card */}
-          <Animated.View style={[styles.qrCard, qrContainerStyle]}>
+        <View style={styles.viewport}>
+          <Animated.View style={[styles.shadow, shadowStyle]} />
+
+          <Animated.View style={[styles.stage, stageStyle]}>
             <LinearGradient
-              colors={[info.grad[0], info.grad[1]]}
-              start={{ x: 0.2, y: 0 }}
-              end={{ x: 0.8, y: 1 }}
-              style={styles.qrCardInner}
+              colors={[withAlpha(info.accent, '18'), withAlpha(info.accent2, '22'), '#ffffff']}
+              start={{ x: 0.04, y: 0.04 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.stageSurface}
             >
-              {/* Colorful QR grid */}
-              <QRSvgGrid
-                matrix={matrix}
-                size={size}
-                accent={info.accent}
-                accent2={info.accent2}
-                viewSize={QR_VIEW}
-              />
+              <Animated.View style={[styles.gridFloor, gridStyle]} pointerEvents="none">
+                {FLOOR_TILES.map((tile) => (
+                  <View
+                    key={tile.key}
+                    style={[
+                      styles.gridTile,
+                      {
+                        top: tile.top,
+                        left: tile.left,
+                        borderColor: withAlpha(tile.emphasis ? info.accent : info.accent2, tile.emphasis ? '68' : '32'),
+                        backgroundColor: withAlpha(tile.emphasis ? info.accent2 : '#ffffff', tile.emphasis ? '24' : '10'),
+                      },
+                    ]}
+                  />
+                ))}
+                <View style={[styles.cornerMark, styles.cornerTopLeft, { borderColor: info.accent }]} />
+                <View style={[styles.cornerMark, styles.cornerTopRight, { borderColor: info.accent2 }]} />
+                <View style={[styles.cornerMark, styles.cornerBottomLeft, { borderColor: info.accent2 }]} />
+                <View style={[styles.cornerMark, styles.cornerBottomRight, { borderColor: info.accent }]} />
+              </Animated.View>
 
-              {/* Zodiac symbol floats above surface during tilt */}
-              <Animated.View style={[styles.symbolOverlay, symbolStyle]} pointerEvents="none">
-                <Animated.View style={[styles.symbolGlow, { backgroundColor: `${info.accent}30`, shadowColor: info.accent }, glowStyle]} />
-                <Text style={[styles.symbolText, { color: info.accent, textShadowColor: info.accent }]}>
-                  {info.symbol}
-                </Text>
-                <Text style={[styles.symbolWestern, { color: info.accent }]}>{info.western}</Text>
+              <Animated.View style={[styles.qrLayer, qrStyle]}>
+                <View style={[styles.qrFrame, { borderColor: withAlpha(info.accent, '3a') }]}>
+                  <QRCode
+                    value={deepLink}
+                    size={QR_SIZE}
+                    backgroundColor="white"
+                    color="#161b28"
+                    quietZone={14}
+                  />
+                  <Animated.View style={[styles.revealBeam, revealBeamStyle]}>
+                    <LinearGradient
+                      colors={['transparent', withAlpha(info.accent2, '66'), 'transparent']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={StyleSheet.absoluteFillObject}
+                    />
+                  </Animated.View>
+                </View>
+              </Animated.View>
+
+              <Animated.View style={[styles.previewLayer, totemStyle]} pointerEvents="none">
+                <LinearGradient
+                  colors={[info.grad[0], info.grad[1]]}
+                  start={{ x: 0.12, y: 0 }}
+                  end={{ x: 0.88, y: 1 }}
+                  style={styles.totemPlate}
+                >
+                  {DECOR_POINTS.map((point, index) => (
+                    <View
+                      key={`${index}-${point.top ?? point.bottom}`}
+                      style={[
+                        styles.decorPoint,
+                        {
+                          backgroundColor: index % 2 === 0 ? info.accent : info.accent2,
+                        },
+                        point.top !== undefined ? { top: point.top } : { bottom: point.bottom },
+                        point.left !== undefined ? { left: point.left } : { right: point.right },
+                      ]}
+                    />
+                  ))}
+
+                  <View style={styles.totemBadge}>
+                    <Text style={[styles.totemBadgeText, { color: info.accent2 }]}>
+                      {info.element}
+                    </Text>
+                  </View>
+
+                  <View style={styles.pedestalGlow} />
+                  <View style={styles.totemColumn} />
+
+                  <Text style={[styles.sigilGhost, { color: withAlpha(info.accent, '22') }]}>
+                    {info.symbol}
+                  </Text>
+                  <LinearGradient
+                    colors={[withAlpha(info.accent2, '1c'), withAlpha(info.accent, '56')]}
+                    style={styles.iconHalo}
+                  />
+                  <MaterialCommunityIcons
+                    name={info.icon}
+                    size={104}
+                    color={info.accent2}
+                    style={styles.totemIcon}
+                  />
+                  <Text style={[styles.sigil, { color: info.accent }]}>
+                    {info.symbol}
+                  </Text>
+                  <Text style={styles.previewLabel}>{info.western}</Text>
+                  <Text style={styles.previewSubLabel}>{rashi}</Text>
+                </LinearGradient>
               </Animated.View>
             </LinearGradient>
           </Animated.View>
+        </View>
 
-          {/* User + DNA label — visible when flat */}
-          <Animated.View style={[styles.userRow, labelStyle]}>
-            <Text style={styles.userName}>{userName}</Text>
-            <Text style={styles.dna} numberOfLines={1}>{cosmicDNA}</Text>
-            <Text style={[styles.rashiChip, { borderColor: `${info.accent}55`, color: info.accent }]}>
-              {info.symbol}  {rashi}
+        <Animated.View style={[styles.footer, metaStyle]}>
+          <View style={[styles.badge, { borderColor: withAlpha(info.accent, '30') }]}>
+            <Text style={[styles.badgeText, { color: info.accent }]}>
+              {info.symbol} {info.western}
             </Text>
-          </Animated.View>
-
-          <Text style={styles.hint}>tap outside to dismiss</Text>
-        </Pressable>
-      </Animated.View>
-    </Modal>
+          </View>
+          <Text numberOfLines={1} style={styles.dnaText}>
+            {cosmicDNA}
+          </Text>
+        </Animated.View>
+      </LinearGradient>
+    </View>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
-  star: {
-    position: 'absolute',
-    borderRadius: 99,
-    backgroundColor: '#ffffff',
-  },
-  stage: {
-    flex: 1,
+  shell: {
+    width: '100%',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.xs,
-    paddingHorizontal: SPACING.xl,
   },
-  signName: {
-    fontSize: 12,
-    fontFamily: FONTS.accent,
-    letterSpacing: 2.5,
-    textAlign: 'center',
+  panel: {
+    width: '100%',
+    borderRadius: BORDER_RADIUS.xl,
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.lg,
+    paddingBottom: SPACING.lg,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
+    backgroundColor: COLORS.bgElevated,
+    ...SHADOWS.deep,
   },
-  elementBadge: {
-    color: 'rgba(255,250,241,0.38)',
-    fontSize: 10,
+  header: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  eyebrow: {
+    fontSize: 11,
     fontFamily: FONTS.accent,
     letterSpacing: 2,
-    textTransform: 'uppercase',
-    marginBottom: SPACING.sm,
   },
-  qrCard: {
-    width: QR_VIEW,
-    height: QR_VIEW,
-    borderRadius: BORDER_RADIUS.xxl,
+  title: {
+    color: COLORS.textPrimary,
+    fontSize: 28,
+    lineHeight: 32,
+    textAlign: 'center',
+    fontFamily: FONTS.display,
+  },
+  subtitle: {
+    color: COLORS.textSecondary,
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: 'center',
+    maxWidth: 280,
+  },
+  viewport: {
+    height: STAGE_SIZE + 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: SPACING.lg,
+  },
+  shadow: {
+    position: 'absolute',
+    width: STAGE_SIZE * 0.82,
+    height: 44,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: 'rgba(29, 24, 46, 0.18)',
+  },
+  stage: {
+    width: STAGE_SIZE,
+    height: STAGE_SIZE,
+    borderRadius: 32,
     overflow: 'hidden',
-    shadowColor: '#7367ff',
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.6,
-    shadowRadius: 28,
-    elevation: 18,
   },
-  qrCardInner: {
+  stageSurface: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  symbolOverlay: {
+  gridFloor: {
+    position: 'absolute',
+    width: QR_SIZE + 34,
+    height: QR_SIZE + 34,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  gridTile: {
+    position: 'absolute',
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  cornerMark: {
+    position: 'absolute',
+    width: 48,
+    height: 48,
+    borderWidth: 4,
+    borderRadius: 14,
+  },
+  cornerTopLeft: {
+    top: 16,
+    left: 16,
+  },
+  cornerTopRight: {
+    top: 16,
+    right: 16,
+  },
+  cornerBottomLeft: {
+    bottom: 16,
+    left: 16,
+  },
+  cornerBottomRight: {
+    bottom: 16,
+    right: 16,
+  },
+  qrLayer: {
     position: 'absolute',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  symbolGlow: {
+  qrFrame: {
+    borderRadius: 28,
+    backgroundColor: '#ffffff',
+    padding: 12,
+    borderWidth: 8,
+    overflow: 'hidden',
+  },
+  revealBeam: {
     position: 'absolute',
-    width: QR_VIEW * 0.55,
-    height: QR_VIEW * 0.55,
-    borderRadius: QR_VIEW * 0.275,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.9,
-    shadowRadius: 40,
+    left: 0,
+    right: 0,
+    height: 20,
   },
-  symbolText: {
-    fontSize: 96,
-    lineHeight: 104,
-    textAlign: 'center',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 28,
-  },
-  symbolWestern: {
-    fontSize: 16,
-    fontFamily: FONTS.display,
-    letterSpacing: 1,
-    textAlign: 'center',
-    marginTop: -4,
-  },
-  userRow: {
+  previewLayer: {
+    position: 'absolute',
     alignItems: 'center',
-    gap: 3,
-    marginTop: SPACING.sm,
+    justifyContent: 'center',
   },
-  userName: {
-    color: COLORS.textPrimary,
-    fontSize: 17,
-    fontFamily: FONTS.display,
-    letterSpacing: 0.3,
+  totemPlate: {
+    width: QR_SIZE + 34,
+    height: QR_SIZE + 34,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
   },
-  dna: {
-    color: COLORS.textSecondary,
-    fontSize: 11,
-    textAlign: 'center',
-    maxWidth: QR_VIEW,
+  decorPoint: {
+    position: 'absolute',
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
-  rashiChip: {
-    fontSize: 11,
-    fontFamily: FONTS.accent,
-    letterSpacing: 0.8,
-    borderWidth: 1,
-    borderRadius: BORDER_RADIUS.full,
+  totemBadge: {
+    position: 'absolute',
+    top: 20,
     paddingHorizontal: 10,
-    paddingVertical: 3,
-    marginTop: 4,
+    paddingVertical: 5,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
-  hint: {
-    color: 'rgba(255,250,241,0.22)',
+  totemBadgeText: {
     fontSize: 10,
     fontFamily: FONTS.accent,
-    letterSpacing: 1.2,
-    marginTop: SPACING.md,
+    letterSpacing: 1.3,
+  },
+  pedestalGlow: {
+    position: 'absolute',
+    width: 132,
+    height: 36,
+    bottom: 58,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  totemColumn: {
+    position: 'absolute',
+    width: 24,
+    height: 72,
+    bottom: 72,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+  },
+  iconHalo: {
+    position: 'absolute',
+    width: 132,
+    height: 132,
+    borderRadius: 66,
+  },
+  totemIcon: {
+    textShadowColor: 'rgba(255,255,255,0.18)',
+    textShadowRadius: 18,
+    marginBottom: 6,
+  },
+  sigilGhost: {
+    position: 'absolute',
+    fontSize: 172,
+    lineHeight: 176,
+    transform: [{ translateY: 4 }],
+  },
+  sigil: {
+    position: 'absolute',
+    top: 50,
+    right: 44,
+    fontSize: 40,
+    lineHeight: 42,
+    textShadowColor: 'rgba(255,255,255,0.16)',
+    textShadowRadius: 16,
+  },
+  previewLabel: {
+    position: 'absolute',
+    bottom: 34,
+    color: '#fffaf1',
+    fontSize: 18,
+    fontFamily: FONTS.heading,
+    letterSpacing: 0.4,
+  },
+  previewSubLabel: {
+    position: 'absolute',
+    bottom: 14,
+    color: 'rgba(255,250,241,0.72)',
+    fontSize: 11,
+    fontFamily: FONTS.accent,
+    letterSpacing: 1.1,
+  },
+  footer: {
+    alignItems: 'center',
+    gap: SPACING.sm,
+    marginTop: 2,
+  },
+  badge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
+    backgroundColor: 'rgba(255,255,255,0.58)',
+  },
+  badgeText: {
+    fontSize: 11,
+    fontFamily: FONTS.accent,
+    letterSpacing: 1,
+  },
+  dnaText: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    textAlign: 'center',
+    maxWidth: PANEL_WIDTH - 60,
   },
 });

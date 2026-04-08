@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as Linking from 'expo-linking';
@@ -16,28 +16,51 @@ import {
 } from '@expo-google-fonts/cinzel';
 import { COLORS } from '../src/constants/theme';
 import { useAuthStore } from '../src/store/authStore';
-import { useUserStore } from '../src/store/userStore';
 import { useConnectionsStore } from '../src/store/connectionsStore';
 import { useJournalStore } from '../src/store/journalStore';
 import { useReadingStore } from '../src/store/readingStore';
 import { useSettingsStore } from '../src/store/settingsStore';
+import { useUserStore } from '../src/store/userStore';
 import { parseDeepLink } from '../src/utils/qrCodeUtils';
 import '../src/i18n';
-// Initialize Firebase
 import '../src/services/firebase';
+
+function hasCompletedProfile(user: ReturnType<typeof useUserStore.getState>['user']) {
+  if (!user) return false;
+  if (user.onboardingComplete) return true;
+  return Boolean(
+    user.birthDetails?.date &&
+    (user.western || user.vedic || user.chinese || user.kp)
+  );
+}
+
+function getEntryRoute(user: ReturnType<typeof useUserStore.getState>['user']) {
+  if (!user) return null;
+  if (hasCompletedProfile(user)) return '/(tabs)/today';
+  if (!user.birthDetails?.date) return '/(onboarding)/welcome';
+  if (Array.isArray(user.activeSystems) && user.activeSystems.length > 0) {
+    return '/(onboarding)/cosmic-reveal';
+  }
+  return '/(onboarding)/system-picker';
+}
 
 export default function RootLayout() {
   const initialize = useAuthStore((s) => s.initialize);
   const authReady = useAuthStore((s) => s.authReady);
   const profileLoading = useAuthStore((s) => s.profileLoading);
   const firebaseUser = useAuthStore((s) => s.firebaseUser);
+
+  const loadUser = useUserStore((s) => s.loadUser);
+  const userLoading = useUserStore((s) => s.isLoading);
   const user = useUserStore((s) => s.user);
   const syncSubscriptionStatus = useUserStore((s) => s.syncSubscriptionStatus);
+
   const loadSettings = useSettingsStore((s) => s.loadSettings);
   const loadReadings = useReadingStore((s) => s.loadReadings);
   const loadConnections = useConnectionsStore((s) => s.loadConnections);
   const importSharedProfile = useConnectionsStore((s) => s.importSharedProfile);
   const loadJournal = useJournalStore((s) => s.loadJournal);
+
   const router = useRouter();
   const segments = useSegments();
 
@@ -50,42 +73,50 @@ export default function RootLayout() {
     Cinzel_900Black,
   });
 
-  // Boot Firebase auth listener
   useEffect(() => {
+    loadUser().catch(() => {});
     const unsubscribe = initialize();
     return unsubscribe;
-  }, []);
+  }, [initialize, loadUser]);
 
-  // Load local stores after auth ready
   useEffect(() => {
     if (!authReady) return;
     syncSubscriptionStatus();
-    Promise.all([loadSettings(), loadReadings(), loadConnections(), loadJournal()]);
-  }, [authReady]);
+    Promise.all([loadSettings(), loadReadings(), loadConnections(), loadJournal()]).catch(() => {});
+  }, [authReady, loadConnections, loadJournal, loadReadings, loadSettings, syncSubscriptionStatus]);
 
-  // Auth-based routing
   useEffect(() => {
-    // Wait for fonts, auth, AND the async Firestore profile fetch.
-    // Without the profileLoading guard, routing fires while user===null
-    // and every login incorrectly redirects to onboarding.
-    if (!authReady || !fontsLoaded || profileLoading) return;
+    if (!authReady || !fontsLoaded || profileLoading || userLoading) return;
 
     const inAuth = segments[0] === '(auth)';
     const inOnboarding = segments[0] === '(onboarding)';
+    const onboardingScreen = segments.slice(1)[0];
+    const entryRoute = getEntryRoute(user);
 
     if (!firebaseUser) {
-      // Not signed in → go to login
-      if (!inAuth) router.replace('/(auth)/login');
-    } else if (!user?.onboardingComplete) {
-      // Signed in but no profile/onboarding → go to onboarding
-      if (!inOnboarding) router.replace('/(onboarding)/welcome');
-    } else {
-      // Fully set up → main tabs
-      if (inAuth || inOnboarding) router.replace('/(tabs)/today');
+      if (entryRoute === '/(tabs)/today') {
+        if (inAuth || inOnboarding) router.replace(entryRoute);
+      } else if (entryRoute?.startsWith('/(onboarding)/')) {
+        const targetScreen = entryRoute.split('/').pop();
+        if (!inOnboarding || onboardingScreen !== targetScreen) router.replace(entryRoute);
+      } else if (!inAuth) {
+        router.replace('/(auth)/login');
+      }
+      return;
     }
-  }, [authReady, fontsLoaded, profileLoading, firebaseUser, user?.onboardingComplete]);
 
-  // Deep link handler
+    if (entryRoute === '/(tabs)/today') {
+      if (inAuth || inOnboarding) router.replace(entryRoute);
+      return;
+    }
+
+    if (entryRoute?.startsWith('/(onboarding)/')) {
+      const targetScreen = entryRoute.split('/').pop();
+      if (!inOnboarding || onboardingScreen !== targetScreen) router.replace(entryRoute);
+      return;
+    }
+  }, [authReady, firebaseUser, fontsLoaded, profileLoading, router, segments, user, userLoading]);
+
   useEffect(() => {
     const handleDeepLink = (event: { url: string }) => {
       const parsed = parseDeepLink(event.url);
@@ -97,18 +128,18 @@ export default function RootLayout() {
               params: { profileId: savedProfile.id },
             });
           })
-          .catch(() => {
-            // deep-link error — silently ignore (no themed alert available in root layout)
-          });
+          .catch(() => {});
       }
     };
 
-    Linking.getInitialURL().then((url) => { if (url) handleDeepLink({ url }); });
+    Linking.getInitialURL().then((url) => {
+      if (url) handleDeepLink({ url });
+    });
     const subscription = Linking.addEventListener('url', handleDeepLink);
     return () => subscription.remove();
   }, [importSharedProfile, router]);
 
-  if (!fontsLoaded || !authReady) {
+  if (!fontsLoaded || !authReady || userLoading) {
     return (
       <View style={{ flex: 1, backgroundColor: COLORS.bgDeep, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator color={COLORS.western} />
