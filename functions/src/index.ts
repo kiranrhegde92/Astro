@@ -243,6 +243,34 @@ export const registerFCMToken = onCall({ region: 'us-central1' }, async (request
   return { success: true };
 });
 
+// Deletes all server-side account data for the signed-in user, then removes auth.
+export const deleteMyAccount = onCall({ region: 'us-central1' }, async (request) => {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in required.');
+
+  const uid = request.auth.uid;
+
+  const ownPartnerDocs = await db.collection(`connections/${uid}/partners`).get();
+  const reversePartnerDocs = await db.collectionGroup('partners').get();
+  const dailyReadingDocs = await db.collection(`dailyReadings/${uid}/dates`).get();
+
+  const deletes: Array<Promise<unknown>> = [
+    ...ownPartnerDocs.docs.map((doc) => doc.ref.delete()),
+    ...reversePartnerDocs.docs
+      .filter((doc) => doc.id === uid)
+      .map((doc) => doc.ref.delete()),
+    ...dailyReadingDocs.docs.map((doc) => doc.ref.delete()),
+    db.doc(`users/${uid}`).delete().catch(() => {}),
+    db.doc(`charts/${uid}`).delete().catch(() => {}),
+    db.doc(`dailyReadings/${uid}`).delete().catch(() => {}),
+    db.doc(`connections/${uid}`).delete().catch(() => {}),
+  ];
+
+  await Promise.all(deletes);
+  await admin.auth().deleteUser(uid);
+
+  return { success: true };
+});
+
 // ─── scheduledDailyReadings ───────────────────────────────────────────────────
 // Runs at midnight UTC to pre-generate readings for all users.
 export const scheduledDailyReadings = onSchedule(

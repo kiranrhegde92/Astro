@@ -51,25 +51,25 @@ async function getTimezone(lat, lng) {
  * birthDateLocal: 'YYYY-MM-DD', birthTimeLocal: 'HH:MM'
  */
 function localToUtc(birthDateLocal, birthTimeLocal, timezone) {
-    var _a, _b, _c;
-    // Build ISO string with timezone
-    const localString = `${birthDateLocal}T${birthTimeLocal}:00`;
-    // Use Intl to get offset for that timezone at that datetime
-    const localDate = new Date(localString);
-    // Get UTC offset in minutes for the given timezone
+    // Parse wall-clock components
+    const [year, month, day] = birthDateLocal.split('-').map(Number);
+    const [hour, minute] = birthTimeLocal.split(':').map(Number);
+    // Build a UTC instant whose wall-clock numbers match the user's local time.
+    const assumedUtcMs = Date.UTC(year, month - 1, day, hour, minute, 0, 0);
+    // Derive the timezone's UTC offset by formatting that instant in the
+    // target timezone and measuring the wall-clock shift.
     const formatter = new Intl.DateTimeFormat('en-US', {
         timeZone: timezone,
-        timeZoneName: 'shortOffset',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+        hour12: false,
     });
-    const parts = formatter.formatToParts(localDate);
-    const offsetPart = (_b = (_a = parts.find(p => p.type === 'timeZoneName')) === null || _a === void 0 ? void 0 : _a.value) !== null && _b !== void 0 ? _b : 'GMT+0';
-    const match = offsetPart.match(/GMT([+-])(\d+)(?::(\d+))?/);
-    if (!match)
-        return localDate;
-    const sign = match[1] === '+' ? 1 : -1;
-    const hours = parseInt(match[2], 10);
-    const minutes = parseInt((_c = match[3]) !== null && _c !== void 0 ? _c : '0', 10);
-    const offsetMs = sign * (hours * 60 + minutes) * 60 * 1000;
-    return new Date(localDate.getTime() - offsetMs);
+    const parts = formatter.formatToParts(new Date(assumedUtcMs));
+    const p = (type) => { var _a, _b; return parseInt((_b = (_a = parts.find(x => x.type === type)) === null || _a === void 0 ? void 0 : _a.value) !== null && _b !== void 0 ? _b : '0', 10); };
+    const tzHour = p('hour') === 24 ? 0 : p('hour');
+    const tzMs = Date.UTC(p('year'), p('month') - 1, p('day'), tzHour, p('minute'), p('second'));
+    const offsetMs = tzMs - assumedUtcMs; // positive if east of UTC
+    // Actual UTC = wall-clock time minus timezone offset
+    return new Date(assumedUtcMs - offsetMs);
 }
 //# sourceMappingURL=geocoding.js.map

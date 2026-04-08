@@ -4,7 +4,7 @@ exports.calculateVedicChart = calculateVedicChart;
 const ephemeris_1 = require("./ephemeris");
 const SIGNS = [
     'Mesha', 'Vrishabha', 'Mithuna', 'Karka', 'Simha', 'Kanya',
-    'Tula', 'Vrishchika', 'Dhanu', 'Makara', 'Kumbha', 'Meena',
+    'Tula', 'Vrischika', 'Dhanu', 'Makara', 'Kumbha', 'Meena',
 ];
 const NAKSHATRAS = [
     'Ashwini', 'Bharani', 'Krittika', 'Rohini', 'Mrigashira', 'Ardra',

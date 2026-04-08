@@ -15,15 +15,19 @@ interface SettingsState {
   setNotificationTime: (time: string) => void;
   loadSettings: () => Promise<void>;
   saveSettings: () => Promise<void>;
+  clearSettings: () => Promise<void>;
 }
 
 const STORAGE_KEY = '@cosmicself_settings';
-
-export const useSettingsStore = create<SettingsState>((set, get) => ({
+const DEFAULT_SETTINGS = {
   language: 'en',
   notificationsEnabled: true,
   dailyNotificationTime: '08:00',
-  theme: 'aurora',
+  theme: 'aurora' as const,
+};
+
+export const useSettingsStore = create<SettingsState>((set, get) => ({
+  ...DEFAULT_SETTINGS,
 
   setLanguage: (lang) => {
     set({ language: lang });
@@ -89,5 +93,14 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       STORAGE_KEY,
       JSON.stringify({ language, notificationsEnabled, dailyNotificationTime })
     );
+  },
+
+  clearSettings: async () => {
+    try {
+      const { cancelAllNotifications } = await getNotifications();
+      await cancelAllNotifications();
+    } catch {}
+    await AsyncStorage.removeItem(STORAGE_KEY);
+    set({ ...DEFAULT_SETTINGS });
   },
 }));

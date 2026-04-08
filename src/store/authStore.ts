@@ -2,6 +2,11 @@ import { create } from 'zustand';
 import type { User } from 'firebase/auth';
 import Constants from 'expo-constants';
 import { onAuthChange, signOut } from '../services/authService';
+import { deleteMyAccount } from '../services/functionsService';
+import { useConnectionsStore } from './connectionsStore';
+import { useJournalStore } from './journalStore';
+import { useReadingStore } from './readingStore';
+import { useSettingsStore } from './settingsStore';
 import { getUserProfile } from '../services/firestoreService';
 import { useUserStore } from './userStore';
 
@@ -14,6 +19,7 @@ interface AuthState {
   profileLoading: boolean;
   initialize: () => () => void;
   logout: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -64,5 +70,25 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: async () => {
     await signOut();
     set({ firebaseUser: null });
+  },
+
+  deleteAccount: async () => {
+    const clearLocalData = async () => {
+      await Promise.all([
+        useUserStore.getState().clearUser(),
+        useReadingStore.getState().clearReadings(),
+        useConnectionsStore.getState().clearConnections(),
+        useJournalStore.getState().clearJournal(),
+        useSettingsStore.getState().clearSettings(),
+      ]);
+    };
+
+    if (useAuthStore.getState().firebaseUser) {
+      await deleteMyAccount();
+      await signOut().catch(() => {});
+    }
+
+    await clearLocalData();
+    set({ firebaseUser: null, profileLoading: false, authReady: true });
   },
 }));

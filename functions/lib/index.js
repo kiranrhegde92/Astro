@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.scheduledDailyReadings = exports.registerFCMToken = exports.calculateCompatibility = exports.getDailyReading = exports.calculateChart = void 0;
+exports.scheduledDailyReadings = exports.deleteMyAccount = exports.registerFCMToken = exports.calculateCompatibility = exports.getDailyReading = exports.calculateChart = void 0;
 const admin = __importStar(require("firebase-admin"));
 const https_1 = require("firebase-functions/v2/https");
 const scheduler_1 = require("firebase-functions/v2/scheduler");
@@ -242,6 +242,29 @@ exports.registerFCMToken = (0, https_1.onCall)({ region: 'us-central1' }, async 
         fcmToken: token,
         fcmTokenUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
+    return { success: true };
+});
+// Deletes all server-side account data for the signed-in user, then removes auth.
+exports.deleteMyAccount = (0, https_1.onCall)({ region: 'us-central1' }, async (request) => {
+    if (!request.auth)
+        throw new https_1.HttpsError('unauthenticated', 'Sign in required.');
+    const uid = request.auth.uid;
+    const ownPartnerDocs = await db.collection(`connections/${uid}/partners`).get();
+    const reversePartnerDocs = await db.collectionGroup('partners').get();
+    const dailyReadingDocs = await db.collection(`dailyReadings/${uid}/dates`).get();
+    const deletes = [
+        ...ownPartnerDocs.docs.map((doc) => doc.ref.delete()),
+        ...reversePartnerDocs.docs
+            .filter((doc) => doc.id === uid)
+            .map((doc) => doc.ref.delete()),
+        ...dailyReadingDocs.docs.map((doc) => doc.ref.delete()),
+        db.doc(`users/${uid}`).delete().catch(() => { }),
+        db.doc(`charts/${uid}`).delete().catch(() => { }),
+        db.doc(`dailyReadings/${uid}`).delete().catch(() => { }),
+        db.doc(`connections/${uid}`).delete().catch(() => { }),
+    ];
+    await Promise.all(deletes);
+    await admin.auth().deleteUser(uid);
     return { success: true };
 });
 // ─── scheduledDailyReadings ───────────────────────────────────────────────────

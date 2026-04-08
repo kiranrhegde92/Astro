@@ -3,6 +3,9 @@ import {
   getDoc,
   setDoc,
   updateDoc,
+  deleteDoc,
+  collection,
+  getDocs,
   serverTimestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
@@ -63,4 +66,21 @@ export async function saveDailyReading(
     ...reading,
     generatedAt: serverTimestamp(),
   });
+}
+
+// ─── Account deletion ─────────────────────────────────────────────────────────
+
+export async function deleteAllUserData(uid: string): Promise<void> {
+  // Delete user profile
+  await deleteDoc(doc(db, 'users', uid)).catch(() => {});
+  // Delete chart
+  await deleteDoc(doc(db, 'charts', uid)).catch(() => {});
+  // Delete all daily reading sub-documents then the parent
+  try {
+    const datesSnap = await getDocs(collection(db, 'dailyReadings', uid, 'dates'));
+    await Promise.all(datesSnap.docs.map((d) => deleteDoc(d.ref)));
+    await deleteDoc(doc(db, 'dailyReadings', uid));
+  } catch {
+    // ignore if collection doesn't exist
+  }
 }

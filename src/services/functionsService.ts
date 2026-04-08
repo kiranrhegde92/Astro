@@ -46,3 +46,8 @@ export async function registerPushToken(token: string): Promise<void> {
   const fn = httpsCallable(functions, 'registerFCMToken');
   await fn({ token });
 }
+
+export async function deleteMyAccount(): Promise<void> {
+  const fn = httpsCallable(functions, 'deleteMyAccount');
+  await fn({});
+}

@@ -4,6 +4,7 @@ import {
   signOut as firebaseSignOut,
   updateProfile,
   onAuthStateChanged,
+  deleteUser as firebaseDeleteUser,
   User,
 } from 'firebase/auth';
 import { auth } from './firebase';
@@ -29,4 +30,10 @@ export function onAuthChange(callback: (user: User | null) => void) {
 
 export function currentUser(): User | null {
   return auth.currentUser;
+}
+
+export async function deleteCurrentUser(): Promise<void> {
+  const user = auth.currentUser;
+  if (!user) throw new Error('No authenticated user');
+  await firebaseDeleteUser(user);
 }

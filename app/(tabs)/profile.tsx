@@ -14,6 +14,7 @@ import { useConnectionsStore } from '../../src/store/connectionsStore';
 import { useJournalStore } from '../../src/store/journalStore';
 import { useReadingStore } from '../../src/store/readingStore';
 import { useUserStore } from '../../src/store/userStore';
+import { useSettingsStore } from '../../src/store/settingsStore';
 import { useCosmicAlert } from '../../src/components/ui/CosmicAlert';
 import i18n from '../../src/i18n';
 
@@ -29,9 +30,11 @@ export default function ProfileScreen() {
   const user = useUserStore((s) => s.user);
   const clearUser = useUserStore((s) => s.clearUser);
   const logout = useAuthStore((s) => s.logout);
+  const deleteAccount = useAuthStore((s) => s.deleteAccount);
   const clearReadings = useReadingStore((s) => s.clearReadings);
   const clearConnections = useConnectionsStore((s) => s.clearConnections);
   const clearJournal = useJournalStore((s) => s.clearJournal);
+  const clearSettings = useSettingsStore((s) => s.clearSettings);
   const savedProfiles = useConnectionsStore((s) => s.savedProfiles);
   const entries = useJournalStore((s) => s.entries);
   const archiveCount = useReadingStore((s) => Object.keys(s.cachedReadings).length);
@@ -44,6 +47,7 @@ export default function ProfileScreen() {
   const { showAlert, alertModal } = useCosmicAlert();
   const [currentLang, setCurrentLang] = useState(i18n.language?.split('-')[0] ?? 'en');
   const [recalculating, setRecalculating] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   const cosmicDNA = useMemo(() => {
     if (!user?.western || !user?.vedic || !user?.chinese) return '';
@@ -111,8 +115,39 @@ export default function ProfileScreen() {
           text: 'Log out', style: 'destructive',
           onPress: async () => {
             await Promise.all([logout(), clearUser(), clearReadings(), clearConnections(), clearJournal()]);
+            await clearSettings();
             router.dismissAll();
             router.replace('/(auth)/login');
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDeleteAccount = () => {
+    showAlert(
+      'Delete account',
+      'This permanently deletes your profile, charts, readings, connections, and device data.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete forever',
+          style: 'destructive',
+          onPress: async () => {
+            setDeletingAccount(true);
+            try {
+              await deleteAccount();
+              router.dismissAll();
+              router.replace('/(auth)/login');
+            } catch (error: any) {
+              const message =
+                error?.message && typeof error.message === 'string'
+                  ? error.message
+                  : 'We could not delete your account right now. Please try again.';
+              showAlert('Deletion failed', message);
+            } finally {
+              setDeletingAccount(false);
+            }
           },
         },
       ]
@@ -259,6 +294,21 @@ export default function ProfileScreen() {
           <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
             <Ionicons name="log-out-outline" size={20} color={COLORS.coral} />
             <Text style={styles.logoutText}>Log out</Text>
+          </TouchableOpacity>
+        </AnimatedCard>
+
+        <AnimatedCard index={7}>
+          <TouchableOpacity
+            style={[styles.deleteBtn, deletingAccount && styles.deleteBtnDisabled]}
+            onPress={handleDeleteAccount}
+            activeOpacity={0.8}
+            disabled={deletingAccount}
+          >
+            {deletingAccount
+              ? <ActivityIndicator size="small" color={COLORS.textPrimary} />
+              : <Ionicons name="trash-outline" size={20} color={COLORS.textPrimary} />
+            }
+            <Text style={styles.deleteText}>{deletingAccount ? 'Deleting account...' : 'Delete my account'}</Text>
           </TouchableOpacity>
         </AnimatedCard>
 
@@ -411,6 +461,25 @@ const styles = StyleSheet.create({
   },
   logoutText: {
     color: COLORS.coral,
+    fontSize: 17,
+    fontFamily: FONTS.heading,
+  },
+  deleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+    paddingVertical: 16,
+    borderRadius: BORDER_RADIUS.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(255,250,241,0.16)',
+    backgroundColor: COLORS.coral,
+  },
+  deleteBtnDisabled: {
+    opacity: 0.72,
+  },
+  deleteText: {
+    color: COLORS.textPrimary,
     fontSize: 17,
     fontFamily: FONTS.heading,
   },
