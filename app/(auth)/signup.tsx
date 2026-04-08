@@ -72,7 +72,7 @@ export default function SignupScreen() {
       const user = await signUp(email.trim().toLowerCase(), password, name.trim());
       await createUserProfile(user.uid, {
         name: name.trim(),
-        activeSystems: ['western', 'vedic', 'chinese', 'kp'],
+        activeSystems: [],
         streak: 0,
         cosmicPoints: 0,
         onboardingComplete: false,

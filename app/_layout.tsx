@@ -25,11 +25,16 @@ import { parseDeepLink } from '../src/utils/qrCodeUtils';
 import '../src/i18n';
 import '../src/services/firebase';
 
+function hasBirthDate(user: ReturnType<typeof useUserStore.getState>['user']) {
+  const birthDate = user?.birthDetails?.date;
+  return birthDate instanceof Date && !Number.isNaN(birthDate.getTime());
+}
+
 function hasCompletedProfile(user: ReturnType<typeof useUserStore.getState>['user']) {
   if (!user) return false;
   if (user.onboardingComplete) return true;
   return Boolean(
-    user.birthDetails?.date &&
+    hasBirthDate(user) &&
     (user.western || user.vedic || user.chinese || user.kp)
   );
 }
@@ -37,7 +42,7 @@ function hasCompletedProfile(user: ReturnType<typeof useUserStore.getState>['use
 function getEntryRoute(user: ReturnType<typeof useUserStore.getState>['user']) {
   if (!user) return null;
   if (hasCompletedProfile(user)) return '/(tabs)/today';
-  if (!user.birthDetails?.date) return '/(onboarding)/welcome';
+  if (!hasBirthDate(user)) return '/(onboarding)/welcome';
   if (Array.isArray(user.activeSystems) && user.activeSystems.length > 0) {
     return '/(onboarding)/cosmic-reveal';
   }
@@ -96,12 +101,7 @@ export default function RootLayout() {
     const atRoot = !segments[0]; // root index.tsx
 
     if (!firebaseUser) {
-      if (entryRoute === '/(tabs)/today') {
-        if (inAuth || inOnboarding || atRoot) router.replace(entryRoute);
-      } else if (entryRoute?.startsWith('/(onboarding)/')) {
-        const targetScreen = entryRoute.split('/').pop();
-        if (!inOnboarding || onboardingScreen !== targetScreen) router.replace(entryRoute);
-      } else if (!inAuth) {
+      if (!inAuth) {
         router.replace('/(auth)/login');
       }
       return;

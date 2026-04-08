@@ -12,6 +12,26 @@ import { useUserStore } from './userStore';
 
 const IS_EXPO_GO = Constants.appOwnership === 'expo';
 
+function buildPendingProfile(user: User) {
+  const fallbackName =
+    user.displayName?.trim() ||
+    user.email?.split('@')[0] ||
+    'Cosmic User';
+
+  return {
+    id: user.uid,
+    name: fallbackName,
+    language: 'en',
+    birthDetails: {} as any,
+    activeSystems: [],
+    subscription: { tier: 'free' as const, status: 'active' as const, purchasedItems: [] },
+    cosmicPoints: 0,
+    streak: 0,
+    onboardingComplete: false,
+    createdAt: new Date(),
+  };
+}
+
 interface AuthState {
   firebaseUser: User | null;
   authReady: boolean;
@@ -40,14 +60,26 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ firebaseUser: user, authReady: true, profileLoading: !!user });
 
       if (user) {
+        const currentLocalUser = useUserStore.getState().user;
+        const hasMatchingLocalUser = currentLocalUser?.id === user.uid;
+
+        if (currentLocalUser?.id && currentLocalUser.id !== user.uid) {
+          await useUserStore.getState().clearUser();
+        }
+
         // Load Firestore profile
         try {
           const profile = await getUserProfile(user.uid);
           if (profile) {
             useUserStore.getState().setUser({ ...profile, id: user.uid });
+          } else if (!hasMatchingLocalUser) {
+            useUserStore.getState().setUser(buildPendingProfile(user) as any);
           }
         } catch (e) {
           console.warn('Failed to load Firestore profile:', e);
+          if (!hasMatchingLocalUser) {
+            useUserStore.getState().setUser(buildPendingProfile(user) as any);
+          }
         } finally {
           set({ profileLoading: false });
         }

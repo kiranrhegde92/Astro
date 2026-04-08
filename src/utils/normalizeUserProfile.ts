@@ -119,7 +119,9 @@ function normalizeSubscription(subscription?: Partial<Subscription> | null): Sub
 
 export function normalizeUserProfile(user: Partial<UserProfile>): UserProfile {
   const now = new Date();
-  const birthDate = toDate(user.birthDetails?.date, now);
+  const birthDate = user.birthDetails?.date == null
+    ? undefined
+    : toDate(user.birthDetails.date, now);
   const activeSystems = Array.isArray(user.activeSystems)
     ? user.activeSystems.filter((item): item is AstrologySystem => VALID_SYSTEMS.includes(item))
     : [];
@@ -132,7 +134,7 @@ export function normalizeUserProfile(user: Partial<UserProfile>): UserProfile {
       // Spread original to preserve extended fields (birthDateStr, birthTimeStr, birthPlace)
       // that cosmic-reveal.tsx reads at runtime via `as any`.
       ...(user.birthDetails as object | undefined),
-      date: birthDate,
+      date: birthDate as UserProfile['birthDetails']['date'],
       time: user.birthDetails?.time,
       place: user.birthDetails?.place,
     } as UserProfile['birthDetails'],
