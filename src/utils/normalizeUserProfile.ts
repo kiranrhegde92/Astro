@@ -129,10 +129,13 @@ export function normalizeUserProfile(user: Partial<UserProfile>): UserProfile {
     name: user.name ?? 'Cosmic User',
     language: user.language ?? 'en',
     birthDetails: {
+      // Spread original to preserve extended fields (birthDateStr, birthTimeStr, birthPlace)
+      // that cosmic-reveal.tsx reads at runtime via `as any`.
+      ...(user.birthDetails as object | undefined),
       date: birthDate,
       time: user.birthDetails?.time,
       place: user.birthDetails?.place,
-    },
+    } as UserProfile['birthDetails'],
     activeSystems,
     western: normalizeWesternProfile(user.western),
     vedic: normalizeVedicProfile(user.vedic),

@@ -71,9 +71,14 @@ export default function CosmicRevealScreen() {
     }, 900);
 
     const bd = user.birthDetails as any;
-    const birthDateStr: string = bd.birthDateStr
-      ?? user.birthDetails.date.toISOString().split('T')[0];
-    const birthTimeStr: string = bd.birthTimeStr ?? '12:00';
+    // Use stored string if available; otherwise build from LOCAL date parts to avoid UTC shift.
+    const rawDate = bd.date instanceof Date ? bd.date : new Date(bd.date ?? user.birthDetails.date);
+    const yyyy = rawDate.getFullYear();
+    const mm = String(rawDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(rawDate.getDate()).padStart(2, '0');
+    const birthDateStr: string = bd.birthDateStr ?? `${yyyy}-${mm}-${dd}`;
+    // Use stored string first, then the typed `time` field, then sensible default.
+    const birthTimeStr: string = bd.birthTimeStr ?? bd.time ?? user.birthDetails.time ?? '12:00';
     const birthPlace: string = bd.birthPlace ?? user.birthDetails.place?.name ?? 'London, UK';
 
     calculateUserChart({ birthDate: birthDateStr, birthTime: birthTimeStr, birthPlace })
