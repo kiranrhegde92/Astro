@@ -11,8 +11,7 @@ const TABS = [
   { name: 'today', icon: 'sunny', label: 'Today', accent: COLORS.sunOrange, secondary: '#ffe9c7' },
   { name: 'profile', icon: 'person', label: 'Profile', accent: COLORS.iris, secondary: '#ece6ff' },
   { name: 'compatibility', icon: 'heart', label: 'Match', accent: COLORS.coral, secondary: '#ffe3da' },
-  { name: 'explore', icon: 'book', label: 'Guide', accent: COLORS.tide, secondary: '#e2f5ef' },
-  { name: 'cosmos', icon: 'sparkles', label: 'Notes', accent: COLORS.gold, secondary: '#fff4cf' },
+  { name: 'share', icon: 'share-social', label: 'Share', accent: COLORS.tide, secondary: '#e2f5ef' },
 ] as const;
 
 function TabItem({
@@ -54,9 +53,9 @@ function BottomBar({ state, navigation }: BottomTabBarProps) {
   return (
     <View style={[styles.outer, { paddingBottom }]}>
       <View style={styles.bar}>
-        {state.routes.map((route, index) => {
+        {state.routes.filter((route) => TABS.some((t) => t.name === route.name)).map((route, index) => {
           const tab = TABS.find((item) => item.name === route.name) ?? TABS[0];
-          const focused = state.index === index;
+          const focused = state.index === state.routes.indexOf(route);
 
           return (
             <TabItem
@@ -88,8 +87,10 @@ export default function TabsLayout() {
       <Tabs.Screen name="today" options={{ title: t('tabs.today') }} />
       <Tabs.Screen name="profile" options={{ title: t('tabs.profile') }} />
       <Tabs.Screen name="compatibility" options={{ title: t('tabs.compatibility') }} />
-      <Tabs.Screen name="explore" options={{ title: t('tabs.explore') }} />
-      <Tabs.Screen name="cosmos" options={{ title: t('tabs.cosmos') }} />
+      <Tabs.Screen name="share" options={{ title: 'Share' }} />
+      {/* Hidden from tab bar but still routable */}
+      <Tabs.Screen name="explore" options={{ href: null }} />
+      <Tabs.Screen name="cosmos" options={{ href: null }} />
     </Tabs>
   );
 }

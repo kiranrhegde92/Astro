@@ -2,51 +2,60 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+import type { DailyReading } from '../../src/types/astrology';
 import { CosmicButton } from '../../src/components/ui/CosmicButton';
 import { CosmicOrb } from '../../src/components/ui/CosmicOrb';
-import { ExplainPanel } from '../../src/components/ui/ExplainPanel';
-import { ForecastPanel } from '../../src/components/ui/ForecastPanel';
 import { GradientCard } from '../../src/components/ui/GradientCard';
 import { OrbIcon } from '../../src/components/ui/OrbIcon';
-import { PredictionFeedbackCard } from '../../src/components/ui/PredictionFeedbackCard';
 import { AnimatedCard } from '../../src/components/ui/AnimatedScreen';
 import { SectionTabs } from '../../src/components/ui/SectionTabs';
 import { StarField } from '../../src/components/ui/StarField';
 import { BORDER_RADIUS, COLORS, FONTS, SHADOWS, SPACING } from '../../src/constants/theme';
-import { generatePeriodForecast, type ForecastWindow } from '../../src/content/forecastTemplates';
-import { generateLifeRoadmap } from '../../src/content/lifeRoadmap';
-import { getReadingExplainers } from '../../src/content/readingExplainers';
 import { generateDailyReading } from '../../src/content/dailyTemplates';
 import { buildForecastProfile } from '../../src/content/predictionSignals';
 import { fetchDailyReading } from '../../src/services/functionsService';
-import { useJournalStore } from '../../src/store/journalStore';
 import { useReadingStore } from '../../src/store/readingStore';
 import { useUserStore } from '../../src/store/userStore';
 import { getDateKey } from '../../src/utils/dateUtils';
 import { normalizeUserProfile } from '../../src/utils/normalizeUserProfile';
 
-const READING_VERSION = 3;
+const READING_VERSION = 4;
 
-function getGreeting(date: Date) {
-  const hour = date.getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 18) return 'Good afternoon';
-  return 'Good evening';
-}
+const TONE_GRADIENTS: Record<'Opening' | 'Mixed' | 'Pressurized', readonly [string, string, string]> = {
+  Opening: ['#16223c', '#25496a', '#217063'],
+  Mixed: ['#17182d', '#342a5b', '#7a3f60'],
+  Pressurized: ['#23172d', '#5b2448', '#94494f'],
+};
 
-function firstSentence(text?: string, fallback = '') {
-  if (!text) return fallback;
-  const normalized = text.replace(/\s+/g, ' ').trim();
-  const match = normalized.match(/.*?[.!?](?:\s|$)/);
-  return (match?.[0] ?? normalized).trim();
-}
+const TONE_ACCENTS: Record<'Opening' | 'Mixed' | 'Pressurized', string> = {
+  Opening: COLORS.tide,
+  Mixed: COLORS.gold,
+  Pressurized: COLORS.coral,
+};
 
-function compactText(text?: string, maxLength = 120) {
-  const normalized = (text ?? '').replace(/\s+/g, ' ').trim();
-  if (!normalized) return '';
-  if (normalized.length <= maxLength) return normalized;
-  return `${normalized.slice(0, maxLength - 3).trimEnd()}...`;
-}
+const ASPECT_LABELS: Record<string, string> = {
+  conjunction: 'Conjunction',
+  trine: 'Trine',
+  sextile: 'Sextile',
+  square: 'Square',
+  opposition: 'Opposition',
+};
+
+const PLANET_LABELS: Record<string, string> = {
+  Sun: 'Sun',
+  Moon: 'Moon',
+  Mercury: 'Mercury',
+  Venus: 'Venus',
+  Mars: 'Mars',
+  Jupiter: 'Jupiter',
+  Saturn: 'Saturn',
+  NorthNode: 'Rahu',
+  SouthNode: 'Ketu',
+  Uranus: 'Uranus',
+  Neptune: 'Neptune',
+  Pluto: 'Pluto',
+};
 
 type SystemPreview = {
   key: string;
@@ -58,17 +67,79 @@ type SystemPreview = {
   secondary: string;
 };
 
-function SignalCell({
+type TransitItem = NonNullable<DailyReading['activeTransits']>[number];
+type TransitPosition = NonNullable<DailyReading['transitPositions']>[number];
+
+function getGreeting(date: Date) {
+  const hour = date.getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+}
+
+function compactText(text?: string, maxLength = 120) {
+  const normalized = (text ?? '').replace(/\s+/g, ' ').trim();
+  if (!normalized) return '';
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
+}
+
+function titleCase(value?: string) {
+  if (!value) return '';
+  return value
+    .split(/[\s-]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function getToneFallback(supportCount: number, tensionCount: number): 'Opening' | 'Mixed' | 'Pressurized' {
+  if (supportCount >= tensionCount + 2) return 'Opening';
+  if (tensionCount > supportCount) return 'Pressurized';
+  return 'Mixed';
+}
+
+function formatTransitTitle(transit: TransitItem) {
+  const left = PLANET_LABELS[transit.transitPlanet] ?? transit.transitPlanet;
+  const right = PLANET_LABELS[transit.natalPlanet] ?? transit.natalPlanet;
+  const aspect = ASPECT_LABELS[transit.aspect] ?? titleCase(transit.aspect);
+  return `${left} ${aspect} ${right}`;
+}
+
+function formatSkyChip(position: TransitPosition) {
+  const planet = PLANET_LABELS[position.planet] ?? position.planet;
+  const degree = Number.isFinite(position.degree) ? position.degree.toFixed(1) : '0.0';
+  return `${planet} in ${position.sign} ${degree}${position.retrograde ? ' R' : ''}`;
+}
+
+function ProofRow({
+  icon,
   label,
-  value,
+  text,
+  color,
 }: {
+  icon: keyof typeof Ionicons.glyphMap;
   label: string;
-  value: string | number;
+  text: string;
+  color: string;
 }) {
   return (
-    <View style={styles.signalCell}>
-      <Text style={styles.signalValue}>{value}</Text>
-      <Text style={styles.signalLabel}>{label}</Text>
+    <View style={styles.proofRow}>
+      <View style={[styles.proofIconWrap, { backgroundColor: `${color}1f` }]}>
+        <Ionicons name={icon} size={16} color={color} />
+      </View>
+      <View style={styles.proofBody}>
+        <Text style={styles.proofLabel}>{label}</Text>
+        <Text style={styles.proofText}>{text}</Text>
+      </View>
+    </View>
+  );
+}
+
+function SkyChip({ position }: { position: TransitPosition }) {
+  return (
+    <View style={styles.skyChip}>
+      <Text style={styles.skyChipText}>{formatSkyChip(position)}</Text>
     </View>
   );
 }
@@ -93,12 +164,14 @@ function SystemStrip({
       <LinearGradient colors={COLORS.gradientInkSoft} style={[styles.systemStrip, { borderColor: accent }]}>
         <View style={styles.systemTop}>
           <View style={styles.systemHeading}>
-            <OrbIcon icon={icon} size={38} accentColor={accent} secondaryColor={secondary} />
-        <Text style={styles.systemLabel}>{label}</Text>
+            <OrbIcon icon={icon} size={34} accentColor={accent} secondaryColor={secondary} />
+            <Text style={styles.systemLabel}>{label}</Text>
           </View>
-          <Text style={styles.systemArrow}>Open</Text>
+          <Ionicons name="chevron-forward" size={16} color="rgba(255,250,241,0.54)" />
         </View>
-        <Text style={styles.systemText} numberOfLines={3}>{text}</Text>
+        <Text style={styles.systemText} numberOfLines={3}>
+          {text}
+        </Text>
       </LinearGradient>
     </TouchableOpacity>
   );
@@ -111,10 +184,8 @@ export default function TodayScreen() {
   const todayReading = useReadingStore((state) => state.todayReading);
   const getCachedReading = useReadingStore((state) => state.getCachedReading);
   const setTodayReading = useReadingStore((state) => state.setTodayReading);
-  const getEntryForDate = useJournalStore((state) => state.getEntryForDate);
   const [retryKey, setRetryKey] = useState(0);
-  const [forecastWindow, setForecastWindow] = useState<ForecastWindow>('week');
-  const [activeSection, setActiveSection] = useState('overview');
+  const [activeSection, setActiveSection] = useState('brief');
   const today = useMemo(() => new Date(), []);
   const todayKey = getDateKey(today);
   const safeUser = useMemo(() => (user ? normalizeUserProfile(user) : null), [user]);
@@ -130,10 +201,15 @@ export default function TodayScreen() {
       return;
     }
 
-    // Try Cloud Function first, fall back to local templates
     fetchDailyReading()
       .then(({ reading }) => {
-        // Merge cloud reading into our local format
+        if ((reading?.version ?? 0) < READING_VERSION) {
+          const generated = generateDailyReading(today, forecastProfile);
+          setTodayReading(generated);
+          incrementStreak().catch(() => {});
+          return;
+        }
+
         const merged = {
           version: typeof reading.version === 'number' ? reading.version : READING_VERSION,
           date: todayKey,
@@ -145,42 +221,51 @@ export default function TodayScreen() {
             shareText: reading.unified?.shareText ?? reading.unified?.cosmicVibe ?? "Today's reading is ready.",
             ...reading.unified,
           },
+          activeTransits: reading.activeTransits ?? [],
+          transitPositions: reading.transitPositions ?? [],
           references: reading.references ?? [],
           positivityScore: reading.positivityScore ?? 0.78,
         };
-        setTodayReading(merged as any);
+        setTodayReading(merged as DailyReading);
         incrementStreak().catch(() => {});
       })
       .catch(() => {
-        // Firebase not configured or offline — fall back to local templates
         try {
           const generated = generateDailyReading(today, forecastProfile);
           setTodayReading(generated);
           incrementStreak().catch(() => {});
         } catch {
-          setRetryKey((v) => v + 1);
+          setRetryKey((value) => value + 1);
         }
       });
   }, [
+    forecastProfile,
     getCachedReading,
     incrementStreak,
     retryKey,
     setTodayReading,
     today,
     todayKey,
-    forecastProfile,
   ]);
 
   const reading = (() => {
     if (!forecastProfile?.western?.sun || !forecastProfile?.vedic?.rashi || !forecastProfile?.chinese?.animal) return null;
     if (todayReading?.date === todayKey && (todayReading.version ?? 0) >= READING_VERSION) return todayReading;
-    return null; // loading — useEffect will populate todayReading
+    return null;
   })();
 
   const greeting = useMemo(() => getGreeting(today), [today]);
   const firstName = safeUser?.name?.split(' ')[0] ?? user?.name?.split(' ')[0] ?? 'you';
-  const journalEntry = getEntryForDate(todayKey);
+  const transits = reading?.activeTransits ?? [];
+  const positions = reading?.transitPositions ?? [];
+  const supportCount = transits.filter((transit) => transit.nature === 'support').length;
+  const tensionCount = transits.filter((transit) => transit.nature === 'tension').length;
+  const tone = (reading?.unified?.tone ?? getToneFallback(supportCount, tensionCount)) as 'Opening' | 'Mixed' | 'Pressurized';
   const alignmentScore = Math.round((reading?.positivityScore ?? 0.78) * 100);
+  const heroGradient = TONE_GRADIENTS[tone];
+  const toneAccent = TONE_ACCENTS[tone];
+  const topSupport = transits.find((transit) => transit.nature === 'support') ?? transits[0];
+  const topTension = transits.find((transit) => transit.nature === 'tension');
   const profile = useMemo(() => {
     if (!forecastProfile?.western || !forecastProfile?.vedic || !forecastProfile?.chinese) return null;
     return {
@@ -190,43 +275,30 @@ export default function TodayScreen() {
       kp: forecastProfile.kp,
     };
   }, [forecastProfile]);
-  const forecast = useMemo(
-    () => (profile ? generatePeriodForecast(today, profile, forecastWindow) : null),
-    [forecastWindow, profile, today]
-  );
-  const roadmap = useMemo(() => (profile ? generateLifeRoadmap(today, profile) : null), [profile, today]);
-  const explainItems = useMemo(() => {
-    if (!safeUser || !reading) return [];
-    return getReadingExplainers(safeUser, reading);
-  }, [reading, safeUser]);
-  const heroHeadline = useMemo(
-    () => firstSentence(reading?.unified?.affirmation, `${greeting}, ${firstName}`),
-    [firstName, greeting, reading?.unified?.affirmation]
-  );
-  const heroBody = useMemo(
-    () => compactText(reading?.unified?.cosmicVibe, 182),
-    [reading?.unified?.cosmicVibe]
-  );
-  const westernFocus = useMemo(
-    () => compactText(reading?.western?.overall, 108),
-    [reading?.western?.overall]
-  );
-  const timingFocus = useMemo(
-    () => compactText(reading?.kp?.eventTiming ?? reading?.vedic?.dasha, 108),
-    [reading?.kp?.eventTiming, reading?.vedic?.dasha]
-  );
 
   if (!user || !reading) {
     return (
       <StarField>
         <View style={styles.emptyWrap}>
           <CosmicOrb size={176} />
-          <Text style={styles.emptyTitle}>Preparing your morning almanac</Text>
-          <Text style={styles.emptyCopy}>We are arranging today's reading around your saved chart.</Text>
+          <Text style={styles.emptyTitle}>Preparing your daily reading</Text>
+          <Text style={styles.emptyCopy}>Calibrating today's transits against your saved chart.</Text>
         </View>
       </StarField>
     );
   }
+
+  const headline = reading.unified.headline ?? 'Today wants a more deliberate pace than usual.';
+  const heroBody = compactText(reading.unified.cosmicVibe, 210);
+  const evidenceLine = compactText(reading.unified.evidenceLine ?? reading.western?.overall, 180);
+  const bestUse = compactText(reading.unified.bestUse ?? reading.unified.focusAdvice ?? 'Back the clean, consequential move.', 116);
+  const watchFor = compactText(reading.unified.watchFor ?? topTension?.brief ?? reading.western?.wellness, 124);
+  const timingNote = compactText(reading.unified.timingNote ?? reading.kp?.eventTiming ?? reading.vedic?.dasha, 130);
+  const remedyText = compactText(reading.vedic?.remedy?.description, 108);
+  const focusArea = titleCase(reading.unified.focusArea ?? 'main focus');
+  const skyPreview = positions
+    .filter((position) => ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn'].includes(position.planet))
+    .slice(0, 6);
 
   const systems = [
     user.activeSystems.includes('western') && reading.western
@@ -244,96 +316,160 @@ export default function TodayScreen() {
   ].filter(Boolean) as SystemPreview[];
 
   const tabs = [
-    { key: 'overview', label: 'Overview' },
-    { key: 'forecast', label: 'Forecast' },
+    { key: 'brief', label: 'Brief' },
+    { key: 'proof', label: 'Proof' },
+    { key: 'systems', label: 'Systems' },
   ];
 
   return (
     <StarField>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <Text style={styles.dateLabel}>
-          {today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-        </Text>
+        <View style={styles.header}>
+          <Text style={styles.dateLabel}>
+            {today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+          </Text>
+          <Text style={styles.greetingText}>{greeting}, {firstName}</Text>
+          <Text style={styles.headerCopy}>A cleaner daily brief built from live transits, dasha timing, and your natal chart.</Text>
+        </View>
 
         <SectionTabs tabs={tabs} activeKey={activeSection} onChange={setActiveSection} />
 
-        {activeSection === 'overview' && (
+        {activeSection === 'brief' && (
           <>
             <AnimatedCard index={0}>
-              <View style={styles.posterWrap}>
-                <LinearGradient colors={COLORS.gradientInk} style={styles.poster}>
-                  <View style={styles.posterTopRow}>
-                    <View style={styles.posterBadge}>
-                      <Text style={styles.posterBadgeText}>TODAY</Text>
-                    </View>
-                    <View style={styles.heroScorePill}>
-                      <Text style={styles.heroScoreText}>{alignmentScore}% aligned</Text>
-                    </View>
+              <LinearGradient colors={heroGradient} style={styles.hero}>
+                <View style={styles.heroTopRow}>
+                  <View style={styles.heroBadge}>
+                    <Text style={styles.heroBadgeText}>DAILY BRIEF</Text>
                   </View>
-                  <Text style={styles.posterKicker}>{greeting}, {firstName}</Text>
-                  <Text style={styles.posterTitle}>{heroHeadline}</Text>
-                  <Text style={styles.posterBody}>{heroBody}</Text>
-
-                  <View style={styles.posterInsightGrid}>
-                    <View style={styles.posterInsightCard}>
-                      <Text style={styles.posterInsightLabel}>Focus</Text>
-                      <Text style={styles.posterInsightText}>{westernFocus}</Text>
-                    </View>
-                    <View style={styles.posterInsightCard}>
-                      <Text style={styles.posterInsightLabel}>Timing</Text>
-                      <Text style={styles.posterInsightText}>{timingFocus}</Text>
-                    </View>
+                  <View style={[styles.scorePill, { borderColor: `${toneAccent}55`, backgroundColor: `${toneAccent}22` }]}>
+                    <Text style={[styles.scoreText, { color: toneAccent }]}>{alignmentScore}% aligned</Text>
                   </View>
-
-                  <View style={styles.posterSignatureRow}>
-                    {[
-                      `${profile?.western?.sun} Sun`,
-                      `${profile?.vedic?.rashi} Rashi`,
-                      `${profile?.chinese?.animal} Year`,
-                    ].map((item) => (
-                      <View key={item} style={styles.posterSignatureChip}>
-                        <Text style={styles.posterSignatureText}>{item}</Text>
-                      </View>
-                    ))}
-                  </View>
-
-                  {user.activeSystems.length >= 2 ? (
-                    <View style={styles.posterButtonWrap}>
-                      <CosmicButton title="Open full blend" onPress={() => router.push('/reading/unified')} />
-                    </View>
-                  ) : null}
-                </LinearGradient>
-
-                <View style={styles.posterOrb}>
-                  <CosmicOrb size={194} />
                 </View>
-              </View>
-            </AnimatedCard>
 
-            <AnimatedCard index={1}>
-              <LinearGradient colors={COLORS.gradientInkSoft} style={styles.signalBoard}>
-                <SignalCell label="Day streak" value={user.streak} />
-                <View style={styles.signalDivider} />
-                <SignalCell label="Alignment" value={`${alignmentScore}%`} />
-                <View style={styles.signalDivider} />
-                <SignalCell label="Cosmic points" value={user.cosmicPoints} />
+                <Text style={styles.heroHeadline}>{headline}</Text>
+                <Text style={styles.heroBody}>{heroBody}</Text>
+                <Text style={styles.heroEvidence}>{evidenceLine}</Text>
+
+                <View style={styles.metricRow}>
+                  <View style={styles.metricPill}>
+                    <Text style={styles.metricLabel}>Tone</Text>
+                    <Text style={styles.metricValue}>{tone}</Text>
+                  </View>
+                  <View style={styles.metricPill}>
+                    <Text style={styles.metricLabel}>Focus</Text>
+                    <Text style={styles.metricValue}>{focusArea}</Text>
+                  </View>
+                  <View style={styles.metricPill}>
+                    <Text style={styles.metricLabel}>Live signals</Text>
+                    <Text style={styles.metricValue}>{transits.length}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.signatureRow}>
+                  {[
+                    `${profile?.western?.sun} Sun`,
+                    `${profile?.vedic?.rashi} Rashi`,
+                    `${profile?.chinese?.animal} Year`,
+                  ].map((item) => (
+                    <View key={item} style={styles.signatureChip}>
+                      <Text style={styles.signatureChipText}>{item}</Text>
+                    </View>
+                  ))}
+                </View>
               </LinearGradient>
             </AnimatedCard>
 
+            <AnimatedCard index={1}>
+              <View style={styles.duoGrid}>
+                <GradientCard accentColor={COLORS.tide} style={styles.duoCard}>
+                  <Text style={styles.cardEyebrow}>LEAN INTO</Text>
+                  <Text style={styles.cardTitle}>{focusArea}</Text>
+                  <Text style={styles.cardBody}>{bestUse}</Text>
+                </GradientCard>
+
+                <GradientCard accentColor={COLORS.coral} style={styles.duoCard}>
+                  <Text style={styles.cardEyebrow}>WATCH FOR</Text>
+                  <Text style={styles.cardTitle}>{tone === 'Pressurized' ? 'Pressure line' : 'Blind spot'}</Text>
+                  <Text style={styles.cardBody}>{watchFor}</Text>
+                </GradientCard>
+              </View>
+            </AnimatedCard>
+
             <AnimatedCard index={2}>
-              <GradientCard accentColor={COLORS.gold} colors={COLORS.gradientDawn}>
-                <Text style={styles.panelLabel}>Anchor</Text>
-                <Text style={styles.pullQuote}>"{compactText(reading.unified.affirmation, 110)}"</Text>
-                <Text style={styles.pullBody}>Keep this close when the day speeds up. It is the shortest useful version of your reading.</Text>
+              <GradientCard accentColor={COLORS.gold}>
+                <Text style={styles.cardEyebrow}>TIMING NOTE</Text>
+                <Text style={styles.timingText}>{timingNote}</Text>
+                {remedyText ? <Text style={styles.timingSupport}>Remedy: {remedyText}</Text> : null}
               </GradientCard>
             </AnimatedCard>
 
             <AnimatedCard index={3}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Read each system</Text>
-                <Text style={styles.sectionCopy}>Every lens has its own emphasis today. Open the one that matches the choice you need to make.</Text>
+              <View style={styles.actions}>
+                {user.activeSystems.length >= 2 ? (
+                  <CosmicButton title="Open full blended reading" onPress={() => router.push('/reading/unified')} />
+                ) : null}
+                <CosmicButton title="Share today's reading" onPress={() => router.push('/share/card')} variant="outline" />
               </View>
+            </AnimatedCard>
+          </>
+        )}
 
+        {activeSection === 'proof' && (
+          <>
+            <AnimatedCard index={0}>
+              <GradientCard accentColor={COLORS.iris}>
+                <Text style={styles.cardEyebrow}>WHY THIS READING</Text>
+                <Text style={styles.proofLead}>{reading.unified.evidenceLine ?? evidenceLine}</Text>
+                <View style={styles.proofList}>
+                  <ProofRow
+                    icon="pulse-outline"
+                    label="Main driver"
+                    text={topSupport ? `${formatTransitTitle(topSupport)}. ${compactText(topSupport.brief, 96)}` : compactText(reading.western?.overall, 110)}
+                    color={COLORS.tide}
+                  />
+                  <ProofRow
+                    icon="alert-circle-outline"
+                    label="Pressure line"
+                    text={topTension ? `${formatTransitTitle(topTension)}. ${compactText(topTension.brief, 96)}` : compactText(reading.western?.wellness ?? reading.kp?.sublordGuidance, 110)}
+                    color={COLORS.coral}
+                  />
+                  <ProofRow
+                    icon="time-outline"
+                    label="Timing layer"
+                    text={timingNote}
+                    color={COLORS.gold}
+                  />
+                </View>
+              </GradientCard>
+            </AnimatedCard>
+
+            {skyPreview.length > 0 && (
+              <AnimatedCard index={1}>
+                <GradientCard accentColor={COLORS.tide}>
+                  <Text style={styles.cardEyebrow}>SKY NOW</Text>
+                  <Text style={styles.skyIntro}>The fastest check on the current atmosphere.</Text>
+                  <View style={styles.skyWrap}>
+                    {skyPreview.map((position) => (
+                      <SkyChip key={`${position.planet}-${position.sign}`} position={position} />
+                    ))}
+                  </View>
+                </GradientCard>
+              </AnimatedCard>
+            )}
+          </>
+        )}
+
+        {activeSection === 'systems' && (
+          <>
+            <AnimatedCard index={0}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>By system</Text>
+                <Text style={styles.sectionCopy}>Open the lens that best matches the decision you need to make today.</Text>
+              </View>
+            </AnimatedCard>
+
+            <AnimatedCard index={1}>
               <View style={styles.systemList}>
                 {systems.map((system) => (
                   <SystemStrip
@@ -348,52 +484,6 @@ export default function TodayScreen() {
                 ))}
               </View>
             </AnimatedCard>
-
-            <AnimatedCard index={4}>
-              <View style={styles.actions}>
-                <CosmicButton title="Share today's reading" onPress={() => router.push('/share/card')} variant="outline" />
-                <CosmicButton title={journalEntry ? 'Open journal + archive' : 'Write tonight\'s note'} onPress={() => router.push('/(tabs)/cosmos')} variant="secondary" />
-              </View>
-            </AnimatedCard>
-
-            <AnimatedCard index={5}>
-              <PredictionFeedbackCard window="today" title="Rate today's AI score layer" />
-            </AnimatedCard>
-          </>
-        )}
-
-        {activeSection === 'forecast' && (
-          <>
-            <AnimatedCard index={0}>
-              {forecast ? (
-                <ForecastPanel forecast={forecast} window={forecastWindow} onChange={setForecastWindow} />
-              ) : null}
-            </AnimatedCard>
-
-            <AnimatedCard index={1}>
-              <ExplainPanel items={explainItems} />
-            </AnimatedCard>
-
-            <AnimatedCard index={2}>
-              <PredictionFeedbackCard
-                window={forecastWindow === 'week' ? 'week' : 'month'}
-                title={forecastWindow === 'week' ? 'Rate the 7-day AI outlook' : 'Rate the 30-day AI outlook'}
-              />
-            </AnimatedCard>
-
-            {roadmap ? (
-              <AnimatedCard index={3}>
-                <GradientCard accentColor={COLORS.vedic}>
-                  <Text style={styles.panelLabel}>Long-range chapter</Text>
-                  <Text style={styles.roadmapTitle}>{roadmap.currentChapter.title}</Text>
-                  <Text style={styles.roadmapRange}>{roadmap.currentChapter.range}</Text>
-                  <Text style={styles.roadmapBody}>{roadmap.currentChapter.guidance}</Text>
-                  <View style={styles.roadmapButtonWrap}>
-                    <CosmicButton title="Open life roadmap" onPress={() => router.push('/reading/unified')} variant="outline" />
-                  </View>
-                </GradientCard>
-              </AnimatedCard>
-            ) : null}
           </>
         )}
 
@@ -419,8 +509,8 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     color: COLORS.textPrimary,
-    fontSize: 30,
-    lineHeight: 36,
+    fontSize: 26,
+    lineHeight: 32,
     fontFamily: FONTS.heading,
     textAlign: 'center',
   },
@@ -431,9 +521,8 @@ const styles = StyleSheet.create({
     maxWidth: 280,
     textAlign: 'center',
   },
-  retryWrap: {
-    width: '100%',
-    marginTop: SPACING.sm,
+  header: {
+    gap: 4,
   },
   dateLabel: {
     color: COLORS.textMuted,
@@ -441,110 +530,106 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.accent,
     letterSpacing: 1.2,
   },
-  posterWrap: {
-    position: 'relative',
-    minHeight: 410,
+  greetingText: {
+    color: COLORS.textPrimary,
+    fontSize: 28,
+    lineHeight: 32,
+    fontFamily: FONTS.heading,
   },
-  poster: {
-    minHeight: 392,
+  headerCopy: {
+    color: COLORS.textSecondary,
+    fontSize: 13,
+    lineHeight: 20,
+    maxWidth: 320,
+  },
+  hero: {
     borderRadius: BORDER_RADIUS.xxl,
     padding: SPACING.lg,
-    paddingTop: SPACING.lg,
     gap: SPACING.md,
     overflow: 'hidden',
+    ...SHADOWS.deep,
   },
-  posterOrb: {
-    position: 'absolute',
-    right: -18,
-    top: 84,
-    opacity: 0.7,
-  },
-  posterTopRow: {
+  heroTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: SPACING.sm,
   },
-  posterBadge: {
-    alignSelf: 'flex-start',
+  heroBadge: {
     borderRadius: BORDER_RADIUS.full,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: 'rgba(255,255,255,0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
+    borderColor: 'rgba(255,255,255,0.16)',
   },
-  posterBadgeText: {
+  heroBadgeText: {
     color: '#fffaf1',
-    fontSize: 10,
+    fontSize: 9,
     fontFamily: FONTS.accent,
-    letterSpacing: 1,
+    letterSpacing: 1.2,
   },
-  heroScorePill: {
+  scorePill: {
     borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: 'rgba(255,190,110,0.14)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,190,110,0.22)',
   },
-  heroScoreText: {
-    color: '#ffdba0',
+  scoreText: {
     fontSize: 11,
     fontFamily: FONTS.accent,
-    letterSpacing: 0.8,
+    letterSpacing: 0.7,
   },
-  posterKicker: {
-    color: 'rgba(255,250,241,0.76)',
-    fontSize: 11,
-    fontFamily: FONTS.accent,
-    letterSpacing: 1.1,
-  },
-  posterTitle: {
+  heroHeadline: {
     color: '#fffaf1',
-    fontSize: 28,
-    lineHeight: 34,
+    fontSize: 29,
+    lineHeight: 35,
     fontFamily: FONTS.display,
     letterSpacing: -0.4,
-    maxWidth: 280,
   },
-  posterBody: {
-    color: 'rgba(255,250,241,0.82)',
+  heroBody: {
+    color: 'rgba(255,250,241,0.88)',
     fontSize: 14,
     lineHeight: 21,
-    maxWidth: 285,
   },
-  posterInsightGrid: {
-    gap: SPACING.sm,
-    marginTop: SPACING.xs,
+  heroEvidence: {
+    color: 'rgba(255,250,241,0.72)',
+    fontSize: 12,
+    lineHeight: 18,
   },
-  posterInsightCard: {
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.md,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    gap: 4,
-    maxWidth: 285,
-  },
-  posterInsightLabel: {
-    color: 'rgba(255,250,241,0.60)',
-    fontSize: 10,
-    fontFamily: FONTS.accent,
-    letterSpacing: 0.9,
-  },
-  posterInsightText: {
-    color: '#fffaf1',
-    fontSize: 13,
-    lineHeight: 19,
-    fontFamily: FONTS.body,
-  },
-  posterSignatureRow: {
+  metricRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: SPACING.sm,
   },
-  posterSignatureChip: {
+  metricPill: {
+    borderRadius: BORDER_RADIUS.lg,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    minWidth: 92,
+    gap: 2,
+  },
+  metricLabel: {
+    color: 'rgba(255,250,241,0.6)',
+    fontSize: 9,
+    fontFamily: FONTS.accent,
+    letterSpacing: 1,
+  },
+  metricValue: {
+    color: '#fffaf1',
+    fontSize: 13,
+    lineHeight: 16,
+    fontFamily: FONTS.heading,
+  },
+  signatureRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+  },
+  signatureChip: {
     borderRadius: BORDER_RADIUS.full,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -552,97 +637,124 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.16)',
   },
-  posterSignatureText: {
+  signatureChipText: {
     color: '#fffaf1',
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: FONTS.accent,
     letterSpacing: 0.5,
   },
-  posterButtonWrap: {
-    marginTop: SPACING.xs,
-    maxWidth: 180,
-  },
-  signalBoard: {
+  duoGrid: {
     flexDirection: 'row',
-    alignItems: 'stretch',
-    borderRadius: BORDER_RADIUS.xl,
-    borderWidth: 1,
-    borderColor: COLORS.ruleLight,
-    overflow: 'hidden',
-    ...SHADOWS.deep,
+    flexWrap: 'wrap',
+    gap: SPACING.md,
   },
-  signalCell: {
+  duoCard: {
+    flexGrow: 1,
+    flexBasis: 150,
+  },
+  cardEyebrow: {
+    color: COLORS.textMuted,
+    fontSize: 10,
+    fontFamily: FONTS.accent,
+    letterSpacing: 1.2,
+  },
+  cardTitle: {
+    color: COLORS.textPrimary,
+    fontSize: 21,
+    lineHeight: 25,
+    fontFamily: FONTS.heading,
+  },
+  cardBody: {
+    color: COLORS.textSecondary,
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  timingText: {
+    color: COLORS.textPrimary,
+    fontSize: 18,
+    lineHeight: 25,
+    fontFamily: FONTS.heading,
+  },
+  timingSupport: {
+    color: COLORS.textSecondary,
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  proofLead: {
+    color: COLORS.textPrimary,
+    fontSize: 17,
+    lineHeight: 24,
+    fontFamily: FONTS.heading,
+  },
+  proofList: {
+    gap: SPACING.md,
+  },
+  proofRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: SPACING.sm,
+  },
+  proofIconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: BORDER_RADIUS.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  proofBody: {
     flex: 1,
-    paddingVertical: 18,
-    paddingHorizontal: 12,
     gap: 2,
   },
-  signalDivider: {
-    width: 1,
-    backgroundColor: COLORS.ruleLight,
-  },
-  signalValue: {
-    color: '#fffaf1',
-    fontSize: 24,
-    lineHeight: 28,
-    fontFamily: FONTS.heading,
-  },
-  signalLabel: {
-    color: 'rgba(255,250,241,0.68)',
-    fontSize: 11,
-    fontFamily: FONTS.accent,
-    letterSpacing: 0.8,
-  },
-  panelLabel: {
+  proofLabel: {
     color: COLORS.textMuted,
+    fontSize: 10,
+    fontFamily: FONTS.accent,
+    letterSpacing: 1,
+  },
+  proofText: {
+    color: COLORS.textPrimary,
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  skyIntro: {
+    color: COLORS.textSecondary,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  skyWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+  },
+  skyChip: {
+    borderRadius: BORDER_RADIUS.full,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: COLORS.bgElevated,
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
+  },
+  skyChipText: {
+    color: COLORS.textPrimary,
     fontSize: 11,
     fontFamily: FONTS.accent,
-    letterSpacing: 1.1,
-  },
-  pullQuote: {
-    color: COLORS.textPrimary,
-    fontSize: 24,
-    lineHeight: 30,
-    fontFamily: FONTS.display,
-  },
-  pullBody: {
-    color: COLORS.textSecondary,
-    fontSize: 14,
-    lineHeight: 22,
-  },
-  roadmapTitle: {
-    color: COLORS.textPrimary,
-    fontSize: 22,
-    lineHeight: 28,
-    fontFamily: FONTS.heading,
-  },
-  roadmapRange: {
-    color: COLORS.vedic,
-    fontSize: 12,
-    fontFamily: FONTS.accent,
-    letterSpacing: 0.8,
-  },
-  roadmapBody: {
-    color: COLORS.textSecondary,
-    fontSize: 14,
-    lineHeight: 22,
-  },
-  roadmapButtonWrap: {
-    marginTop: SPACING.sm,
+    letterSpacing: 0.3,
   },
   sectionHeader: {
-    gap: SPACING.xs,
+    gap: 4,
   },
   sectionTitle: {
     color: COLORS.textPrimary,
-    fontSize: 24,
-    lineHeight: 29,
+    fontSize: 23,
+    lineHeight: 28,
     fontFamily: FONTS.heading,
   },
   sectionCopy: {
     color: COLORS.textSecondary,
     fontSize: 14,
-    lineHeight: 22,
+    lineHeight: 21,
+    maxWidth: 320,
   },
   systemList: {
     gap: SPACING.sm,
@@ -669,19 +781,13 @@ const styles = StyleSheet.create({
   },
   systemLabel: {
     color: '#fffaf1',
-    fontSize: 18,
+    fontSize: 16,
     fontFamily: FONTS.heading,
   },
   systemText: {
-    color: 'rgba(255,250,241,0.82)',
+    color: 'rgba(255,250,241,0.8)',
     fontSize: 13,
     lineHeight: 19,
-  },
-  systemArrow: {
-    color: 'rgba(255,250,241,0.62)',
-    fontSize: 11,
-    fontFamily: FONTS.accent,
-    letterSpacing: 0.8,
   },
   actions: {
     gap: SPACING.md,

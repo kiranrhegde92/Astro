@@ -1,5 +1,5 @@
 import { calculateCosmicProfile } from '../engines/unified';
-import { findActiveTransits, type TransitHit } from '../engines/common/transits';
+import { findActiveTransits, getCurrentTransits, type TransitHit } from '../engines/common/transits';
 import type {
   ChineseElement,
   CosmicProfile,
@@ -78,6 +78,24 @@ const AREA_PROMPTS: Record<ForecastArea, string> = {
   travel: 'leave margin around movement and keep your plan flexible',
 };
 
+const AREA_HEADLINES: Record<ForecastArea, string> = {
+  career: 'Career and decision-making have the cleanest opening today.',
+  love: 'Connection and emotional honesty are the live edge of the day.',
+  wellness: 'The day works best when your pace stays protected.',
+  wealth: 'Money and value decisions need a calmer hand today.',
+  education: 'Thinking, writing, and conversation carry the strongest signal.',
+  travel: 'Movement and perspective shifts want flexibility today.',
+};
+
+const AREA_WARNINGS: Record<ForecastArea, string> = {
+  career: 'Avoid reacting to pressure or taking on too many serious priorities at once.',
+  love: 'Avoid distance, scorekeeping, or reading silence too quickly.',
+  wellness: 'Avoid letting the schedule outrun your body.',
+  wealth: 'Avoid spending, promising, or negotiating from an emotional spike.',
+  education: 'Avoid too many inputs without enough synthesis.',
+  travel: 'Avoid rigid timing or rushing movement that needs margin.',
+};
+
 const AFFIRMATIONS: Record<ForecastArea, string> = {
   career: 'I move with timing, clarity, and earned confidence.',
   love: 'I let closeness deepen through honesty and steady warmth.',
@@ -122,7 +140,7 @@ const MONTH_ELEMENT: ChineseElement[] = [
   'Earth',
 ];
 
-const DAILY_READING_VERSION = 3;
+const DAILY_READING_VERSION = 4;
 
 const ELEMENT_STYLE: Record<string, string> = {
   Fire: 'move boldly while the signal is clear',
@@ -450,6 +468,50 @@ function buildAffirmation(area: ForecastArea, profile: Partial<CosmicProfile>) {
   return `${AFFIRMATIONS[area]} ${dashaPlanet} timing supports ${AREA_AIM[area]}.`;
 }
 
+function buildTone(snapshot: DailySignalSnapshot): 'Opening' | 'Mixed' | 'Pressurized' {
+  if (snapshot.supportScore >= snapshot.challengeScore * 1.35) return 'Opening';
+  if (snapshot.challengeScore >= snapshot.supportScore * 1.1) return 'Pressurized';
+  return 'Mixed';
+}
+
+function buildEvidenceLine(
+  topSupport: TransitHit | undefined,
+  cautionHit: TransitHit | undefined,
+  dashaPlanet: DashaPlanet,
+) {
+  if (topSupport && cautionHit) {
+    return `${topSupport.transitPlanet} ${formatAspectSymbol(topSupport.aspect)} ${topSupport.natalPlanet} opens the day, while ${cautionHit.transitPlanet} ${formatAspectSymbol(cautionHit.aspect)} ${cautionHit.natalPlanet} adds pressure. ${dashaPlanet} Mahadasha sets the longer rhythm.`;
+  }
+
+  if (topSupport) {
+    return `${topSupport.transitPlanet} ${formatAspectSymbol(topSupport.aspect)} ${topSupport.natalPlanet} is the clearest live signal in your chart today. ${dashaPlanet} Mahadasha keeps the background tone steady.`;
+  }
+
+  if (cautionHit) {
+    return `${cautionHit.transitPlanet} ${formatAspectSymbol(cautionHit.aspect)} ${cautionHit.natalPlanet} is the main strain line today. ${dashaPlanet} Mahadasha says timing still matters more than force.`;
+  }
+
+  return `${dashaPlanet} Mahadasha is carrying more weight than short-term transit noise today.`;
+}
+
+function buildCosmicVibe(
+  supportArea: ForecastArea,
+  challengeArea: ForecastArea,
+  topSupport: TransitHit | undefined,
+  cautionHit: TransitHit | undefined,
+  dashaPlanet: DashaPlanet,
+) {
+  const opening = AREA_HEADLINES[supportArea];
+  const supportLine = topSupport
+    ? `${topSupport.transitPlanet} ${formatAspectSymbol(topSupport.aspect)} ${topSupport.natalPlanet} is the clearest opening.`
+    : `${dashaPlanet} Mahadasha is doing more of the work than the fast-moving sky.`;
+  const cautionLine = cautionHit
+    ? `Move slower around ${AREA_LABELS[challengeArea]}.`
+    : 'Protect your pace and let the day stay deliberate.';
+
+  return `${opening} ${supportLine} ${cautionLine}`;
+}
+
 function formatRange(start: Date, end: Date) {
   const startLabel = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   const endLabel = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -516,6 +578,27 @@ function getChinesePulse(profile: Partial<CosmicProfile>, date: Date) {
   };
 }
 
+function formatAspectSymbol(aspect: string): string {
+  const symbols: Record<string, string> = {
+    conjunction: '☌', trine: '△', sextile: '⚹', square: '□', opposition: '☍',
+  };
+  return symbols[aspect] ?? aspect;
+}
+
+function classifyHit(hit: TransitHit): 'support' | 'tension' | 'neutral' {
+  if (hit.aspect === 'square' || hit.aspect === 'opposition') return 'tension';
+  if (hit.aspect === 'trine' || hit.aspect === 'sextile') return 'support';
+  return 'neutral';
+}
+
+function briefTransit(hit: TransitHit): string {
+  const nature = classifyHit(hit);
+  const symbol = formatAspectSymbol(hit.aspect);
+  if (nature === 'support') return `${hit.transitPlanet} ${symbol} ${hit.natalPlanet} — flowing energy, ${hit.orb.toFixed(1)}° orb`;
+  if (nature === 'tension') return `${hit.transitPlanet} ${symbol} ${hit.natalPlanet} — productive friction, ${hit.orb.toFixed(1)}° orb`;
+  return `${hit.transitPlanet} ${symbol} ${hit.natalPlanet} — intensified focus, ${hit.orb.toFixed(1)}° orb`;
+}
+
 export function generateSignalDailyReading(date: Date, profile: Partial<CosmicProfile>): DailyReading {
   const snapshot = buildDailySnapshot(profile, date);
   const western = profile.western;
@@ -533,60 +616,101 @@ export function generateSignalDailyReading(date: Date, profile: Partial<CosmicPr
   const signature = getWesternSignature(profile);
   const styleCue = getStyleCue(profile);
   const cautionHit = snapshot.challengeHits[0];
-  const cosmicVibe = topSupport
-    ? `${getHitFocus(topSupport)} is live for your ${signature} chart, so today is not generic for you. Lean into ${AREA_AIM[snapshot.supportArea]} and ${styleCue}.`
-    : `${signature} meets ${dashaPlanet} timing through ${styleCue}, so the day rewards steadier attention than usual.`;
+  const tone = buildTone(snapshot);
+  const activeCount = snapshot.hits.length;
+  const supportCount = snapshot.supportHits.length;
+  const challengeCount = snapshot.challengeHits.length;
+  const topTransitLabel = topSupport ? `${topSupport.transitPlanet} ${formatAspectSymbol(topSupport.aspect)} natal ${topSupport.natalPlanet} (${topSupport.orb.toFixed(1)} deg)` : '';
+  const headline = AREA_HEADLINES[snapshot.supportArea];
+  const evidenceLine = buildEvidenceLine(topSupport, cautionHit, dashaPlanet);
+  const cosmicVibe = buildCosmicVibe(snapshot.supportArea, snapshot.challengeArea, topSupport, cautionHit, dashaPlanet);
 
-  const shareText = `${cosmicVibe} | ${(western?.sun ?? 'Leo')} + ${(vedic?.rashi ?? 'Simha')} + ${(chinese?.animal ?? 'Dragon')} | CosmicSelf`;
+  const focusArea = AREA_LABELS[snapshot.supportArea];
+  const focusAdvice = AREA_PROMPTS[snapshot.supportArea];
+  const bestUse = `Use the day for ${AREA_AIM[snapshot.supportArea]}.`;
+  const watchFor = cautionHit
+    ? `${AREA_WARNINGS[snapshot.challengeArea]} The pressure point is ${cautionHit.transitPlanet} ${formatAspectSymbol(cautionHit.aspect)} ${cautionHit.natalPlanet}.`
+    : AREA_WARNINGS[snapshot.challengeArea];
+  const timingNote = kpLead
+    ? `KP timing is sharpest around ${kpLead.area === 'health' ? 'wellness' : kpLead.area} matters, while ${dashaPlanet} Mahadasha keeps the broader tempo on ${DASHA_THEMES[dashaPlanet]}.`
+    : `${dashaPlanet} Mahadasha keeps the day centered on ${DASHA_THEMES[dashaPlanet]}.`;
+
+  const shareText = `${topTransitLabel || signature} | ${activeCount} active transits | ${(western?.sun ?? 'Leo')} + ${(vedic?.rashi ?? 'Simha')} + ${(chinese?.animal ?? 'Dragon')} | CosmicSelf`;
   const positivityScore = Number(
     Math.max(0.62, Math.min(0.92, 0.74 + snapshot.supportScore * 0.018 - snapshot.challengeScore * 0.014)).toFixed(2),
   );
+
+  const activeTransits = snapshot.hits.slice(0, 4).map((hit) => ({
+    transitPlanet: hit.transitPlanet,
+    natalPlanet: hit.natalPlanet,
+    aspect: hit.aspect,
+    orb: hit.orb,
+    nature: classifyHit(hit),
+    brief: briefTransit(hit),
+  }));
+
+  const transitPositions = getCurrentTransits(date).map((p: any) => ({
+    planet: p.planet,
+    sign: p.sign,
+    degree: Math.round(p.degree * 10) / 10,
+    retrograde: p.retrograde || false,
+  }));
 
   return {
     version: DAILY_READING_VERSION,
     date: getDateKey(date),
     western: {
       overall: topSupport
-        ? `${getHitFocus(topSupport)} is setting the western tone. For your ${signature} makeup, the right move is to ${AREA_PROMPTS[snapshot.supportArea]}.`
-        : `Your ${signature} makeup does best today when you ${styleCue}.`,
+        ? `${topSupport.transitPlanet} ${formatAspectSymbol(topSupport.aspect)} natal ${topSupport.natalPlanet} (${topSupport.orb.toFixed(1)}° orb) sets today's western tone. For ${signature}: ${AREA_PROMPTS[snapshot.supportArea]}.`
+        : `${signature} placements favour a steady approach today — ${styleCue}.`,
       love: loveHit
-        ? `${getHitFocus(loveHit)} softens relationship dynamics. Let your ${western?.moon ?? 'Cancer'} Moon do less performing and more real relating.`
-        : `Love responds better to your ${western?.moon ?? 'Cancer'} Moon when you stay warm, direct, and unforced.`,
+        ? `${loveHit.transitPlanet} ${formatAspectSymbol(loveHit.aspect)} ${loveHit.natalPlanet} (${loveHit.orb.toFixed(1)}°) activates relationship themes. Your ${western?.moon ?? 'Cancer'} Moon benefits from direct, unhurried connection.`
+        : `No strong love transits today. Your ${western?.moon ?? 'Cancer'} Moon does best with warm, low-pressure relating.`,
       career: careerHit
-        ? `${getHitFocus(careerHit)} supports work and visibility. Back ${AREA_AIM.career} instead of spreading effort everywhere.`
-        : `Career improves when your ${western?.element ?? 'Fire'} nature stops multitasking and commits to one consequential move.`,
+        ? `${careerHit.transitPlanet} ${formatAspectSymbol(careerHit.aspect)} ${careerHit.natalPlanet} (${careerHit.orb.toFixed(1)}°) supports professional visibility. Commit to ${AREA_AIM.career}.`
+        : `Career sector is quiet today. Your ${western?.element ?? 'Fire'} nature benefits from focused, single-task mode.`,
       wellness: wellnessHit
-        ? `${getHitFocus(wellnessHit)} is asking for pace management. ${cautionHit ? `The main pressure point is ${getHitFocus(cautionHit)}.` : 'Slow the nervous system before you answer every demand.'}`
-        : `Your body responds best when you ${AREA_PROMPTS.wellness} and let rhythm beat urgency.`,
+        ? `${wellnessHit.transitPlanet} ${formatAspectSymbol(wellnessHit.aspect)} ${wellnessHit.natalPlanet} (${wellnessHit.orb.toFixed(1)}°) flags pace management.${cautionHit ? ` Watch for tension from ${cautionHit.transitPlanet} ${formatAspectSymbol(cautionHit.aspect)} ${cautionHit.natalPlanet}.` : ''}`
+        : `No stress transits active. Good day to ${AREA_PROMPTS.wellness}.`,
       luckyNumber: ((date.getDate() + Math.round(snapshot.supportScore * 3) + date.getMonth()) % 9) + 1,
     },
     vedic: {
-      dasha: `${dashaPlanet} Mahadasha is the timing engine today, emphasizing ${DASHA_THEMES[dashaPlanet]} for a ${vedic?.rashi ?? 'Simha'} native with ${western?.sun ?? 'Leo'} solar emphasis.`,
+      dasha: `${dashaPlanet} Mahadasha active — themes of ${DASHA_THEMES[dashaPlanet]}. ${vedic?.rashi ?? 'Simha'} rashi with ${western?.sun ?? 'Leo'} Sun.`,
       nakshatra: subPeriod
-        ? `${vedic?.nakshatra ?? 'Magha'} Nakshatra in pada ${vedic?.nakshatraPada ?? 1} is filtered through a ${subPeriod.planet} sub-period, so small precise moves outperform dramatic ones.`
-        : `${vedic?.nakshatra ?? 'Magha'} Nakshatra asks for steadier attention than louder action today.`,
+        ? `${vedic?.nakshatra ?? 'Magha'} Nakshatra (pada ${vedic?.nakshatraPada ?? 1}) filtered through ${subPeriod.planet} sub-period. Precise moves over bold ones.`
+        : `${vedic?.nakshatra ?? 'Magha'} Nakshatra (pada ${vedic?.nakshatraPada ?? 1}). Steady attention beats scattered action.`,
       remedy,
       mantra: getMantra(profile, remedy),
     },
     kp: {
       eventTiming: kpLead
-        ? `KP timing is sharpest around ${kpLead.area === 'health' ? 'wellness' : kpLead.area} matters today, which is why the clean opening may look small but land hard.`
-        : `KP timing favors deliberate action once the mood of the day settles.`,
-      significatorInsight: kpLead?.prediction ?? `Your significators support exact choices over scattered effort, especially around ${AREA_LABELS[snapshot.supportArea]}.`,
+        ? `KP significators highlight ${kpLead.area === 'health' ? 'wellness' : kpLead.area} timing today. Small, well-timed actions land harder than big gestures.`
+        : `KP timing favours deliberate action after the day's rhythm settles.`,
+      significatorInsight: kpLead?.prediction ?? `Active significators point toward ${AREA_LABELS[snapshot.supportArea]}. Precision over volume.`,
       sublordGuidance: kpLead
-        ? `Let ${kpLead.area === 'health' ? 'wellness' : kpLead.area} decisions happen when the room feels quieter, not when it feels urgent.`
-        : 'Trust the first clean opening, not the loudest one.',
+        ? `${kpLead.area === 'health' ? 'Wellness' : kpLead.area.charAt(0).toUpperCase() + kpLead.area.slice(1)} decisions work best in calm moments, not urgent ones.`
+        : 'Act on the first clear opening, not the loudest signal.',
     },
     chinese: {
-      element: `${chinesePulse.text} ${chinese?.yinYang ?? 'Yang'} energy in you is strongest when you ${AREA_PROMPTS[snapshot.supportArea]}.`,
-      animal: `Your ${chinese?.animal ?? 'Dragon'} pattern leans on ${ANIMAL_STYLE[chinese?.animal ?? 'Dragon'] ?? 'clean instinct and timing'} today.`,
+      element: `${chinesePulse.text} ${chinese?.yinYang ?? 'Yang'} energy responds to ${AREA_PROMPTS[snapshot.supportArea]}.`,
+      animal: `${chinese?.animal ?? 'Dragon'} instinct today: ${ANIMAL_STYLE[chinese?.animal ?? 'Dragon'] ?? 'clean timing and steady focus'}.`,
       luckyDirection: chinesePulse.direction,
     },
     unified: {
       cosmicVibe,
       affirmation: buildAffirmation(snapshot.supportArea, profile),
       shareText,
+      focusArea,
+      focusAdvice,
+      headline,
+      evidenceLine,
+      bestUse,
+      watchFor,
+      timingNote,
+      tone,
     },
+    activeTransits,
+    transitPositions,
     references: DAILY_REFERENCES,
     positivityScore,
   };

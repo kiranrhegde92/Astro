@@ -128,25 +128,25 @@ const ASPECT_ANGLES = [
 
 const TRANSIT_MEANINGS: Record<string, Record<string, string>> = {
   conjunction: {
-    Sun: 'A spotlight shines on your %NATAL% energies — a day of heightened vitality.',
-    Moon: 'Emotions merge with your %NATAL% qualities — trust your instincts today.',
-    Mercury: 'Ideas around your %NATAL% themes crystallise — great for communication.',
-    Venus: 'Harmony and pleasure meet your %NATAL% nature — enjoy beautiful moments.',
-    Mars: 'Bold energy activates your %NATAL% drive — take decisive action.',
-    Jupiter: 'Expansion and luck bless your %NATAL% area — seize opportunities.',
-    Saturn: 'Structure and discipline strengthen your %NATAL% foundation — build wisely.',
+    Sun: 'Transit Sun conjunct natal %NATAL% — heightened vitality and visibility in %NATAL% themes.',
+    Moon: 'Transit Moon conjunct natal %NATAL% — emotional sensitivity around %NATAL% matters peaks today.',
+    Mercury: 'Transit Mercury conjunct natal %NATAL% — clarity in communication and %NATAL%-related decisions.',
+    Venus: 'Transit Venus conjunct natal %NATAL% — ease and harmony in %NATAL% areas, good for relationships.',
+    Mars: 'Transit Mars conjunct natal %NATAL% — increased drive and assertiveness around %NATAL% themes.',
+    Jupiter: 'Transit Jupiter conjunct natal %NATAL% — expansion and opportunity in %NATAL% matters.',
+    Saturn: 'Transit Saturn conjunct natal %NATAL% — structure and discipline required in %NATAL% areas.',
   },
   trine: {
-    default: 'Flowing, supportive energy connects transit %TRANSIT% with your natal %NATAL%.',
+    default: 'Transit %TRANSIT% trine natal %NATAL% — flowing support, natural ease in related areas.',
   },
   square: {
-    default: 'Dynamic growth energy — transit %TRANSIT% challenges your %NATAL% to evolve.',
+    default: 'Transit %TRANSIT% square natal %NATAL% — productive tension that pushes growth.',
   },
   opposition: {
-    default: 'Balance and awareness — transit %TRANSIT% illuminates your %NATAL% from a new angle.',
+    default: 'Transit %TRANSIT% opposite natal %NATAL% — awareness through contrast, balance needed.',
   },
   sextile: {
-    default: 'Gentle opportunity — transit %TRANSIT% supports your %NATAL% with creative possibilities.',
+    default: 'Transit %TRANSIT% sextile natal %NATAL% — gentle opportunity if you act on it.',
   },
 };
 

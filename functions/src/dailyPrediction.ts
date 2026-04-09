@@ -54,8 +54,26 @@ const AFFIRMATIONS: Record<SignalArea, string> = {
   wellness: 'I protect my pace so my signal stays clear.',
 };
 
+const AREA_HEADLINES: Record<SignalArea, string> = {
+  love: 'Connection and emotional honesty are the live edge of the day.',
+  career: 'Career and decision-making have the cleanest opening today.',
+  wellness: 'The day works best when your pace stays protected.',
+};
+
+const AREA_AIMS: Record<SignalArea, string> = {
+  love: 'the conversation that deepens trust',
+  career: 'the work that changes your trajectory',
+  wellness: 'the rhythm that keeps you regulated',
+};
+
+const AREA_WARNINGS: Record<SignalArea, string> = {
+  love: 'Avoid distance, scorekeeping, or reading silence too quickly.',
+  career: 'Avoid reacting to pressure or stacking too many serious priorities at once.',
+  wellness: 'Avoid letting the schedule outrun your body.',
+};
+
 const MONTH_ELEMENTS = ['Water', 'Wood', 'Wood', 'Fire', 'Fire', 'Earth', 'Earth', 'Metal', 'Metal', 'Water', 'Water', 'Earth'];
-const DAILY_READING_VERSION = 3;
+const DAILY_READING_VERSION = 4;
 
 const DIRECTION_BY_ELEMENT: Record<string, string> = {
   Wood: 'East',
@@ -78,19 +96,6 @@ const HOUSE_THEMES: Record<number, string> = {
   10: 'career and visibility',
   11: 'friends, networks, and future plans',
   12: 'rest, closure, and inner repair',
-};
-
-const ELEMENT_STYLE: Record<string, string> = {
-  Fire: 'move boldly while the signal is clear',
-  Earth: 'make the practical next step tangible',
-  Air: 'name the pattern and act from clarity',
-  Water: 'trust emotional timing over outside noise',
-};
-
-const MODALITY_STYLE: Record<string, string> = {
-  Cardinal: 'initiate instead of circling',
-  Fixed: 'stay with the choice once it proves itself',
-  Mutable: 'adapt without scattering your attention',
 };
 
 const ANIMAL_STYLE: Record<string, string> = {
@@ -145,14 +150,34 @@ function getWesternSignature(chart: any) {
   return `${sun} Sun, ${moon} Moon, and ${rising}`;
 }
 
-function getStyleCue(chart: any) {
-  const element = chart.western?.dominantElement ?? 'Fire';
-  const modality = chart.western?.dominantModality ?? 'Cardinal';
-  return `${ELEMENT_STYLE[element] ?? 'move with cleaner timing'} and ${MODALITY_STYLE[modality] ?? 'keep your attention coordinated'}`;
-}
-
 function buildAffirmation(area: SignalArea, chart: any, dashaPlanet: string) {
   return `${AFFIRMATIONS[area]} ${dashaPlanet} timing supports ${area === 'love' ? 'deeper trust' : area === 'career' ? 'decisive progress' : 'cleaner regulation'} today.`;
+}
+
+function buildTone(supportScore: number, challengeScore: number): 'Opening' | 'Mixed' | 'Pressurized' {
+  if (supportScore >= challengeScore * 1.35) return 'Opening';
+  if (challengeScore >= supportScore * 1.1) return 'Pressurized';
+  return 'Mixed';
+}
+
+function buildEvidenceLine(
+  overallSignal: TransitSignal | undefined,
+  cautionSignal: TransitSignal | undefined,
+  dashaPlanet: string,
+) {
+  if (overallSignal && cautionSignal) {
+    return `${formatSignal(overallSignal)} opens the day, while ${formatSignal(cautionSignal)} adds pressure. ${dashaPlanet} Mahadasha sets the longer rhythm.`;
+  }
+
+  if (overallSignal) {
+    return `${formatSignal(overallSignal)} is the clearest live signal in your chart today. ${dashaPlanet} Mahadasha keeps the background tone steady.`;
+  }
+
+  if (cautionSignal) {
+    return `${formatSignal(cautionSignal)} is the main strain line today. ${dashaPlanet} Mahadasha says timing still matters more than force.`;
+  }
+
+  return `${dashaPlanet} Mahadasha is carrying more weight than short-term transit noise today.`;
 }
 
 function mantraForDasha(planet: string) {
@@ -252,6 +277,19 @@ function getAreaSignal(signals: TransitSignal[], area: SignalArea) {
   ) ?? signals[0];
 }
 
+function classifySignal(signal: TransitSignal): 'support' | 'tension' | 'neutral' {
+  if (signal.aspect === 'square' || signal.aspect === 'opposition') return 'tension';
+  if (signal.aspect === 'trine' || signal.aspect === 'sextile') return 'support';
+  return 'neutral';
+}
+
+function briefSignal(signal: TransitSignal) {
+  const nature = classifySignal(signal);
+  if (nature === 'support') return `${formatSignal(signal)} is the clearest opening right now.`;
+  if (nature === 'tension') return `${formatSignal(signal)} is the main pressure line right now.`;
+  return `${formatSignal(signal)} intensifies the day and needs conscious handling.`;
+}
+
 export function buildTransitReading(chart: any, transits: Record<string, any>, date: Date) {
   const signals = collectSignals(chart, transits);
   const supportSignals = signals.filter((signal) => signal.aspect !== 'square' && signal.aspect !== 'opposition');
@@ -282,12 +320,35 @@ export function buildTransitReading(chart: any, transits: Record<string, any>, d
   const kpLagna = chart.kp?.lagna ?? 'Aries';
   const kpSubLord = chart.kp?.lagnaSubLord ?? 'Sun';
   const signature = getWesternSignature(chart);
-  const styleCue = getStyleCue(chart);
   const cautionSignal = challengeSignals[0];
   const positivityScore = Number(Math.max(0.64, Math.min(0.92, 0.74 + supportScore * 0.018 - challengeScore * 0.014)).toFixed(2));
+  const tone = buildTone(supportScore, challengeScore);
+  const headline = AREA_HEADLINES[dominantArea];
+  const evidenceLine = buildEvidenceLine(overallSignal, cautionSignal, currentDasha);
+  const bestUse = `Use the day for ${AREA_AIMS[dominantArea]}.`;
+  const watchFor = cautionSignal
+    ? `${AREA_WARNINGS[dominantArea]} The pressure point is ${formatSignal(cautionSignal)}.`
+    : AREA_WARNINGS[dominantArea];
+  const timingNote = `${kpLagna} lagna with ${kpSubLord} sub-lord sharpens timing around ${dominantArea} matters, while ${currentDasha} Mahadasha carries the broader tempo.`;
   const cosmicVibe = overallSignal
-    ? `${getSignalFocus(overallSignal)} is active for your ${signature} chart today. Lean into ${dominantArea === 'love' ? 'the conversation that deepens trust' : dominantArea === 'career' ? 'the work that changes your trajectory' : 'the rhythm that keeps you regulated'} and ${styleCue}.`
-    : `${signature} meets ${currentDasha} timing through ${styleCue}, so the day rewards cleaner choices than usual.`;
+    ? `${headline} ${formatSignal(overallSignal)} is the clearest opening, and ${cautionSignal ? `${formatSignal(cautionSignal)} is where the pressure concentrates.` : 'The faster transits are lighter than the long-cycle timing today.'}`
+    : `${headline} ${currentDasha} Mahadasha is doing more of the work than the fast-moving sky, so the day rewards cleaner choices than usual.`;
+  const activeTransits = signals.slice(0, 4).map((signal) => ({
+    transitPlanet: formatPlanet(signal.transitPlanet),
+    natalPlanet: formatPlanet(signal.natalPlanet),
+    aspect: signal.aspect,
+    orb: signal.orb,
+    nature: classifySignal(signal),
+    brief: briefSignal(signal),
+  }));
+  const transitPositions = Object.entries(transits)
+    .filter(([planet]) => ['SUN', 'MOON', 'MERCURY', 'VENUS', 'MARS', 'JUPITER', 'SATURN', 'MEAN_NODE', 'KETU'].includes(planet))
+    .map(([planet, value]) => ({
+      planet: formatPlanet(planet),
+      sign: (value as any)?.sign ?? 'Aries',
+      degree: Math.round(Number((value as any)?.degree ?? 0) * 10) / 10,
+      retrograde: Boolean((value as any)?.retrograde),
+    }));
 
   return {
     version: DAILY_READING_VERSION,
@@ -337,7 +398,21 @@ export function buildTransitReading(chart: any, transits: Record<string, any>, d
       cosmicVibe,
       affirmation: buildAffirmation(dominantArea, chart, currentDasha),
       shareText: `${cosmicVibe} | ${natalSunSign} + ${natalRashi} + ${chineseAnimal} | CosmicSelf`,
+      focusArea: dominantArea,
+      focusAdvice: dominantArea === 'love'
+        ? 'say the honest thing before the mood slips past it'
+        : dominantArea === 'career'
+          ? 'commit to the move that already deserves your focus'
+          : 'protect your pace before the day asks for too much',
+      headline,
+      evidenceLine,
+      bestUse,
+      watchFor,
+      timingNote,
+      tone,
     },
+    activeTransits,
+    transitPositions,
     references: [
       { source: "Ptolemy's Tetrabiblos", type: 'book', tradition: 'western' },
       { source: 'Planets in Transit', type: 'book', tradition: 'western' },

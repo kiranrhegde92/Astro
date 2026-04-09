@@ -186,7 +186,31 @@ export interface DailyReading {
     cosmicVibe: string;
     affirmation: string;
     shareText: string;
+    focusArea?: string;
+    focusAdvice?: string;
+    headline?: string;
+    evidenceLine?: string;
+    bestUse?: string;
+    watchFor?: string;
+    timingNote?: string;
+    tone?: 'Opening' | 'Mixed' | 'Pressurized';
   };
+  /** Active transit aspects for display on the Today screen */
+  activeTransits?: {
+    transitPlanet: string;
+    natalPlanet: string;
+    aspect: string;
+    orb: number;
+    nature: 'support' | 'tension' | 'neutral';
+    brief: string;
+  }[];
+  /** Current transit planetary positions */
+  transitPositions?: {
+    planet: string;
+    sign: string;
+    degree: number;
+    retrograde?: boolean;
+  }[];
   references: PredictionReference[];
   positivityScore: number;
 }

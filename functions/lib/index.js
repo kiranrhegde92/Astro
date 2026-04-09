@@ -48,7 +48,7 @@ const modelScoring_1 = require("./ml/modelScoring");
 const geocoding_1 = require("./utils/geocoding");
 admin.initializeApp();
 const db = admin.firestore();
-const DAILY_READING_VERSION = 3;
+const DAILY_READING_VERSION = 4;
 // ─── calculateChart ───────────────────────────────────────────────────────────
 // Called from app after user enters birth details.
 // Returns full chart for all 4 systems + saves to Firestore.
