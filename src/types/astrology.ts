@@ -157,6 +157,7 @@ export interface PredictionReference {
 }
 
 export interface DailyReading {
+  version?: number;
   date: string;
   western?: {
     overall: string;

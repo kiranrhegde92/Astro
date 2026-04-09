@@ -40,6 +40,19 @@ export function ForecastPanel({
       <Text style={styles.headline}>{forecast.headline}</Text>
       <Text style={styles.summary}>{forecast.summary}</Text>
 
+      {forecast.drivers?.length ? (
+        <View style={styles.driverWrap}>
+          <Text style={styles.driverLabel}>Signals behind this</Text>
+          <View style={styles.driverList}>
+            {forecast.drivers.map((driver) => (
+              <View key={driver} style={styles.driverChip}>
+                <Text style={styles.driverText}>{driver}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      ) : null}
+
       <View style={styles.focusList}>
         {forecast.focusAreas.map((item) => (
           <View key={item.label} style={styles.focusRow}>
@@ -122,6 +135,34 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontSize: 14,
     lineHeight: 22,
+  },
+  driverWrap: {
+    gap: SPACING.xs,
+  },
+  driverLabel: {
+    color: COLORS.textMuted,
+    fontSize: 10,
+    fontFamily: FONTS.accent,
+    letterSpacing: 0.8,
+  },
+  driverList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.xs,
+  },
+  driverChip: {
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: 'rgba(255,255,255,0.54)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  driverText: {
+    color: COLORS.textPrimary,
+    fontSize: 11,
+    fontFamily: FONTS.accent,
+    letterSpacing: 0.3,
   },
   focusList: {
     gap: SPACING.sm,

@@ -6,17 +6,23 @@ import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
 import { ExplainPanel } from '../../src/components/ui/ExplainPanel';
 import { ForecastPanel } from '../../src/components/ui/ForecastPanel';
 import { GradientCard } from '../../src/components/ui/GradientCard';
+import { LifeRoadmapPanel } from '../../src/components/ui/LifeRoadmapPanel';
+import { PredictionFeedbackCard } from '../../src/components/ui/PredictionFeedbackCard';
 import { CosmicButton } from '../../src/components/ui/CosmicButton';
 import { ProgressRing } from '../../src/components/ui/ProgressRing';
 import { SectionTabs } from '../../src/components/ui/SectionTabs';
 import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../../src/constants/theme';
 import { generatePeriodForecast, type ForecastWindow } from '../../src/content/forecastTemplates';
+import { generateLifeRoadmap } from '../../src/content/lifeRoadmap';
 import { getReadingExplainers } from '../../src/content/readingExplainers';
 import { generateDailyReading } from '../../src/content/dailyTemplates';
+import { buildForecastProfile } from '../../src/content/predictionSignals';
 import { useUserStore } from '../../src/store/userStore';
 import { useReadingStore } from '../../src/store/readingStore';
 import { getCosmicDNASummary } from '../../src/engines/unified';
 import { getDateKey } from '../../src/utils/dateUtils';
+
+const READING_VERSION = 3;
 
 export default function UnifiedReadingScreen() {
   const router = useRouter();
@@ -24,26 +30,33 @@ export default function UnifiedReadingScreen() {
   const getCachedReading = useReadingStore((s) => s.getCachedReading);
   const [forecastWindow, setForecastWindow] = useState<ForecastWindow>('month');
   const [activeSection, setActiveSection] = useState('summary');
+  const forecastProfile = useMemo(() => (user ? buildForecastProfile(user) : null), [user]);
 
-  if (!user?.western || !user?.vedic || !user?.chinese) return null;
+  if (!user || !forecastProfile?.western || !forecastProfile.vedic || !forecastProfile.chinese) return null;
 
-  const western = user.western;
-  const vedic = user.vedic;
-  const chinese = user.chinese;
+  const western = forecastProfile.western;
+  const vedic = forecastProfile.vedic;
+  const chinese = forecastProfile.chinese;
   const currentDashaPlanet = vedic.currentDasha?.planet ?? vedic.dashas[0]?.planet ?? 'Sun';
-  const profile = { western, vedic, chinese, kp: user.kp };
+  const profile = { western, vedic, chinese, kp: forecastProfile.kp };
   const cosmicDNA = getCosmicDNASummary(profile);
   const today = new Date();
   const todayKey = getDateKey(today);
   const reading = useMemo(
-    () => getCachedReading(todayKey) ?? generateDailyReading(today, western.sun, vedic.rashi, chinese.animal),
-    [chinese.animal, getCachedReading, today, todayKey, vedic.rashi, western.sun]
+    () => {
+      const cached = getCachedReading(todayKey);
+      if (cached?.unified?.shareText && cached.references?.length && (cached.version ?? 0) >= READING_VERSION) return cached;
+      return generateDailyReading(today, profile);
+    },
+    [getCachedReading, profile, today, todayKey]
   );
   const forecast = useMemo(() => generatePeriodForecast(today, profile, forecastWindow), [forecastWindow, profile, today]);
+  const roadmap = useMemo(() => generateLifeRoadmap(today, profile), [profile, today]);
   const explainItems = useMemo(() => getReadingExplainers(user, reading), [reading, user]);
   const tabs = [
     { key: 'summary', label: 'Summary' },
     { key: 'timing', label: 'Timing' },
+    { key: 'roadmap', label: 'Roadmap' },
     { key: 'explore', label: 'Explore' },
   ];
 
@@ -94,21 +107,21 @@ export default function UnifiedReadingScreen() {
             <GradientCard>
               <Text style={styles.cardTitle}>{'\u{2728}'} Cross-System Insight</Text>
               <Text style={styles.insightText}>
-                Your {user.western.sun} Sun energy combines beautifully with your {user.vedic.rashi} Rashi
-                and {user.chinese.element} {user.chinese.animal} nature. This unique blend gives you:
+                Your {western.sun} Sun energy combines beautifully with your {vedic.rashi} Rashi
+                and {chinese.element} {chinese.animal} nature. This unique blend gives you:
               </Text>
               <View style={styles.blendList}>
                 <BlendItem
                   emoji={'\u{1F525}'}
-                  text={`${user.western.element} element drive from the Western tradition - passion and initiative`}
+                  text={`${western.element} element drive from the Western tradition - passion and initiative`}
                 />
                 <BlendItem
                   emoji={'\u{1F549}\uFE0F'}
-                  text={`${user.vedic.nakshatra} Nakshatra sensitivity - deep intuition and spiritual awareness`}
+                  text={`${vedic.nakshatra} Nakshatra sensitivity - deep intuition and spiritual awareness`}
                 />
                 <BlendItem
                   emoji={'\u{1F409}'}
-                  text={`${user.chinese.animal}'s ${user.chinese.yinYang} wisdom - ${user.chinese.yinYang === 'Yin' ? 'receptive strength and inner power' : 'dynamic energy and outward expression'}`}
+                  text={`${chinese.animal}'s ${chinese.yinYang} wisdom - ${chinese.yinYang === 'Yin' ? 'receptive strength and inner power' : 'dynamic energy and outward expression'}`}
                 />
               </View>
             </GradientCard>
@@ -130,7 +143,7 @@ export default function UnifiedReadingScreen() {
               <Text style={styles.cardTitle}>{'\u{23F0}'} Life Timing (Vedic + KP Combined)</Text>
               <Text style={styles.insightText}>
                 Your current {currentDashaPlanet} Mahadasha period
-                {user.kp ? ', combined with KP sub-lord analysis,' : ''}
+                {forecastProfile.kp ? ', combined with KP sub-lord analysis,' : ''}
                 suggests this is a powerful time for:
               </Text>
               <View style={styles.timingList}>
@@ -147,6 +160,13 @@ export default function UnifiedReadingScreen() {
               items={explainItems}
               intro="Open any lens below when you want to understand why that system is speaking so loudly right now."
             />
+          </>
+        )}
+
+        {activeSection === 'roadmap' && roadmap && (
+          <>
+            <LifeRoadmapPanel roadmap={roadmap} />
+            <PredictionFeedbackCard window="life" title="Rate the long-range AI roadmap" />
           </>
         )}
 

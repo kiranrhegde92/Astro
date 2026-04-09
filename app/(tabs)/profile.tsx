@@ -16,7 +16,9 @@ import { useReadingStore } from '../../src/store/readingStore';
 import { useUserStore } from '../../src/store/userStore';
 import { useSettingsStore } from '../../src/store/settingsStore';
 import { useCosmicAlert } from '../../src/components/ui/CosmicAlert';
+import { exportMyPredictionDataset } from '../../src/services/functionsService';
 import i18n from '../../src/i18n';
+import { buildProfilesFromServerChart } from '../../src/utils/serverChartAdapter';
 
 const LANGUAGES = [
   { code: 'en', name: 'English' },
@@ -48,6 +50,7 @@ export default function ProfileScreen() {
   const [currentLang, setCurrentLang] = useState(i18n.language?.split('-')[0] ?? 'en');
   const [recalculating, setRecalculating] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [exportingDataset, setExportingDataset] = useState(false);
 
   const cosmicDNA = useMemo(() => {
     if (!user?.western || !user?.vedic || !user?.chinese) return '';
@@ -82,13 +85,15 @@ export default function ProfileScreen() {
       try {
         const result = await calculateUserChart({ birthDate: birthDateStr, birthTime: birthTimeStr, birthPlace });
         const c = result.chart;
-        if (c.western) setWesternProfile({ sun: c.western.sun, moon: c.western.moon, rising: c.western.rising, element: c.western.dominantElement, modality: c.western.dominantModality, planets: [], houses: c.western.houses });
-        if (c.vedic) setVedicProfile({ rashi: c.vedic.rashi, nakshatra: c.vedic.nakshatra, nakshatraPada: c.vedic.nakshatraPada, moonSign: c.vedic.rashi, dashas: [], currentDasha: { planet: c.vedic.currentDasha?.planet, startDate: new Date(c.vedic.currentDasha?.startDate), endDate: new Date(c.vedic.currentDasha?.endDate) }, remedies: [] });
-        if (c.chinese) setChineseProfile({ animal: c.chinese.animal, element: c.chinese.element, yinYang: c.chinese.yinYang, pillars: undefined, luckyNumbers: [], luckyColors: c.chinese.luckyColors, compatibleAnimals: [], incompatibleAnimals: [] });
-        showAlert('Chart updated', `Rashi: ${c.vedic?.rashi ?? '—'}  ·  Nakshatra: ${c.vedic?.nakshatra ?? '—'}`);
+        const mappedProfiles = buildProfilesFromServerChart(c);
+        if (mappedProfiles.western) setWesternProfile(mappedProfiles.western);
+        if (mappedProfiles.vedic) setVedicProfile(mappedProfiles.vedic);
+        if (mappedProfiles.chinese) setChineseProfile(mappedProfiles.chinese);
+        if (mappedProfiles.kp) setKPProfile(mappedProfiles.kp);
+        showAlert('Chart updated', `Rashi: ${c.vedic?.rashi ?? '-'} | Nakshatra: ${c.vedic?.nakshatra ?? '-'}`);
         return;
       } catch {
-        // Cloud failed — fall through to local
+        // Cloud failed, fall through to local
       }
 
       // Local engine fallback (uses birth time for accurate Rashi)
@@ -97,7 +102,7 @@ export default function ProfileScreen() {
       if (local.vedic)   setVedicProfile(local.vedic);
       if (local.chinese) setChineseProfile(local.chinese);
       if (local.kp)      setKPProfile(local.kp);
-      showAlert('Chart recalculated', `Rashi: ${local.vedic?.rashi ?? '—'}  ·  Nakshatra: ${local.vedic?.nakshatra ?? '—'}`);
+      showAlert('Chart recalculated', `Rashi: ${local.vedic?.rashi ?? '-'} | Nakshatra: ${local.vedic?.nakshatra ?? '-'}`);
     } catch (err) {
       showAlert('Recalculation failed', 'Could not recalculate your chart. Please try again.');
     } finally {
@@ -152,6 +157,21 @@ export default function ProfileScreen() {
         },
       ]
     );
+  };
+
+  const handleExportDataset = async () => {
+    setExportingDataset(true);
+    try {
+      const result = await exportMyPredictionDataset(250);
+      showAlert(
+        'Dataset summary',
+        `Runs: ${result.summary.totalRuns}\nLabeled: ${result.summary.labeledRuns}\nLabel rate: ${Math.round(result.summary.labelRate * 100)}%`
+      );
+    } catch {
+      showAlert('Export failed', 'Could not load your prediction dataset summary right now.');
+    } finally {
+      setExportingDataset(false);
+    }
   };
 
   return (
@@ -285,19 +305,34 @@ export default function ProfileScreen() {
               ? <ActivityIndicator size="small" color={COLORS.vedic} />
               : <Ionicons name="refresh-outline" size={20} color={COLORS.vedic} />
             }
-            <Text style={styles.recalcText}>{recalculating ? 'Recalculating…' : 'Recalculate my chart'}</Text>
+            <Text style={styles.recalcText}>{recalculating ? 'Recalculating...' : 'Recalculate my chart'}</Text>
           </TouchableOpacity>
         </AnimatedCard>
 
         {/* ── Logout ────────────────────────────────────────────────────── */}
         <AnimatedCard index={6}>
+          <TouchableOpacity
+            style={styles.datasetBtn}
+            onPress={handleExportDataset}
+            activeOpacity={0.8}
+            disabled={exportingDataset}
+          >
+            {exportingDataset
+              ? <ActivityIndicator size="small" color={COLORS.iris} />
+              : <Ionicons name="analytics-outline" size={20} color={COLORS.iris} />
+            }
+            <Text style={styles.datasetText}>{exportingDataset ? 'Loading dataset...' : 'AI dataset summary'}</Text>
+          </TouchableOpacity>
+        </AnimatedCard>
+
+        <AnimatedCard index={7}>
           <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
             <Ionicons name="log-out-outline" size={20} color={COLORS.coral} />
             <Text style={styles.logoutText}>Log out</Text>
           </TouchableOpacity>
         </AnimatedCard>
 
-        <AnimatedCard index={7}>
+        <AnimatedCard index={8}>
           <TouchableOpacity
             style={[styles.deleteBtn, deletingAccount && styles.deleteBtnDisabled]}
             onPress={handleDeleteAccount}
@@ -445,6 +480,22 @@ const styles = StyleSheet.create({
   },
   recalcText: {
     color: COLORS.vedic,
+    fontSize: 17,
+    fontFamily: FONTS.heading,
+  },
+  datasetBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+    paddingVertical: 16,
+    borderRadius: BORDER_RADIUS.xl,
+    borderWidth: 1,
+    borderColor: `${COLORS.iris}44`,
+    backgroundColor: `${COLORS.iris}10`,
+  },
+  datasetText: {
+    color: COLORS.iris,
     fontSize: 17,
     fontFamily: FONTS.heading,
   },

@@ -12,6 +12,7 @@ import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import type { UserProfile } from '../types/user';
 import { generateDailyReading } from '../content/dailyTemplates';
+import { buildForecastProfile } from '../content/predictionSignals';
 import { registerPushToken } from './notificationTokenHelper';
 
 export const IS_EXPO_GO = Constants.appOwnership === 'expo';
@@ -42,7 +43,10 @@ function getPersonalizedMessage(user?: UserProfile | null): { title: string; bod
   if (!user?.western?.sun || !user?.vedic?.rashi || !user?.chinese?.animal) {
     return getDailyMessage();
   }
-  const reading = generateDailyReading(new Date(), user.western.sun, user.vedic.rashi, user.chinese.animal);
+  const profile = buildForecastProfile(user);
+  const reading = profile
+    ? generateDailyReading(new Date(), profile)
+    : generateDailyReading(new Date(), user.western.sun, user.vedic.rashi, user.chinese.animal);
   const firstName = user.name.split(' ')[0];
   return {
     title: `Good morning, ${firstName}`,

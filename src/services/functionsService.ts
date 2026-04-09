@@ -1,5 +1,11 @@
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import app from './firebase';
+import type {
+  PredictionDatasetRow,
+  PredictionFeedbackRecord,
+  PredictionModelSnapshot,
+  PredictionWindow,
+} from '../types/prediction';
 
 const functions = getFunctions(app, 'us-central1');
 
@@ -50,4 +56,38 @@ export async function registerPushToken(token: string): Promise<void> {
 export async function deleteMyAccount(): Promise<void> {
   const fn = httpsCallable(functions, 'deleteMyAccount');
   await fn({});
+}
+
+export async function fetchPredictionModelSnapshot(
+  window: PredictionWindow
+): Promise<{ runId: string; snapshot: PredictionModelSnapshot; feedback: PredictionFeedbackRecord | null; cached: boolean }> {
+  const fn = httpsCallable<{ window: PredictionWindow }, { runId: string; snapshot: PredictionModelSnapshot; feedback: PredictionFeedbackRecord | null; cached: boolean }>(
+    functions,
+    'getPredictionModelSnapshot'
+  );
+  const result = await fn({ window });
+  return result.data;
+}
+
+export async function submitPredictionFeedback(input: {
+  runId: string;
+  verdict: PredictionFeedbackRecord['verdict'];
+  resonance: number;
+  note?: string;
+}): Promise<{ success: boolean; feedback: PredictionFeedbackRecord }> {
+  const fn = httpsCallable<typeof input, { success: boolean; feedback: PredictionFeedbackRecord }>(functions, 'savePredictionFeedback');
+  const result = await fn(input);
+  return result.data;
+}
+
+export async function exportMyPredictionDataset(limit = 250): Promise<{
+  summary: { totalRuns: number; labeledRuns: number; labelRate: number };
+  rows: PredictionDatasetRow[];
+}> {
+  const fn = httpsCallable<{ limit: number }, { summary: { totalRuns: number; labeledRuns: number; labelRate: number }; rows: PredictionDatasetRow[] }>(
+    functions,
+    'exportMyPredictionDataset'
+  );
+  const result = await fn({ limit });
+  return result.data;
 }

@@ -7,8 +7,9 @@ import { useConnectionsStore } from './connectionsStore';
 import { useJournalStore } from './journalStore';
 import { useReadingStore } from './readingStore';
 import { useSettingsStore } from './settingsStore';
-import { getUserProfile } from '../services/firestoreService';
+import { getChart, getUserProfile } from '../services/firestoreService';
 import { useUserStore } from './userStore';
+import { buildProfilesFromServerChart } from '../utils/serverChartAdapter';
 
 const IS_EXPO_GO = Constants.appOwnership === 'expo';
 
@@ -69,9 +70,17 @@ export const useAuthStore = create<AuthState>((set) => ({
 
         // Load Firestore profile
         try {
-          const profile = await getUserProfile(user.uid);
+          const [profile, chart] = await Promise.all([
+            getUserProfile(user.uid),
+            getChart(user.uid).catch(() => null),
+          ]);
+
           if (profile) {
-            useUserStore.getState().setUser({ ...profile, id: user.uid });
+            useUserStore.getState().setUser({
+              ...profile,
+              ...buildProfilesFromServerChart(chart),
+              id: user.uid,
+            } as any);
           } else if (!hasMatchingLocalUser) {
             useUserStore.getState().setUser(buildPendingProfile(user) as any);
           }

@@ -8,13 +8,16 @@ import { ExplainPanel } from '../../src/components/ui/ExplainPanel';
 import { ForecastPanel } from '../../src/components/ui/ForecastPanel';
 import { GradientCard } from '../../src/components/ui/GradientCard';
 import { OrbIcon } from '../../src/components/ui/OrbIcon';
+import { PredictionFeedbackCard } from '../../src/components/ui/PredictionFeedbackCard';
 import { AnimatedCard } from '../../src/components/ui/AnimatedScreen';
 import { SectionTabs } from '../../src/components/ui/SectionTabs';
 import { StarField } from '../../src/components/ui/StarField';
 import { BORDER_RADIUS, COLORS, FONTS, SHADOWS, SPACING } from '../../src/constants/theme';
 import { generatePeriodForecast, type ForecastWindow } from '../../src/content/forecastTemplates';
+import { generateLifeRoadmap } from '../../src/content/lifeRoadmap';
 import { getReadingExplainers } from '../../src/content/readingExplainers';
 import { generateDailyReading } from '../../src/content/dailyTemplates';
+import { buildForecastProfile } from '../../src/content/predictionSignals';
 import { fetchDailyReading } from '../../src/services/functionsService';
 import { useJournalStore } from '../../src/store/journalStore';
 import { useReadingStore } from '../../src/store/readingStore';
@@ -22,11 +25,27 @@ import { useUserStore } from '../../src/store/userStore';
 import { getDateKey } from '../../src/utils/dateUtils';
 import { normalizeUserProfile } from '../../src/utils/normalizeUserProfile';
 
+const READING_VERSION = 3;
+
 function getGreeting(date: Date) {
   const hour = date.getHours();
   if (hour < 12) return 'Good morning';
   if (hour < 18) return 'Good afternoon';
   return 'Good evening';
+}
+
+function firstSentence(text?: string, fallback = '') {
+  if (!text) return fallback;
+  const normalized = text.replace(/\s+/g, ' ').trim();
+  const match = normalized.match(/.*?[.!?](?:\s|$)/);
+  return (match?.[0] ?? normalized).trim();
+}
+
+function compactText(text?: string, maxLength = 120) {
+  const normalized = (text ?? '').replace(/\s+/g, ' ').trim();
+  if (!normalized) return '';
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, maxLength - 3).trimEnd()}...`;
 }
 
 type SystemPreview = {
@@ -75,11 +94,11 @@ function SystemStrip({
         <View style={styles.systemTop}>
           <View style={styles.systemHeading}>
             <OrbIcon icon={icon} size={38} accentColor={accent} secondaryColor={secondary} />
-            <Text style={styles.systemLabel}>{label}</Text>
+        <Text style={styles.systemLabel}>{label}</Text>
           </View>
-          <Text style={styles.systemArrow}>Read</Text>
+          <Text style={styles.systemArrow}>Open</Text>
         </View>
-        <Text style={styles.systemText}>{text}</Text>
+        <Text style={styles.systemText} numberOfLines={3}>{text}</Text>
       </LinearGradient>
     </TouchableOpacity>
   );
@@ -99,12 +118,13 @@ export default function TodayScreen() {
   const today = useMemo(() => new Date(), []);
   const todayKey = getDateKey(today);
   const safeUser = useMemo(() => (user ? normalizeUserProfile(user) : null), [user]);
+  const forecastProfile = useMemo(() => (safeUser ? buildForecastProfile(safeUser) : null), [safeUser]);
 
   useEffect(() => {
-    if (!user?.western?.sun || !user?.vedic?.rashi || !user?.chinese?.animal) return;
+    if (!forecastProfile?.western?.sun || !forecastProfile?.vedic?.rashi || !forecastProfile?.chinese?.animal) return;
 
     const cached = getCachedReading(todayKey);
-    if (cached) {
+    if (cached?.unified?.shareText && cached.references?.length && (cached.version ?? 0) >= READING_VERSION) {
       setTodayReading(cached);
       incrementStreak().catch(() => {});
       return;
@@ -115,13 +135,18 @@ export default function TodayScreen() {
       .then(({ reading }) => {
         // Merge cloud reading into our local format
         const merged = {
+          version: typeof reading.version === 'number' ? reading.version : READING_VERSION,
           date: todayKey,
           western: reading.western,
           vedic: reading.vedic,
           chinese: reading.chinese,
           kp: reading.kp,
-          unified: reading.unified,
-          references: [],
+          unified: {
+            shareText: reading.unified?.shareText ?? reading.unified?.cosmicVibe ?? "Today's reading is ready.",
+            ...reading.unified,
+          },
+          references: reading.references ?? [],
+          positivityScore: reading.positivityScore ?? 0.78,
         };
         setTodayReading(merged as any);
         incrementStreak().catch(() => {});
@@ -129,7 +154,7 @@ export default function TodayScreen() {
       .catch(() => {
         // Firebase not configured or offline — fall back to local templates
         try {
-          const generated = generateDailyReading(today, user.western!.sun, user.vedic!.rashi, user.chinese!.animal);
+          const generated = generateDailyReading(today, forecastProfile);
           setTodayReading(generated);
           incrementStreak().catch(() => {});
         } catch {
@@ -143,37 +168,53 @@ export default function TodayScreen() {
     setTodayReading,
     today,
     todayKey,
-    user?.chinese?.animal,
-    user?.vedic?.rashi,
-    user?.western?.sun,
+    forecastProfile,
   ]);
 
   const reading = (() => {
-    if (!user?.western?.sun || !user?.vedic?.rashi || !user?.chinese?.animal) return null;
-    if (todayReading?.date === todayKey) return todayReading;
+    if (!forecastProfile?.western?.sun || !forecastProfile?.vedic?.rashi || !forecastProfile?.chinese?.animal) return null;
+    if (todayReading?.date === todayKey && (todayReading.version ?? 0) >= READING_VERSION) return todayReading;
     return null; // loading — useEffect will populate todayReading
   })();
 
   const greeting = useMemo(() => getGreeting(today), [today]);
   const firstName = safeUser?.name?.split(' ')[0] ?? user?.name?.split(' ')[0] ?? 'you';
   const journalEntry = getEntryForDate(todayKey);
+  const alignmentScore = Math.round((reading?.positivityScore ?? 0.78) * 100);
   const profile = useMemo(() => {
-    if (!safeUser?.western || !safeUser?.vedic || !safeUser?.chinese) return null;
+    if (!forecastProfile?.western || !forecastProfile?.vedic || !forecastProfile?.chinese) return null;
     return {
-      western: safeUser.western,
-      vedic: safeUser.vedic,
-      chinese: safeUser.chinese,
-      kp: safeUser.kp,
+      western: forecastProfile.western,
+      vedic: forecastProfile.vedic,
+      chinese: forecastProfile.chinese,
+      kp: forecastProfile.kp,
     };
-  }, [safeUser]);
+  }, [forecastProfile]);
   const forecast = useMemo(
     () => (profile ? generatePeriodForecast(today, profile, forecastWindow) : null),
     [forecastWindow, profile, today]
   );
+  const roadmap = useMemo(() => (profile ? generateLifeRoadmap(today, profile) : null), [profile, today]);
   const explainItems = useMemo(() => {
     if (!safeUser || !reading) return [];
     return getReadingExplainers(safeUser, reading);
   }, [reading, safeUser]);
+  const heroHeadline = useMemo(
+    () => firstSentence(reading?.unified?.affirmation, `${greeting}, ${firstName}`),
+    [firstName, greeting, reading?.unified?.affirmation]
+  );
+  const heroBody = useMemo(
+    () => compactText(reading?.unified?.cosmicVibe, 182),
+    [reading?.unified?.cosmicVibe]
+  );
+  const westernFocus = useMemo(
+    () => compactText(reading?.western?.overall, 108),
+    [reading?.western?.overall]
+  );
+  const timingFocus = useMemo(
+    () => compactText(reading?.kp?.eventTiming ?? reading?.vedic?.dasha, 108),
+    [reading?.kp?.eventTiming, reading?.vedic?.dasha]
+  );
 
   if (!user || !reading) {
     return (
@@ -221,14 +262,39 @@ export default function TodayScreen() {
             <AnimatedCard index={0}>
               <View style={styles.posterWrap}>
                 <LinearGradient colors={COLORS.gradientInk} style={styles.poster}>
+                  <View style={styles.posterTopRow}>
+                    <View style={styles.posterBadge}>
+                      <Text style={styles.posterBadgeText}>TODAY</Text>
+                    </View>
+                    <View style={styles.heroScorePill}>
+                      <Text style={styles.heroScoreText}>{alignmentScore}% aligned</Text>
+                    </View>
+                  </View>
                   <Text style={styles.posterKicker}>{greeting}, {firstName}</Text>
-                  <Text style={styles.posterTitle}>{reading.unified.cosmicVibe}</Text>
-                  <Text style={styles.posterBody}>{reading.unified.shareText}</Text>
+                  <Text style={styles.posterTitle}>{heroHeadline}</Text>
+                  <Text style={styles.posterBody}>{heroBody}</Text>
 
-                  <View style={styles.posterSignature}>
-                    <Text style={styles.posterSignatureText}>
-                      {user.western?.sun} sun - {user.vedic?.rashi} rashi - {user.chinese?.animal} year
-                    </Text>
+                  <View style={styles.posterInsightGrid}>
+                    <View style={styles.posterInsightCard}>
+                      <Text style={styles.posterInsightLabel}>Focus</Text>
+                      <Text style={styles.posterInsightText}>{westernFocus}</Text>
+                    </View>
+                    <View style={styles.posterInsightCard}>
+                      <Text style={styles.posterInsightLabel}>Timing</Text>
+                      <Text style={styles.posterInsightText}>{timingFocus}</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.posterSignatureRow}>
+                    {[
+                      `${profile?.western?.sun} Sun`,
+                      `${profile?.vedic?.rashi} Rashi`,
+                      `${profile?.chinese?.animal} Year`,
+                    ].map((item) => (
+                      <View key={item} style={styles.posterSignatureChip}>
+                        <Text style={styles.posterSignatureText}>{item}</Text>
+                      </View>
+                    ))}
                   </View>
 
                   {user.activeSystems.length >= 2 ? (
@@ -248,22 +314,24 @@ export default function TodayScreen() {
               <LinearGradient colors={COLORS.gradientInkSoft} style={styles.signalBoard}>
                 <SignalCell label="Day streak" value={user.streak} />
                 <View style={styles.signalDivider} />
+                <SignalCell label="Alignment" value={`${alignmentScore}%`} />
+                <View style={styles.signalDivider} />
                 <SignalCell label="Cosmic points" value={user.cosmicPoints} />
               </LinearGradient>
             </AnimatedCard>
 
             <AnimatedCard index={2}>
               <GradientCard accentColor={COLORS.gold} colors={COLORS.gradientDawn}>
-                <Text style={styles.panelLabel}>Today's pull</Text>
-                <Text style={styles.pullQuote}>"{reading.unified.affirmation}"</Text>
-                <Text style={styles.pullBody}>Use this as your anchor before the day starts moving too quickly.</Text>
+                <Text style={styles.panelLabel}>Anchor</Text>
+                <Text style={styles.pullQuote}>"{compactText(reading.unified.affirmation, 110)}"</Text>
+                <Text style={styles.pullBody}>Keep this close when the day speeds up. It is the shortest useful version of your reading.</Text>
               </GradientCard>
             </AnimatedCard>
 
             <AnimatedCard index={3}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Each lens for today</Text>
-                <Text style={styles.sectionCopy}>Open the systems one by one when you want a deeper read.</Text>
+                <Text style={styles.sectionTitle}>Read each system</Text>
+                <Text style={styles.sectionCopy}>Every lens has its own emphasis today. Open the one that matches the choice you need to make.</Text>
               </View>
 
               <View style={styles.systemList}>
@@ -287,6 +355,10 @@ export default function TodayScreen() {
                 <CosmicButton title={journalEntry ? 'Open journal + archive' : 'Write tonight\'s note'} onPress={() => router.push('/(tabs)/cosmos')} variant="secondary" />
               </View>
             </AnimatedCard>
+
+            <AnimatedCard index={5}>
+              <PredictionFeedbackCard window="today" title="Rate today's AI score layer" />
+            </AnimatedCard>
           </>
         )}
 
@@ -301,6 +373,27 @@ export default function TodayScreen() {
             <AnimatedCard index={1}>
               <ExplainPanel items={explainItems} />
             </AnimatedCard>
+
+            <AnimatedCard index={2}>
+              <PredictionFeedbackCard
+                window={forecastWindow === 'week' ? 'week' : 'month'}
+                title={forecastWindow === 'week' ? 'Rate the 7-day AI outlook' : 'Rate the 30-day AI outlook'}
+              />
+            </AnimatedCard>
+
+            {roadmap ? (
+              <AnimatedCard index={3}>
+                <GradientCard accentColor={COLORS.vedic}>
+                  <Text style={styles.panelLabel}>Long-range chapter</Text>
+                  <Text style={styles.roadmapTitle}>{roadmap.currentChapter.title}</Text>
+                  <Text style={styles.roadmapRange}>{roadmap.currentChapter.range}</Text>
+                  <Text style={styles.roadmapBody}>{roadmap.currentChapter.guidance}</Text>
+                  <View style={styles.roadmapButtonWrap}>
+                    <CosmicButton title="Open life roadmap" onPress={() => router.push('/reading/unified')} variant="outline" />
+                  </View>
+                </GradientCard>
+              </AnimatedCard>
+            ) : null}
           </>
         )}
 
@@ -350,19 +443,56 @@ const styles = StyleSheet.create({
   },
   posterWrap: {
     position: 'relative',
-    minHeight: 350,
+    minHeight: 410,
   },
   poster: {
-    minHeight: 320,
+    minHeight: 392,
     borderRadius: BORDER_RADIUS.xxl,
     padding: SPACING.lg,
-    paddingTop: SPACING.xl,
+    paddingTop: SPACING.lg,
+    gap: SPACING.md,
     overflow: 'hidden',
   },
   posterOrb: {
     position: 'absolute',
-    right: -6,
-    top: 92,
+    right: -18,
+    top: 84,
+    opacity: 0.7,
+  },
+  posterTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: SPACING.sm,
+  },
+  posterBadge: {
+    alignSelf: 'flex-start',
+    borderRadius: BORDER_RADIUS.full,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+  },
+  posterBadgeText: {
+    color: '#fffaf1',
+    fontSize: 10,
+    fontFamily: FONTS.accent,
+    letterSpacing: 1,
+  },
+  heroScorePill: {
+    borderRadius: BORDER_RADIUS.full,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(255,190,110,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,190,110,0.22)',
+  },
+  heroScoreText: {
+    color: '#ffdba0',
+    fontSize: 11,
+    fontFamily: FONTS.accent,
+    letterSpacing: 0.8,
   },
   posterKicker: {
     color: 'rgba(255,250,241,0.76)',
@@ -372,23 +502,49 @@ const styles = StyleSheet.create({
   },
   posterTitle: {
     color: '#fffaf1',
-    fontSize: 34,
-    lineHeight: 40,
+    fontSize: 28,
+    lineHeight: 34,
     fontFamily: FONTS.display,
-    letterSpacing: -0.7,
-    maxWidth: 230,
-    marginTop: SPACING.sm,
+    letterSpacing: -0.4,
+    maxWidth: 280,
   },
   posterBody: {
     color: 'rgba(255,250,241,0.82)',
-    fontSize: 15,
-    lineHeight: 23,
-    maxWidth: 230,
-    marginTop: SPACING.sm,
+    fontSize: 14,
+    lineHeight: 21,
+    maxWidth: 285,
   },
-  posterSignature: {
-    marginTop: SPACING.lg,
-    alignSelf: 'flex-start',
+  posterInsightGrid: {
+    gap: SPACING.sm,
+    marginTop: SPACING.xs,
+  },
+  posterInsightCard: {
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.md,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    gap: 4,
+    maxWidth: 285,
+  },
+  posterInsightLabel: {
+    color: 'rgba(255,250,241,0.60)',
+    fontSize: 10,
+    fontFamily: FONTS.accent,
+    letterSpacing: 0.9,
+  },
+  posterInsightText: {
+    color: '#fffaf1',
+    fontSize: 13,
+    lineHeight: 19,
+    fontFamily: FONTS.body,
+  },
+  posterSignatureRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+  },
+  posterSignatureChip: {
     borderRadius: BORDER_RADIUS.full,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -403,7 +559,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   posterButtonWrap: {
-    marginTop: SPACING.lg,
+    marginTop: SPACING.xs,
     maxWidth: 180,
   },
   signalBoard: {
@@ -427,8 +583,8 @@ const styles = StyleSheet.create({
   },
   signalValue: {
     color: '#fffaf1',
-    fontSize: 27,
-    lineHeight: 31,
+    fontSize: 24,
+    lineHeight: 28,
     fontFamily: FONTS.heading,
   },
   signalLabel: {
@@ -445,8 +601,8 @@ const styles = StyleSheet.create({
   },
   pullQuote: {
     color: COLORS.textPrimary,
-    fontSize: 30,
-    lineHeight: 36,
+    fontSize: 24,
+    lineHeight: 30,
     fontFamily: FONTS.display,
   },
   pullBody: {
@@ -454,13 +610,33 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 22,
   },
+  roadmapTitle: {
+    color: COLORS.textPrimary,
+    fontSize: 22,
+    lineHeight: 28,
+    fontFamily: FONTS.heading,
+  },
+  roadmapRange: {
+    color: COLORS.vedic,
+    fontSize: 12,
+    fontFamily: FONTS.accent,
+    letterSpacing: 0.8,
+  },
+  roadmapBody: {
+    color: COLORS.textSecondary,
+    fontSize: 14,
+    lineHeight: 22,
+  },
+  roadmapButtonWrap: {
+    marginTop: SPACING.sm,
+  },
   sectionHeader: {
     gap: SPACING.xs,
   },
   sectionTitle: {
     color: COLORS.textPrimary,
-    fontSize: 28,
-    lineHeight: 33,
+    fontSize: 24,
+    lineHeight: 29,
     fontFamily: FONTS.heading,
   },
   sectionCopy: {
@@ -493,13 +669,13 @@ const styles = StyleSheet.create({
   },
   systemLabel: {
     color: '#fffaf1',
-    fontSize: 20,
+    fontSize: 18,
     fontFamily: FONTS.heading,
   },
   systemText: {
     color: 'rgba(255,250,241,0.82)',
-    fontSize: 14,
-    lineHeight: 21,
+    fontSize: 13,
+    lineHeight: 19,
   },
   systemArrow: {
     color: 'rgba(255,250,241,0.62)',

@@ -33,7 +33,8 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.scheduledDailyReadings = exports.deleteMyAccount = exports.registerFCMToken = exports.calculateCompatibility = exports.getDailyReading = exports.calculateChart = void 0;
+exports.scheduledDailyReadings = exports.deleteMyAccount = exports.exportMyPredictionDataset = exports.savePredictionFeedback = exports.getPredictionModelSnapshot = exports.registerFCMToken = exports.calculateCompatibility = exports.getDailyReading = exports.calculateChart = void 0;
+exports.generateReadingFromTransits = generateReadingFromTransits;
 const admin = __importStar(require("firebase-admin"));
 const https_1 = require("firebase-functions/v2/https");
 const scheduler_1 = require("firebase-functions/v2/scheduler");
@@ -41,9 +42,13 @@ const western_1 = require("./calculations/western");
 const vedic_1 = require("./calculations/vedic");
 const chinese_1 = require("./calculations/chinese");
 const kp_1 = require("./calculations/kp");
+const dailyPrediction_1 = require("./dailyPrediction");
+const featureExtraction_1 = require("./ml/featureExtraction");
+const modelScoring_1 = require("./ml/modelScoring");
 const geocoding_1 = require("./utils/geocoding");
 admin.initializeApp();
 const db = admin.firestore();
+const DAILY_READING_VERSION = 3;
 // ─── calculateChart ───────────────────────────────────────────────────────────
 // Called from app after user enters birth details.
 // Returns full chart for all 4 systems + saves to Firestore.
@@ -115,8 +120,11 @@ exports.getDailyReading = (0, https_1.onCall)({ region: 'us-central1' }, async (
     const dateKey = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
     // Check cache first
     const cached = await db.doc(`dailyReadings/${uid}/dates/${dateKey}`).get();
-    if (cached.exists)
-        return { reading: cached.data(), cached: true };
+    if (cached.exists) {
+        const cachedReading = cached.data();
+        if ((cachedReading === null || cachedReading === void 0 ? void 0 : cachedReading.version) === DAILY_READING_VERSION)
+            return { reading: cachedReading, cached: true };
+    }
     // Get user's natal chart
     const chartSnap = await db.doc(`charts/${uid}`).get();
     if (!chartSnap.exists)
@@ -127,7 +135,7 @@ exports.getDailyReading = (0, https_1.onCall)({ region: 'us-central1' }, async (
     const { getAllPlanets } = await Promise.resolve().then(() => __importStar(require('./calculations/ephemeris')));
     const transits = getAllPlanets(now);
     // Generate reading text based on transits vs natal
-    const reading = generateReadingFromTransits(chart, transits, now);
+    const reading = (0, dailyPrediction_1.buildTransitReading)(chart, transits, now);
     await db.doc(`dailyReadings/${uid}/dates/${dateKey}`).set(Object.assign(Object.assign({}, reading), { generatedAt: admin.firestore.FieldValue.serverTimestamp() }));
     return { reading, cached: false };
 });
@@ -244,6 +252,122 @@ exports.registerFCMToken = (0, https_1.onCall)({ region: 'us-central1' }, async 
     });
     return { success: true };
 });
+const VALID_PREDICTION_WINDOWS = ['today', 'week', 'month', 'life'];
+const PREDICTION_MODEL_VERSION = '0.1.0';
+const PREDICTION_CHART_VERSION = 1;
+exports.getPredictionModelSnapshot = (0, https_1.onCall)({ region: 'us-central1' }, async (request) => {
+    var _a, _b, _c, _d, _e, _f, _g, _h;
+    if (!request.auth)
+        throw new https_1.HttpsError('unauthenticated', 'Sign in required.');
+    const requestedWindow = (_b = (_a = request.data) === null || _a === void 0 ? void 0 : _a.window) !== null && _b !== void 0 ? _b : 'today';
+    if (!VALID_PREDICTION_WINDOWS.includes(requestedWindow)) {
+        throw new https_1.HttpsError('invalid-argument', 'window must be one of today, week, month, life.');
+    }
+    const uid = request.auth.uid;
+    const now = new Date();
+    const dateKey = now.toISOString().split('T')[0];
+    const runId = `${requestedWindow}_${dateKey}`;
+    const runRef = db.doc(`predictionRuns/${uid}/runs/${runId}`);
+    const existing = await runRef.get();
+    if (existing.exists) {
+        const data = existing.data();
+        if (((_c = data === null || data === void 0 ? void 0 : data.snapshot) === null || _c === void 0 ? void 0 : _c.modelVersion) === PREDICTION_MODEL_VERSION) {
+            return { runId, snapshot: data.snapshot, feedback: (_d = data.feedback) !== null && _d !== void 0 ? _d : null, cached: true };
+        }
+    }
+    const chartSnap = await db.doc(`charts/${uid}`).get();
+    if (!chartSnap.exists)
+        throw new https_1.HttpsError('not-found', 'No chart found. Calculate chart first.');
+    const chart = chartSnap.data();
+    const { getAllPlanets } = await Promise.resolve().then(() => __importStar(require('./calculations/ephemeris')));
+    const transits = getAllPlanets(now);
+    const featureVector = (0, featureExtraction_1.extractPredictionFeatures)(chart, transits, now, requestedWindow);
+    const snapshot = (0, modelScoring_1.runPredictionModel)(featureVector);
+    const record = {
+        runId,
+        window: requestedWindow,
+        dateKey,
+        modelName: snapshot.modelName,
+        modelVersion: snapshot.modelVersion,
+        chartVersion: PREDICTION_CHART_VERSION,
+        featureVector,
+        snapshot,
+        feedback: (_e = existing.data()) === null || _e === void 0 ? void 0 : _e.feedback,
+    };
+    await runRef.set(Object.assign(Object.assign({}, record), { createdAt: existing.exists ? (_g = (_f = existing.data()) === null || _f === void 0 ? void 0 : _f.createdAt) !== null && _g !== void 0 ? _g : admin.firestore.FieldValue.serverTimestamp() : admin.firestore.FieldValue.serverTimestamp(), updatedAt: admin.firestore.FieldValue.serverTimestamp() }), { merge: true });
+    return { runId, snapshot, feedback: (_h = record.feedback) !== null && _h !== void 0 ? _h : null, cached: false };
+});
+exports.savePredictionFeedback = (0, https_1.onCall)({ region: 'us-central1' }, async (request) => {
+    if (!request.auth)
+        throw new https_1.HttpsError('unauthenticated', 'Sign in required.');
+    const { runId, verdict, resonance, note } = request.data;
+    if (!runId || !verdict || !['matched', 'mixed', 'missed'].includes(verdict)) {
+        throw new https_1.HttpsError('invalid-argument', 'runId and a valid verdict are required.');
+    }
+    const safeResonance = Number(resonance);
+    if (!Number.isFinite(safeResonance) || safeResonance < 1 || safeResonance > 5) {
+        throw new https_1.HttpsError('invalid-argument', 'resonance must be between 1 and 5.');
+    }
+    const runRef = db.doc(`predictionRuns/${request.auth.uid}/runs/${runId}`);
+    const runSnap = await runRef.get();
+    if (!runSnap.exists)
+        throw new https_1.HttpsError('not-found', 'Prediction run not found.');
+    const feedback = {
+        verdict,
+        resonance: safeResonance,
+        note: typeof note === 'string' && note.trim() ? note.trim().slice(0, 500) : undefined,
+        submittedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    await runRef.set({
+        feedback,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    return { success: true, feedback };
+});
+exports.exportMyPredictionDataset = (0, https_1.onCall)({ region: 'us-central1' }, async (request) => {
+    var _a, _b;
+    if (!request.auth)
+        throw new https_1.HttpsError('unauthenticated', 'Sign in required.');
+    const uid = request.auth.uid;
+    const limit = Math.max(1, Math.min(Number((_b = (_a = request.data) === null || _a === void 0 ? void 0 : _a.limit) !== null && _b !== void 0 ? _b : 250), 1000));
+    const runsSnap = await db.collection(`predictionRuns/${uid}/runs`).get();
+    const docs = runsSnap.docs
+        .map((doc) => (Object.assign({ id: doc.id }, doc.data())))
+        .sort((a, b) => {
+        var _a, _b, _c, _d, _e, _f, _g, _h;
+        const left = new Date(((_d = (_c = (_b = (_a = a.updatedAt) === null || _a === void 0 ? void 0 : _a.toDate) === null || _b === void 0 ? void 0 : _b.call(_a)) !== null && _c !== void 0 ? _c : a.updatedAt) !== null && _d !== void 0 ? _d : 0)).getTime();
+        const right = new Date(((_h = (_g = (_f = (_e = b.updatedAt) === null || _e === void 0 ? void 0 : _e.toDate) === null || _f === void 0 ? void 0 : _f.call(_e)) !== null && _g !== void 0 ? _g : b.updatedAt) !== null && _h !== void 0 ? _h : 0)).getTime();
+        return right - left;
+    })
+        .slice(0, limit);
+    const rows = docs.map((run) => {
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r;
+        return ({
+            runId: (_a = run.runId) !== null && _a !== void 0 ? _a : run.id,
+            window: run.window,
+            dateKey: run.dateKey,
+            modelName: run.modelName,
+            modelVersion: run.modelVersion,
+            topArea: (_c = (_b = run.snapshot) === null || _b === void 0 ? void 0 : _b.topArea) !== null && _c !== void 0 ? _c : null,
+            confidence: (_e = (_d = run.snapshot) === null || _d === void 0 ? void 0 : _d.confidence) !== null && _e !== void 0 ? _e : null,
+            scores: (_g = (_f = run.snapshot) === null || _f === void 0 ? void 0 : _f.scores) !== null && _g !== void 0 ? _g : null,
+            supportingSignals: (_j = (_h = run.snapshot) === null || _h === void 0 ? void 0 : _h.supportingSignals) !== null && _j !== void 0 ? _j : [],
+            featureVector: (_k = run.featureVector) !== null && _k !== void 0 ? _k : null,
+            feedbackVerdict: (_m = (_l = run.feedback) === null || _l === void 0 ? void 0 : _l.verdict) !== null && _m !== void 0 ? _m : null,
+            feedbackResonance: (_p = (_o = run.feedback) === null || _o === void 0 ? void 0 : _o.resonance) !== null && _p !== void 0 ? _p : null,
+            feedbackNote: (_r = (_q = run.feedback) === null || _q === void 0 ? void 0 : _q.note) !== null && _r !== void 0 ? _r : null,
+        });
+    });
+    const labeledRows = rows.filter((row) => row.feedbackVerdict);
+    return {
+        summary: {
+            totalRuns: rows.length,
+            labeledRuns: labeledRows.length,
+            labelRate: rows.length ? Number((labeledRows.length / rows.length).toFixed(3)) : 0,
+        },
+        rows,
+    };
+});
 // Deletes all server-side account data for the signed-in user, then removes auth.
 exports.deleteMyAccount = (0, https_1.onCall)({ region: 'us-central1' }, async (request) => {
     if (!request.auth)
@@ -252,16 +376,19 @@ exports.deleteMyAccount = (0, https_1.onCall)({ region: 'us-central1' }, async (
     const ownPartnerDocs = await db.collection(`connections/${uid}/partners`).get();
     const reversePartnerDocs = await db.collectionGroup('partners').get();
     const dailyReadingDocs = await db.collection(`dailyReadings/${uid}/dates`).get();
+    const predictionRunDocs = await db.collection(`predictionRuns/${uid}/runs`).get();
     const deletes = [
         ...ownPartnerDocs.docs.map((doc) => doc.ref.delete()),
         ...reversePartnerDocs.docs
             .filter((doc) => doc.id === uid)
             .map((doc) => doc.ref.delete()),
         ...dailyReadingDocs.docs.map((doc) => doc.ref.delete()),
+        ...predictionRunDocs.docs.map((doc) => doc.ref.delete()),
         db.doc(`users/${uid}`).delete().catch(() => { }),
         db.doc(`charts/${uid}`).delete().catch(() => { }),
         db.doc(`dailyReadings/${uid}`).delete().catch(() => { }),
         db.doc(`connections/${uid}`).delete().catch(() => { }),
+        db.doc(`predictionRuns/${uid}`).delete().catch(() => { }),
     ];
     await Promise.all(deletes);
     await admin.auth().deleteUser(uid);
@@ -272,25 +399,25 @@ exports.deleteMyAccount = (0, https_1.onCall)({ region: 'us-central1' }, async (
 exports.scheduledDailyReadings = (0, scheduler_1.onSchedule)({ schedule: '0 0 * * *', region: 'us-central1' }, async () => {
     const usersSnap = await db.collection('users').where('chartCalculated', '==', true).get();
     const promises = usersSnap.docs.map(async (doc) => {
-        var _a, _b, _c;
+        var _a, _b, _c, _d;
         try {
             const uid = doc.id;
             const dateKey = new Date().toISOString().split('T')[0];
             const cached = await db.doc(`dailyReadings/${uid}/dates/${dateKey}`).get();
-            if (cached.exists)
+            if (cached.exists && ((_a = cached.data()) === null || _a === void 0 ? void 0 : _a.version) === DAILY_READING_VERSION)
                 return;
             const chartSnap = await db.doc(`charts/${uid}`).get();
             if (!chartSnap.exists)
                 return;
             const { getAllPlanets } = await Promise.resolve().then(() => __importStar(require('./calculations/ephemeris')));
             const transits = getAllPlanets(new Date());
-            const reading = generateReadingFromTransits(chartSnap.data(), transits, new Date());
+            const reading = (0, dailyPrediction_1.buildTransitReading)(chartSnap.data(), transits, new Date());
             await db.doc(`dailyReadings/${uid}/dates/${dateKey}`).set(Object.assign(Object.assign({}, reading), { generatedAt: admin.firestore.FieldValue.serverTimestamp() }));
             // Send FCM push notification if token exists
             const fcmToken = doc.data().fcmToken;
             if (fcmToken) {
-                const firstName = ((_a = doc.data().name) !== null && _a !== void 0 ? _a : 'you').split(' ')[0];
-                const vibe = (_c = (_b = reading.unified) === null || _b === void 0 ? void 0 : _b.cosmicVibe) !== null && _c !== void 0 ? _c : 'Your cosmic reading is ready.';
+                const firstName = ((_b = doc.data().name) !== null && _b !== void 0 ? _b : 'you').split(' ')[0];
+                const vibe = (_d = (_c = reading.unified) === null || _c === void 0 ? void 0 : _c.cosmicVibe) !== null && _d !== void 0 ? _d : 'Your cosmic reading is ready.';
                 await admin.messaging().send({
                     token: fcmToken,
                     notification: {
