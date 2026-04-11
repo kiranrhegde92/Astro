@@ -81,11 +81,17 @@ export default function ShareScreen() {
           {archive.length > 0 ? (
             <View style={styles.archiveList}>
               {archive.map((reading) => (
-                <GradientCard key={reading.date} accentColor={COLORS.gold} style={styles.archiveItem}>
-                  <Text style={styles.archiveDate}>{formatDisplayDate(reading.date)}</Text>
-                  <Text style={styles.archiveVibe} numberOfLines={2}>{reading.unified.cosmicVibe}</Text>
-                  <Text style={styles.archiveAffirmation} numberOfLines={1}>"{reading.unified.affirmation}"</Text>
-                </GradientCard>
+                <TouchableOpacity
+                  key={reading.date}
+                  activeOpacity={0.84}
+                  onPress={() => router.push({ pathname: '/reading/archive', params: { date: reading.date } })}
+                >
+                  <GradientCard accentColor={COLORS.gold} style={styles.archiveItem}>
+                    <Text style={styles.archiveDate}>{formatDisplayDate(reading.date)}</Text>
+                    <Text style={styles.archiveVibe} numberOfLines={2}>{reading.unified.cosmicVibe}</Text>
+                    <Text style={styles.archiveAffirmation} numberOfLines={1}>"{reading.unified.affirmation}"</Text>
+                  </GradientCard>
+                </TouchableOpacity>
               ))}
             </View>
           ) : (

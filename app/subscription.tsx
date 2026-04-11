@@ -7,6 +7,7 @@ import { ScreenHeader } from '../src/components/ui/ScreenHeader';
 import { GradientCard } from '../src/components/ui/GradientCard';
 import { CosmicButton } from '../src/components/ui/CosmicButton';
 import { ResetScrollView } from '../src/components/ui/ResetScrollView';
+import { useCosmicAlert } from '../src/components/ui/CosmicAlert';
 import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../src/constants/theme';
 import { useUserStore } from '../src/store/userStore';
 
@@ -38,6 +39,7 @@ export default function SubscriptionScreen() {
   const upgradeSubscription = useUserStore((state) => state.upgradeSubscription);
   const [selectedPlan, setSelectedPlan] = useState<PlanType>('yearly');
   const [selectedTier, setSelectedTier] = useState<'premium' | 'family'>('premium');
+  const { showAlert, alertModal } = useCosmicAlert();
 
   if (!user) return null;
   const subscription = user.subscription;
@@ -47,6 +49,7 @@ export default function SubscriptionScreen() {
       router.back();
       return;
     }
+    // TODO: Replace with RevenueCat / Expo IAP integration for real payment processing
     if (subscription.status === 'trial') {
       upgradeSubscription(selectedTier);
     } else if (selectedPlan === 'yearly') {
@@ -58,7 +61,16 @@ export default function SubscriptionScreen() {
   };
 
   const handleRestore = () => {
-    // In production, this would call RevenueCat restore purchases
+    // TODO: In production, call RevenueCat.restorePurchases() here
+    showAlert('Restore purchases', 'No previous purchases found. If you believe this is an error, contact support.');
+  };
+
+  const handlePassPurchase = (passName: string, price: string) => {
+    // TODO: Replace with real IAP transaction via RevenueCat or Expo IAP
+    showAlert(
+      'Purchase',
+      `${passName} (${price}) will be available when in-app purchases are enabled. This feature is coming soon.`
+    );
   };
 
   const isAlreadyPremium = subscription.tier !== 'free' && subscription.status === 'active';
@@ -178,11 +190,11 @@ export default function SubscriptionScreen() {
           <Text style={styles.passDesc}>
             Don't want a subscription? Buy individual features:
           </Text>
-          <PassItem name="Single Deep Reading" price="$2.99" desc="Full natal chart for one system" />
-          <PassItem name="Compatibility Deep Dive" price="$3.99" desc="Detailed cross-system report" />
-          <PassItem name="Year-Ahead Forecast" price="$4.99" desc="Annual prediction all systems" />
-          <PassItem name="Remedy Pack" price="$1.99" desc="Personalized Vedic remedies" />
-          <PassItem name="Premium Card Pack" price="$0.99" desc="5 exclusive card designs" />
+          <PassItem name="Single Deep Reading" price="$2.99" desc="Full natal chart for one system" onBuy={() => handlePassPurchase('Single Deep Reading', '$2.99')} />
+          <PassItem name="Compatibility Deep Dive" price="$3.99" desc="Detailed cross-system report" onBuy={() => handlePassPurchase('Compatibility Deep Dive', '$3.99')} />
+          <PassItem name="Year-Ahead Forecast" price="$4.99" desc="Annual prediction all systems" onBuy={() => handlePassPurchase('Year-Ahead Forecast', '$4.99')} />
+          <PassItem name="Remedy Pack" price="$1.99" desc="Personalized Vedic remedies" onBuy={() => handlePassPurchase('Remedy Pack', '$1.99')} />
+          <PassItem name="Premium Card Pack" price="$0.99" desc="5 exclusive card designs" onBuy={() => handlePassPurchase('Premium Card Pack', '$0.99')} />
         </GradientCard>
 
         {/* Restore + Legal */}
@@ -198,18 +210,19 @@ export default function SubscriptionScreen() {
 
         <View style={styles.bottomPad} />
       </ResetScrollView>
+      {alertModal}
     </StarField>
   );
 }
 
-function PassItem({ name, price, desc }: { name: string; price: string; desc: string }) {
+function PassItem({ name, price, desc, onBuy }: { name: string; price: string; desc: string; onBuy?: () => void }) {
   return (
     <View style={styles.passItem}>
       <View style={styles.passInfo}>
         <Text style={styles.passName}>{name}</Text>
         <Text style={styles.passDesc2}>{desc}</Text>
       </View>
-      <TouchableOpacity style={styles.passBuyBtn}>
+      <TouchableOpacity style={styles.passBuyBtn} onPress={onBuy} activeOpacity={0.84}>
         <Text style={styles.passBuyText}>{price}</Text>
       </TouchableOpacity>
     </View>

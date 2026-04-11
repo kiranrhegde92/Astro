@@ -8,10 +8,10 @@ import { OrbIcon } from '../../src/components/ui/OrbIcon';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
 const TABS = [
-  { name: 'today', icon: 'sunny', label: 'Today', accent: COLORS.sunOrange, secondary: '#ffe9c7' },
-  { name: 'profile', icon: 'person', label: 'Profile', accent: COLORS.iris, secondary: '#ece6ff' },
-  { name: 'compatibility', icon: 'heart', label: 'Match', accent: COLORS.coral, secondary: '#ffe3da' },
-  { name: 'share', icon: 'share-social', label: 'Share', accent: COLORS.tide, secondary: '#e2f5ef' },
+  { name: 'today', icon: 'sunny', labelKey: 'tabs.today', accent: COLORS.sunOrange, secondary: '#ffe9c7' },
+  { name: 'profile', icon: 'person', labelKey: 'tabs.profile', accent: COLORS.iris, secondary: '#ece6ff' },
+  { name: 'compatibility', icon: 'heart', labelKey: 'tabs.compatibility', accent: COLORS.coral, secondary: '#ffe3da' },
+  { name: 'share', icon: 'share-social', labelKey: 'tabs.share', accent: COLORS.tide, secondary: '#e2f5ef' },
 ] as const;
 
 function TabItem({
@@ -48,6 +48,7 @@ function TabItem({
 
 function BottomBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const paddingBottom = Math.max(insets.bottom, Platform.OS === 'ios' ? 10 : 8);
 
   return (
@@ -61,7 +62,7 @@ function BottomBar({ state, navigation }: BottomTabBarProps) {
             <TabItem
               key={route.key}
               icon={tab.icon}
-              label={tab.label}
+              label={t(tab.labelKey)}
               accent={tab.accent}
               secondary={tab.secondary}
               focused={focused}
@@ -87,7 +88,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="today" options={{ title: t('tabs.today') }} />
       <Tabs.Screen name="profile" options={{ title: t('tabs.profile') }} />
       <Tabs.Screen name="compatibility" options={{ title: t('tabs.compatibility') }} />
-      <Tabs.Screen name="share" options={{ title: 'Share' }} />
+      <Tabs.Screen name="share" options={{ title: t('tabs.share') }} />
     </Tabs>
   );
 }

@@ -1,14 +1,16 @@
-import React, { useMemo, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { CosmicOrb } from '../../src/components/ui/CosmicOrb';
 import { GradientCard } from '../../src/components/ui/GradientCard';
+import { ProgressRing } from '../../src/components/ui/ProgressRing';
 import { StarField } from '../../src/components/ui/StarField';
 import { AnimatedCard } from '../../src/components/ui/AnimatedScreen';
 import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { BORDER_RADIUS, COLORS, FONTS, SHADOWS, SPACING } from '../../src/constants/theme';
+import { getEarnedBadges, getNextBadge } from '../../src/constants/badges';
 import { calculateCosmicProfile, getCosmicDNASummary } from '../../src/engines/unified';
 import { useAuthStore } from '../../src/store/authStore';
 import { useConnectionsStore } from '../../src/store/connectionsStore';
@@ -20,13 +22,7 @@ import { useCosmicAlert } from '../../src/components/ui/CosmicAlert';
 import { exportMyPredictionDataset } from '../../src/services/functionsService';
 import i18n from '../../src/i18n';
 import { buildProfilesFromServerChart } from '../../src/utils/serverChartAdapter';
-
-const LANGUAGES = [
-  { code: 'en', name: 'English' },
-  { code: 'hi', name: 'Hindi' },
-  { code: 'zh', name: 'Chinese' },
-  { code: 'kn', name: 'Kannada' },
-];
+import { LANGUAGE_OPTIONS, normalizeLanguage } from '../../src/i18n/language';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -39,6 +35,7 @@ export default function ProfileScreen() {
   const clearJournal = useJournalStore((s) => s.clearJournal);
   const clearSettings = useSettingsStore((s) => s.clearSettings);
   const savedProfiles = useConnectionsStore((s) => s.savedProfiles);
+  const compatibilityHistory = useConnectionsStore((s) => s.compatibilityHistory);
   const entries = useJournalStore((s) => s.entries);
   const archiveCount = useReadingStore((s) => Object.keys(s.cachedReadings).length);
 
@@ -49,15 +46,46 @@ export default function ProfileScreen() {
 
   const { showAlert, alertModal } = useCosmicAlert();
   const setLanguage = useUserStore((s) => s.setLanguage);
-  const [currentLang, setCurrentLang] = useState(user?.language ?? i18n.language?.split('-')[0] ?? 'en');
+  const [currentLang, setCurrentLang] = useState(normalizeLanguage(user?.language ?? i18n.language));
   const [recalculating, setRecalculating] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [exportingDataset, setExportingDataset] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [editName, setEditName] = useState('');
+
+  const setUser = useUserStore((s) => s.setUser);
+
+  useEffect(() => {
+    setCurrentLang(normalizeLanguage(user?.language ?? i18n.language));
+  }, [user?.language]);
 
   const cosmicDNA = useMemo(() => {
     if (!user?.western || !user?.vedic || !user?.chinese) return '';
     return getCosmicDNASummary({ western: user.western, vedic: user.vedic, chinese: user.chinese, kp: user.kp });
   }, [user?.western, user?.vedic, user?.chinese, user?.kp]);
+
+  const earnedBadges = useMemo(() => {
+    if (!user) return [];
+    return getEarnedBadges(
+      user.streak,
+      user.cosmicPoints,
+      user.activeSystems,
+      compatibilityHistory.length,
+      false, // hasShared — tracked elsewhere
+    );
+  }, [user?.streak, user?.cosmicPoints, user?.activeSystems, compatibilityHistory.length]);
+
+  const nextBadge = useMemo(() => {
+    if (!user) return null;
+    return getNextBadge(user.streak, user.cosmicPoints);
+  }, [user?.streak, user?.cosmicPoints]);
+
+  const streakProgress = useMemo(() => {
+    if (!user) return 0;
+    const targets = [3, 7, 14, 30, 90, 365];
+    const next = targets.find((t) => t > user.streak) ?? 365;
+    return Math.min(user.streak / next, 1);
+  }, [user?.streak]);
 
   if (!user) return null;
 
@@ -66,9 +94,10 @@ export default function ProfileScreen() {
   });
 
   const handleLanguage = (code: string) => {
-    setCurrentLang(code);
-    i18n.changeLanguage(code);
-    setLanguage(code); // persist to user store + Firestore
+    const normalized = normalizeLanguage(code);
+    setCurrentLang(normalized);
+    i18n.changeLanguage(normalized);
+    setLanguage(normalized); // persist to user store + Firestore
   };
 
   const handleRecalculate = async () => {
@@ -99,8 +128,13 @@ export default function ProfileScreen() {
         // Cloud failed, fall through to local
       }
 
-      // Local engine fallback (uses birth time for accurate Rashi)
-      const local = calculateCosmicProfile(new Date(d.getFullYear(), d.getMonth(), d.getDate()), birthTime);
+      // Local engine fallback.
+      const local = calculateCosmicProfile(
+        new Date(d.getFullYear(), d.getMonth(), d.getDate()),
+        birthTime,
+        bd.place?.lat,
+        bd.place?.lng,
+      );
       if (local.western) setWesternProfile(local.western);
       if (local.vedic)   setVedicProfile(local.vedic);
       if (local.chinese) setChineseProfile(local.chinese);
@@ -186,7 +220,41 @@ export default function ProfileScreen() {
           <View style={styles.posterWrap}>
             <LinearGradient colors={COLORS.gradientInk} style={styles.poster}>
               <Text style={styles.posterLabel}>Your chart</Text>
-              <Text style={styles.name}>{user.name}</Text>
+              {editingName ? (
+                <View style={styles.editNameRow}>
+                  <TextInput
+                    style={styles.editNameInput}
+                    value={editName}
+                    onChangeText={setEditName}
+                    autoFocus
+                    placeholderTextColor="rgba(255,250,241,0.4)"
+                    onSubmitEditing={() => {
+                      if (editName.trim()) {
+                        setUser({ ...user, name: editName.trim() });
+                      }
+                      setEditingName(false);
+                    }}
+                  />
+                  <TouchableOpacity
+                    onPress={() => {
+                      if (editName.trim()) setUser({ ...user, name: editName.trim() });
+                      setEditingName(false);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="checkmark-circle" size={28} color={COLORS.tide} />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  onPress={() => { setEditName(user.name); setEditingName(true); }}
+                  activeOpacity={0.84}
+                  style={styles.nameRow}
+                >
+                  <Text style={styles.name}>{user.name}</Text>
+                  <Ionicons name="pencil-outline" size={16} color="rgba(255,250,241,0.5)" />
+                </TouchableOpacity>
+              )}
               <Text style={styles.birthMeta}>
                 {birthDate}
                 {user.birthDetails.place?.name ? `  ·  ${user.birthDetails.place.name}` : ''}
@@ -230,14 +298,14 @@ export default function ProfileScreen() {
             <Text style={styles.sectionLabel}>Activity</Text>
             <View style={styles.row3}>
               {[
-                { value: String(user.streak), label: 'Day streak' },
-                { value: String(user.cosmicPoints), label: 'Points' },
-                { value: String(entries.length), label: 'Journal notes' },
+                { value: String(user.streak), label: 'Day streak', onPress: undefined },
+                { value: String(user.cosmicPoints), label: 'Points', onPress: undefined },
+                { value: String(entries.length), label: 'Journal notes', onPress: () => router.push('/journal') },
               ].map((m) => (
-                <View key={m.label} style={styles.chip}>
+                <TouchableOpacity key={m.label} style={styles.chip} onPress={m.onPress} activeOpacity={m.onPress ? 0.8 : 1} disabled={!m.onPress}>
                   <Text style={styles.chipValue}>{m.value}</Text>
                   <Text style={styles.chipLabel}>{m.label}</Text>
-                </View>
+                </TouchableOpacity>
               ))}
             </View>
             <View style={styles.divider} />
@@ -256,8 +324,45 @@ export default function ProfileScreen() {
           </LinearGradient>
         </AnimatedCard>
 
-        {/* ── Settings link ──────────────────────────────────────────────── */}
+        {/* ── Badges & Streak ──────────────────────────────────────────── */}
         <AnimatedCard index={3}>
+          <LinearGradient colors={COLORS.gradientInkSoft} style={styles.card}>
+            <Text style={styles.sectionLabel}>Badges</Text>
+            <View style={styles.badgeStreakRow}>
+              <ProgressRing
+                progress={streakProgress}
+                size={72}
+                strokeWidth={5}
+                color={COLORS.starGold}
+                value={`${user.streak}`}
+                label="Streak"
+              />
+              <View style={styles.badgeGrid}>
+                {earnedBadges.slice(0, 6).map((badge) => (
+                  <View key={badge.id} style={styles.badgeChip}>
+                    <Text style={styles.badgeEmoji}>{badge.emoji}</Text>
+                    <Text style={styles.badgeName} numberOfLines={1}>{badge.name}</Text>
+                  </View>
+                ))}
+                {earnedBadges.length === 0 && (
+                  <Text style={styles.noBadgesText}>Keep checking in to unlock badges</Text>
+                )}
+              </View>
+            </View>
+            {earnedBadges.length > 6 && (
+              <Text style={styles.moreBadgesText}>+{earnedBadges.length - 6} more earned</Text>
+            )}
+            {nextBadge && (
+              <View style={styles.nextBadgeRow}>
+                <Text style={styles.nextBadgeLabel}>Next goal</Text>
+                <Text style={styles.nextBadgeText}>{nextBadge.emoji} {nextBadge.name} — {nextBadge.requirement}</Text>
+              </View>
+            )}
+          </LinearGradient>
+        </AnimatedCard>
+
+        {/* ── Settings link ──────────────────────────────────────────────── */}
+        <AnimatedCard index={4}>
           <TouchableOpacity
             style={styles.settingsBtn}
             onPress={() => router.push('/settings')}
@@ -269,13 +374,13 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </AnimatedCard>
 
-        {/* ── Language (tab labels only — readings are English) ──────── */}
-        <AnimatedCard index={4}>
+        {/* ── Language ───────────────────────────────────────────────── */}
+        <AnimatedCard index={5}>
           <GradientCard style={styles.card} colors={COLORS.gradientSilver}>
             <Text style={styles.sectionLabel}>Language</Text>
-            <Text style={styles.langNote}>Changes tab labels and navigation. Daily readings are currently in English.</Text>
+            <Text style={styles.langNote}>Changes navigation and rewrites the Today reading in a natural spoken style where supported.</Text>
             <View style={styles.langGrid}>
-              {LANGUAGES.map((lang) => {
+              {LANGUAGE_OPTIONS.map((lang) => {
                 const active = currentLang === lang.code;
                 return (
                   <TouchableOpacity
@@ -284,7 +389,7 @@ export default function ProfileScreen() {
                     onPress={() => handleLanguage(lang.code)}
                     activeOpacity={0.8}
                   >
-                    <Text style={[styles.langText, active && styles.langTextActive]}>{lang.name}</Text>
+                    <Text style={[styles.langText, active && styles.langTextActive]}>{lang.nativeName}</Text>
                   </TouchableOpacity>
                 );
               })}
@@ -293,18 +398,24 @@ export default function ProfileScreen() {
         </AnimatedCard>
 
         {/* ── Recalculate ───────────────────────────────────────────────── */}
-        <AnimatedCard index={5}>
-          <TouchableOpacity style={styles.recalcBtn} onPress={handleRecalculate} activeOpacity={0.8} disabled={recalculating}>
-            {recalculating
-              ? <ActivityIndicator size="small" color={COLORS.vedic} />
-              : <Ionicons name="refresh-outline" size={20} color={COLORS.vedic} />
-            }
-            <Text style={styles.recalcText}>{recalculating ? 'Recalculating...' : 'Recalculate my chart'}</Text>
-          </TouchableOpacity>
+        <AnimatedCard index={6}>
+          <View style={styles.profileActionStack}>
+            <TouchableOpacity style={styles.recalcBtn} onPress={handleRecalculate} activeOpacity={0.8} disabled={recalculating}>
+              {recalculating
+                ? <ActivityIndicator size="small" color={COLORS.vedic} />
+                : <Ionicons name="refresh-outline" size={20} color={COLORS.vedic} />
+              }
+              <Text style={styles.recalcText}>{recalculating ? 'Recalculating...' : 'Recalculate my chart'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.editBirthBtn} onPress={() => router.push('/profile/birth-details')} activeOpacity={0.8}>
+              <Ionicons name="create-outline" size={20} color={COLORS.iris} />
+              <Text style={styles.editBirthText}>Edit birth details</Text>
+            </TouchableOpacity>
+          </View>
         </AnimatedCard>
 
         {/* ── Logout ────────────────────────────────────────────────────── */}
-        <AnimatedCard index={6}>
+        <AnimatedCard index={7}>
           <TouchableOpacity
             style={styles.datasetBtn}
             onPress={handleExportDataset}
@@ -319,14 +430,14 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </AnimatedCard>
 
-        <AnimatedCard index={7}>
+        <AnimatedCard index={8}>
           <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
             <Ionicons name="log-out-outline" size={20} color={COLORS.coral} />
             <Text style={styles.logoutText}>Log out</Text>
           </TouchableOpacity>
         </AnimatedCard>
 
-        <AnimatedCard index={8}>
+        <AnimatedCard index={9}>
           <TouchableOpacity
             style={[styles.deleteBtn, deletingAccount && styles.deleteBtnDisabled]}
             onPress={handleDeleteAccount}
@@ -469,6 +580,9 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.heading,
   },
   langTextActive: { color: COLORS.textPrimary },
+  profileActionStack: {
+    gap: SPACING.sm,
+  },
   recalcBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -482,6 +596,22 @@ const styles = StyleSheet.create({
   },
   recalcText: {
     color: COLORS.vedic,
+    fontSize: 17,
+    fontFamily: FONTS.heading,
+  },
+  editBirthBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+    paddingVertical: 16,
+    borderRadius: BORDER_RADIUS.xl,
+    borderWidth: 1,
+    borderColor: `${COLORS.iris}44`,
+    backgroundColor: `${COLORS.iris}10`,
+  },
+  editBirthText: {
+    color: COLORS.iris,
     fontSize: 17,
     fontFamily: FONTS.heading,
   },
@@ -535,5 +665,82 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     fontSize: 17,
     fontFamily: FONTS.heading,
+  },
+  badgeStreakRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+  },
+  badgeGrid: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.xs,
+  },
+  badgeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  badgeEmoji: {
+    fontSize: 14,
+  },
+  badgeName: {
+    color: COLORS.textPrimary,
+    fontSize: 11,
+    fontFamily: FONTS.accent,
+    letterSpacing: 0.3,
+  },
+  noBadgesText: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  moreBadgesText: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    fontFamily: FONTS.accent,
+    letterSpacing: 0.5,
+  },
+  nextBadgeRow: {
+    borderTopWidth: 1,
+    borderTopColor: COLORS.ruleLight,
+    paddingTop: SPACING.sm,
+    gap: 2,
+  },
+  nextBadgeLabel: {
+    color: COLORS.textMuted,
+    fontSize: 10,
+    fontFamily: FONTS.accent,
+    letterSpacing: 0.8,
+  },
+  nextBadgeText: {
+    color: COLORS.starGold,
+    fontSize: 13,
+    fontFamily: FONTS.heading,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  editNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  editNameInput: {
+    flex: 1,
+    color: '#fffaf1',
+    fontSize: 32,
+    fontFamily: FONTS.display,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,250,241,0.3)',
+    paddingVertical: 4,
+    maxWidth: 200,
   },
 });

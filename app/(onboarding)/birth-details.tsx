@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { StarField } from '../../src/components/ui/StarField';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
@@ -12,9 +13,11 @@ import { useUserStore } from '../../src/store/userStore';
 import { useAuthStore } from '../../src/store/authStore';
 import { updateUserProfile } from '../../src/services/firestoreService';
 import type { BirthDetails } from '../../src/types/user';
+import { normalizeLanguage } from '../../src/i18n/language';
 
 export default function BirthDetailsScreen() {
   const router = useRouter();
+  const { t, i18n } = useTranslation();
   const setUser = useUserStore((state) => state.setUser);
   const firebaseUser = useAuthStore((s) => s.firebaseUser);
 
@@ -39,41 +42,41 @@ export default function BirthDetailsScreen() {
   const validate = () => {
     const e: Record<string, string> = {};
     if (!name.trim()) {
-      e.name = 'Name is required';
+      e.name = t('onboarding.birthDetails.errors.nameRequired');
     }
     const d = parseInt(day, 10);
     const m = parseInt(month, 10);
     const y = parseInt(year, 10);
     const currentYear = new Date().getFullYear();
 
-    if (!day) e.day = 'Required';
-    else if (isNaN(d) || d < 1 || d > 31) e.day = 'Invalid (1–31)';
+    if (!day) e.day = t('onboarding.birthDetails.errors.required');
+    else if (isNaN(d) || d < 1 || d > 31) e.day = t('onboarding.birthDetails.errors.invalidDay');
 
-    if (!month) e.month = 'Required';
-    else if (isNaN(m) || m < 1 || m > 12) e.month = 'Invalid (1–12)';
+    if (!month) e.month = t('onboarding.birthDetails.errors.required');
+    else if (isNaN(m) || m < 1 || m > 12) e.month = t('onboarding.birthDetails.errors.invalidMonth');
 
-    if (!year) e.year = 'Required';
-    else if (isNaN(y) || y < 1900 || y > currentYear) e.year = `Invalid (1900–${currentYear})`;
+    if (!year) e.year = t('onboarding.birthDetails.errors.required');
+    else if (isNaN(y) || y < 1900 || y > currentYear) e.year = t('onboarding.birthDetails.errors.invalidYear', { year: currentYear });
 
     if (!e.day && !e.month && !e.year) {
       // Validate day exists in that month/year
       const testDate = new Date(y, m - 1, d);
       if (testDate.getFullYear() !== y || testDate.getMonth() !== m - 1 || testDate.getDate() !== d) {
-        e.day = `Day ${d} doesn't exist in that month`;
+        e.day = t('onboarding.birthDetails.errors.missingDay', { day: d });
       }
       // Can't be in the future
       if (testDate > new Date()) {
-        e.year = 'Birth date cannot be in the future';
+        e.year = t('onboarding.birthDetails.errors.futureDate');
       }
     }
 
     if (hour) {
       const h = parseInt(hour, 10);
-      if (isNaN(h) || h < 0 || h > 23) e.hour = 'Invalid (0–23)';
+      if (isNaN(h) || h < 0 || h > 23) e.hour = t('onboarding.birthDetails.errors.invalidHour');
     }
     if (minute) {
       const min = parseInt(minute, 10);
-      if (isNaN(min) || min < 0 || min > 59) e.minute = 'Invalid (0–59)';
+      if (isNaN(min) || min < 0 || min > 59) e.minute = t('onboarding.birthDetails.errors.invalidMinute');
     }
 
     setErrors(e);
@@ -91,6 +94,7 @@ export default function BirthDetailsScreen() {
     const birthTimeStr = hour && minute
       ? `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`
       : '12:00';
+    const selectedLanguage = normalizeLanguage(i18n.language);
 
     const birthDate = new Date(y, m - 1, d);
     const birthDetails: BirthDetails = {
@@ -99,14 +103,14 @@ export default function BirthDetailsScreen() {
       place: place.trim() ? { name: place.trim(), lat: 0, lng: 0, timezone: 'UTC' } : undefined,
       birthDateStr,
       birthTimeStr,
-      birthPlace: place.trim() || 'Unknown',
+      birthPlace: place.trim() || t('onboarding.birthDetails.unknownPlace', { defaultValue: 'Unknown' }),
     } as any;
 
     const uid = firebaseUser?.uid ?? `local_${Date.now()}`;
     const profile = {
       id: uid,
       name: name.trim(),
-      language: 'en',
+      language: selectedLanguage,
       birthDetails,
       activeSystems: [] as any[],
       subscription: { tier: 'free' as const, status: 'active' as const, purchasedItems: [] },
@@ -120,7 +124,7 @@ export default function BirthDetailsScreen() {
 
     if (firebaseUser) {
       // JSON round-trip strips undefined values which Firestore rejects
-      const clean = JSON.parse(JSON.stringify({ name: name.trim(), birthDetails }));
+      const clean = JSON.parse(JSON.stringify({ name: name.trim(), birthDetails, language: selectedLanguage }));
       updateUserProfile(firebaseUser.uid, clean).catch((e) => {
         console.warn('[BirthDetails] Firestore sync failed:', e);
       });
@@ -164,25 +168,25 @@ export default function BirthDetailsScreen() {
 
   return (
     <StarField>
-      <ScreenHeader title="Birth ritual" />
+      <ScreenHeader title={t('onboarding.birthDetails.screenTitle')} />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ResetScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          <Animated.Text entering={FadeInDown.delay(60).duration(380).springify().damping(20)} style={styles.step}>Step 1 of 3</Animated.Text>
+          <Animated.Text entering={FadeInDown.delay(60).duration(380).springify().damping(20)} style={styles.step}>{t('onboarding.birthDetails.step')}</Animated.Text>
           <Animated.View entering={FadeInDown.delay(140).duration(400).springify().damping(20)}>
-            <Text style={styles.headline}>Tell the chart where{'\n'}your story began.</Text>
-            <Text style={styles.copy}>Name and birth date are enough to start. Time and place sharpen the details.</Text>
+            <Text style={styles.headline}>{t('onboarding.birthDetails.headline')}</Text>
+            <Text style={styles.copy}>{t('onboarding.birthDetails.copy')}</Text>
           </Animated.View>
 
           {/* Name */}
           <Animated.View entering={FadeInDown.delay(240).duration(380).springify().damping(20)} style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Your name</Text>
+            <Text style={styles.fieldLabel}>{t('onboarding.birthDetails.nameLabel')}</Text>
             <View style={[styles.inputWrap, errors.name && styles.inputError]}>
               <Ionicons name="person-outline" size={16} color={COLORS.textMuted} style={styles.icon} />
               <TextInput
                 style={styles.input}
                 value={name}
                 onChangeText={t => { setName(t); setErrors(p => ({ ...p, name: undefined as any })); }}
-                placeholder="A name to place in the stars"
+                placeholder={t('onboarding.birthDetails.namePlaceholder')}
                 placeholderTextColor={COLORS.textMuted}
                 autoCapitalize="words"
                 autoComplete="name"
@@ -195,7 +199,7 @@ export default function BirthDetailsScreen() {
 
           {/* Birth date */}
           <Animated.View entering={FadeInDown.delay(340).duration(380).springify().damping(20)} style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Birth date</Text>
+            <Text style={styles.fieldLabel}>{t('onboarding.birthDetails.dateLabel')}</Text>
             <View style={styles.dateRow}>
               <View style={styles.dateCell}>
                 <TextInput
@@ -246,7 +250,7 @@ export default function BirthDetailsScreen() {
 
           {/* Birth time */}
           <Animated.View entering={FadeInDown.delay(420).duration(380).springify().damping(20)} style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Birth time <Text style={styles.optionalTag}>(optional)</Text></Text>
+            <Text style={styles.fieldLabel}>{t('onboarding.birthDetails.timeLabel')} <Text style={styles.optionalTag}>{t('onboarding.birthDetails.optional')}</Text></Text>
             <View style={styles.dateRow}>
               <View style={styles.dateCell}>
                 <TextInput
@@ -278,14 +282,14 @@ export default function BirthDetailsScreen() {
                 {errors.minute && <Text style={styles.errorText}>{errors.minute}</Text>}
               </View>
               <View style={{ flex: 1.6, paddingLeft: SPACING.sm }}>
-                <Text style={styles.optional}>Affects Rashi, Nakshatra, rising sign, and house timing accuracy.</Text>
+                <Text style={styles.optional}>{t('onboarding.birthDetails.whyTime')}</Text>
               </View>
             </View>
           </Animated.View>
 
           {/* Birth place */}
           <Animated.View entering={FadeInDown.delay(500).duration(380).springify().damping(20)} style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Birth place <Text style={styles.optionalTag}>(optional)</Text></Text>
+            <Text style={styles.fieldLabel}>{t('onboarding.birthDetails.placeLabel')} <Text style={styles.optionalTag}>{t('onboarding.birthDetails.optional')}</Text></Text>
             <View style={styles.inputWrap}>
               <Ionicons name="location-outline" size={16} color={COLORS.textMuted} style={styles.icon} />
               <TextInput
@@ -293,7 +297,7 @@ export default function BirthDetailsScreen() {
                 style={styles.input}
                 value={place}
                 onChangeText={setPlace}
-                placeholder="City or town of birth"
+                placeholder={t('onboarding.birthDetails.placePlaceholder')}
                 placeholderTextColor={COLORS.textMuted}
                 autoCapitalize="words"
                 returnKeyType="done"
@@ -303,7 +307,7 @@ export default function BirthDetailsScreen() {
           </Animated.View>
 
           <Animated.View entering={FadeInDown.delay(600).duration(380).springify().damping(20)}>
-          <CosmicButton title="Continue" onPress={handleContinue} disabled={!name.trim() || !day || !month || !year} loading={loading} />
+          <CosmicButton title={t('onboarding.birthDetails.continue')} onPress={handleContinue} disabled={!name.trim() || !day || !month || !year} loading={loading} />
 
           </Animated.View>
 

@@ -24,6 +24,7 @@ import { useSettingsStore } from '../src/store/settingsStore';
 import { useUserStore } from '../src/store/userStore';
 import { parseDeepLink } from '../src/utils/qrCodeUtils';
 import i18n from '../src/i18n';
+import { normalizeLanguage } from '../src/i18n/language';
 import '../src/services/firebase';
 
 function hasBirthDate(user: ReturnType<typeof useUserStore.getState>['user']) {
@@ -115,8 +116,9 @@ export default function RootLayout() {
   // Restore user's saved language preference
   useEffect(() => {
     const savedLang = user?.language;
-    if (savedLang && savedLang !== i18n.language?.split('-')[0]) {
-      i18n.changeLanguage(savedLang);
+    const normalized = normalizeLanguage(savedLang);
+    if (savedLang && normalized !== normalizeLanguage(i18n.language)) {
+      i18n.changeLanguage(normalized);
     }
   }, [user?.language]);
 

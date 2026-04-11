@@ -345,6 +345,24 @@ export default function CosmicRevealScreen() {
           </View>
         </GradientCard>
 
+        <GradientCard accentColor={COLORS.tide}>
+          <View style={styles.rewardRow}>
+            <Ionicons name="qr-code-outline" size={20} color={COLORS.tide} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.reward}>Share your chart with a friend</Text>
+              <Text style={styles.rewardCopy}>Make a scan-ready CosmicSelf QR once your profile opens.</Text>
+            </View>
+          </View>
+          <CosmicButton
+            title="Create my cosmic QR"
+            onPress={() => {
+              completeOnboarding();
+              router.push('/qr/my-code');
+            }}
+            variant="outline"
+          />
+        </GradientCard>
+
         <CosmicButton
           title="Open today's reading"
           onPress={() => {

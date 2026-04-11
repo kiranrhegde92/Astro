@@ -2,21 +2,27 @@ import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { ForecastWindow, PeriodForecast } from '../../content/forecastTemplates';
 import { BORDER_RADIUS, COLORS, FONTS, SPACING } from '../../constants/theme';
+import { getSpokenForecastCopy } from '../../i18n/spokenContent';
+import type { SupportedLanguage } from '../../i18n/language';
 import { GradientCard } from './GradientCard';
 
 export function ForecastPanel({
   forecast,
   window,
   onChange,
+  language,
 }: {
   forecast: PeriodForecast;
   window: ForecastWindow;
   onChange: (window: ForecastWindow) => void;
+  language?: SupportedLanguage;
 }) {
+  const copy = getSpokenForecastCopy(forecast, language);
+
   return (
     <GradientCard style={styles.card} accentColor={window === 'week' ? COLORS.iris : COLORS.coral}>
       <View style={styles.header}>
-        <Text style={styles.label}>Outlook</Text>
+        <Text style={styles.label}>{copy.outlookLabel}</Text>
         <View style={styles.switcher}>
           {(['week', 'month'] as const).map((item) => {
             const active = item === window;
@@ -28,7 +34,7 @@ export function ForecastPanel({
                 activeOpacity={0.84}
               >
                 <Text style={[styles.switchText, active && styles.switchTextActive]}>
-                  {item === 'week' ? '7 days' : '30 days'}
+                  {item === 'week' ? copy.weekLabel : copy.monthLabel}
                 </Text>
               </TouchableOpacity>
             );
@@ -36,15 +42,15 @@ export function ForecastPanel({
         </View>
       </View>
 
-      <Text style={styles.title}>{forecast.title}</Text>
-      <Text style={styles.headline}>{forecast.headline}</Text>
-      <Text style={styles.summary}>{forecast.summary}</Text>
+      <Text style={styles.title}>{copy.title}</Text>
+      <Text style={styles.headline}>{copy.headline}</Text>
+      <Text style={styles.summary}>{copy.summary}</Text>
 
-      {forecast.drivers?.length ? (
+      {copy.drivers?.length ? (
         <View style={styles.driverWrap}>
-          <Text style={styles.driverLabel}>Signals behind this</Text>
+          <Text style={styles.driverLabel}>{copy.driverLabel}</Text>
           <View style={styles.driverList}>
-            {forecast.drivers.map((driver) => (
+            {copy.drivers.map((driver) => (
               <View key={driver} style={styles.driverChip}>
                 <Text style={styles.driverText}>{driver}</Text>
               </View>
@@ -54,7 +60,7 @@ export function ForecastPanel({
       ) : null}
 
       <View style={styles.focusList}>
-        {forecast.focusAreas.map((item) => (
+        {copy.focusAreas.map((item) => (
           <View key={item.label} style={styles.focusRow}>
             <Text style={styles.focusLabel}>{item.label}</Text>
             <Text style={styles.focusText}>{item.text}</Text>
@@ -64,16 +70,16 @@ export function ForecastPanel({
 
       <View style={styles.windowGrid}>
         <View style={styles.windowCard}>
-          <Text style={styles.windowLabel}>Open window</Text>
-          <Text style={styles.windowValue}>{forecast.brightWindow}</Text>
+          <Text style={styles.windowLabel}>{copy.openWindowLabel}</Text>
+          <Text style={styles.windowValue}>{copy.brightWindow}</Text>
         </View>
         <View style={styles.windowCard}>
-          <Text style={styles.windowLabel}>Move carefully</Text>
-          <Text style={styles.windowValue}>{forecast.cautionWindow}</Text>
+          <Text style={styles.windowLabel}>{copy.carefulWindowLabel}</Text>
+          <Text style={styles.windowValue}>{copy.cautionWindow}</Text>
         </View>
       </View>
 
-      <Text style={styles.prompt}>{forecast.ritualPrompt}</Text>
+      <Text style={styles.prompt}>{copy.prompt}</Text>
     </GradientCard>
   );
 }

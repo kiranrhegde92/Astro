@@ -15,15 +15,7 @@ import { BORDER_RADIUS, COLORS, FONTS, SHADOWS, SPACING } from '../../src/consta
 import { useAuthStore } from '../../src/store/authStore';
 import { useUserStore } from '../../src/store/userStore';
 import { useCosmicAlert } from '../../src/components/ui/CosmicAlert';
-
-const LANGUAGES = [
-  { code: 'en', native: 'English' },
-  { code: 'hi', native: 'Hindi' },
-  { code: 'zh', native: 'Chinese' },
-  { code: 'kn', native: 'Kannada' },
-] as const;
-
-type SupportedLanguage = (typeof LANGUAGES)[number]['code'];
+import { LANGUAGE_OPTIONS, normalizeLanguage, type SupportedLanguage } from '../../src/i18n/language';
 
 const WELCOME_COPY: Record<
   SupportedLanguage,
@@ -102,10 +94,11 @@ export default function WelcomeScreen() {
   const { i18n } = useTranslation();
   const logout = useAuthStore((s) => s.logout);
   const clearUser = useUserStore((s) => s.clearUser);
+  const setLanguage = useUserStore((s) => s.setLanguage);
+  const user = useUserStore((s) => s.user);
   const { showAlert, alertModal } = useCosmicAlert();
   const [selectedLang, setSelectedLang] = useState<SupportedLanguage>(() => {
-    const code = i18n.language?.split('-')[0];
-    return LANGUAGES.some((lang) => lang.code === code) ? (code as SupportedLanguage) : 'en';
+    return normalizeLanguage(i18n.language);
   });
   const copy = useMemo(() => WELCOME_COPY[selectedLang] ?? WELCOME_COPY.en, [selectedLang]);
 
@@ -167,7 +160,7 @@ export default function WelcomeScreen() {
           <View style={styles.languageBlock}>
             <Text style={styles.sectionLabel}>{copy.languageLabel}</Text>
             <View style={styles.languageGrid}>
-              {LANGUAGES.map((lang) => {
+              {LANGUAGE_OPTIONS.map((lang) => {
                 const active = selectedLang === lang.code;
                 return (
                   <TouchableOpacity
@@ -175,11 +168,12 @@ export default function WelcomeScreen() {
                     onPress={() => {
                       setSelectedLang(lang.code);
                       i18n.changeLanguage(lang.code);
+                      if (user) setLanguage(lang.code);
                     }}
                     style={[styles.languageChip, active && styles.languageChipActive]}
                     activeOpacity={0.8}
                   >
-                    <Text style={[styles.languageText, active && styles.languageTextActive]}>{lang.native}</Text>
+                    <Text style={[styles.languageText, active && styles.languageTextActive]}>{lang.nativeName}</Text>
                   </TouchableOpacity>
                 );
               })}

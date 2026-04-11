@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import type { DailyReading } from '../../src/types/astrology';
@@ -14,12 +15,23 @@ import { SectionTabs } from '../../src/components/ui/SectionTabs';
 import { StarField } from '../../src/components/ui/StarField';
 import { BORDER_RADIUS, COLORS, FONTS, SHADOWS, SPACING } from '../../src/constants/theme';
 import { generateDailyReading } from '../../src/content/dailyTemplates';
+import { generatePeriodForecast, type ForecastWindow } from '../../src/content/forecastTemplates';
+import { ForecastPanel } from '../../src/components/ui/ForecastPanel';
 import { buildForecastProfile } from '../../src/content/predictionSignals';
 import { fetchDailyReading } from '../../src/services/functionsService';
 import { useReadingStore } from '../../src/store/readingStore';
 import { useUserStore } from '../../src/store/userStore';
 import { getDateKey } from '../../src/utils/dateUtils';
 import { normalizeUserProfile } from '../../src/utils/normalizeUserProfile';
+import { normalizeLanguage } from '../../src/i18n/language';
+import {
+  formatSignature,
+  formatSkyChip,
+  getGreetingLabel,
+  getSpokenTodayCopy,
+  getSystemPreviewCopy,
+  getTodayShellCopy,
+} from '../../src/i18n/spokenContent';
 
 const READING_VERSION = 4;
 
@@ -35,29 +47,6 @@ const TONE_ACCENTS: Record<'Opening' | 'Mixed' | 'Pressurized', string> = {
   Pressurized: COLORS.coral,
 };
 
-const ASPECT_LABELS: Record<string, string> = {
-  conjunction: 'Conjunction',
-  trine: 'Trine',
-  sextile: 'Sextile',
-  square: 'Square',
-  opposition: 'Opposition',
-};
-
-const PLANET_LABELS: Record<string, string> = {
-  Sun: 'Sun',
-  Moon: 'Moon',
-  Mercury: 'Mercury',
-  Venus: 'Venus',
-  Mars: 'Mars',
-  Jupiter: 'Jupiter',
-  Saturn: 'Saturn',
-  NorthNode: 'Rahu',
-  SouthNode: 'Ketu',
-  Uranus: 'Uranus',
-  Neptune: 'Neptune',
-  Pluto: 'Pluto',
-};
-
 type SystemPreview = {
   key: string;
   label: string;
@@ -71,46 +60,10 @@ type SystemPreview = {
 type TransitItem = NonNullable<DailyReading['activeTransits']>[number];
 type TransitPosition = NonNullable<DailyReading['transitPositions']>[number];
 
-function getGreeting(date: Date) {
-  const hour = date.getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 18) return 'Good afternoon';
-  return 'Good evening';
-}
-
-function compactText(text?: string, maxLength = 120) {
-  const normalized = (text ?? '').replace(/\s+/g, ' ').trim();
-  if (!normalized) return '';
-  if (normalized.length <= maxLength) return normalized;
-  return `${normalized.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
-}
-
-function titleCase(value?: string) {
-  if (!value) return '';
-  return value
-    .split(/[\s-]+/)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
-}
-
 function getToneFallback(supportCount: number, tensionCount: number): 'Opening' | 'Mixed' | 'Pressurized' {
   if (supportCount >= tensionCount + 2) return 'Opening';
   if (tensionCount > supportCount) return 'Pressurized';
   return 'Mixed';
-}
-
-function formatTransitTitle(transit: TransitItem) {
-  const left = PLANET_LABELS[transit.transitPlanet] ?? transit.transitPlanet;
-  const right = PLANET_LABELS[transit.natalPlanet] ?? transit.natalPlanet;
-  const aspect = ASPECT_LABELS[transit.aspect] ?? titleCase(transit.aspect);
-  return `${left} ${aspect} ${right}`;
-}
-
-function formatSkyChip(position: TransitPosition) {
-  const planet = PLANET_LABELS[position.planet] ?? position.planet;
-  const degree = Number.isFinite(position.degree) ? position.degree.toFixed(1) : '0.0';
-  return `${planet} in ${position.sign} ${degree}${position.retrograde ? ' R' : ''}`;
 }
 
 function ProofRow({
@@ -137,10 +90,10 @@ function ProofRow({
   );
 }
 
-function SkyChip({ position }: { position: TransitPosition }) {
+function SkyChip({ position, language }: { position: TransitPosition; language: string }) {
   return (
     <View style={styles.skyChip}>
-      <Text style={styles.skyChipText}>{formatSkyChip(position)}</Text>
+      <Text style={styles.skyChipText}>{formatSkyChip(position, language)}</Text>
     </View>
   );
 }
@@ -180,6 +133,7 @@ function SystemStrip({
 
 export default function TodayScreen() {
   const router = useRouter();
+  const { i18n, t } = useTranslation();
   const user = useUserStore((state) => state.user);
   const incrementStreak = useUserStore((state) => state.incrementStreak);
   const todayReading = useReadingStore((state) => state.todayReading);
@@ -187,23 +141,69 @@ export default function TodayScreen() {
   const setTodayReading = useReadingStore((state) => state.setTodayReading);
   const [retryKey, setRetryKey] = useState(0);
   const [activeSection, setActiveSection] = useState('brief');
+  const [forecastWindow, setForecastWindow] = useState<ForecastWindow>('week');
+  const [loadingTimedOut, setLoadingTimedOut] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const today = useMemo(() => new Date(), []);
+  const language = normalizeLanguage(user?.language ?? i18n.language);
+  const shellCopy = useMemo(() => getTodayShellCopy(language), [language]);
   const todayKey = getDateKey(today);
   const safeUser = useMemo(() => (user ? normalizeUserProfile(user) : null), [user]);
   const forecastProfile = useMemo(() => (safeUser ? buildForecastProfile(safeUser) : null), [safeUser]);
+  const profile = useMemo(() => {
+    if (!forecastProfile?.western || !forecastProfile?.vedic || !forecastProfile?.chinese) return null;
+    return {
+      western: forecastProfile.western,
+      vedic: forecastProfile.vedic,
+      chinese: forecastProfile.chinese,
+      kp: forecastProfile.kp,
+    };
+  }, [forecastProfile]);
+  const reading = useMemo(() => {
+    if (!profile) return null;
+    if (todayReading?.date === todayKey && (todayReading.version ?? 0) >= READING_VERSION) return todayReading;
+    return null;
+  }, [profile, todayKey, todayReading]);
+
+  // Show retry if the reading fetch does not settle quickly.
+  useEffect(() => {
+    if (reading) {
+      setLoadingTimedOut(false);
+      return;
+    }
+    const timer = setTimeout(() => setLoadingTimedOut(true), 15000);
+    return () => clearTimeout(timer);
+  }, [reading, retryKey]);
+
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+    setLoadingTimedOut(false);
+    setRetryKey((v) => v + 1);
+  }, []);
 
   useEffect(() => {
-    if (!forecastProfile?.western?.sun || !forecastProfile?.vedic?.rashi || !forecastProfile?.chinese?.animal) return;
+    let cancelled = false;
 
-    const cached = getCachedReading(todayKey);
+    if (!forecastProfile?.western?.sun || !forecastProfile?.vedic?.rashi || !forecastProfile?.chinese?.animal) {
+      if (refreshing) setRefreshing(false);
+      return;
+    }
+
+    const finish = () => {
+      if (!cancelled) setRefreshing(false);
+    };
+
+    const cached = refreshing ? null : getCachedReading(todayKey);
     if (cached?.unified?.shareText && cached.references?.length && (cached.version ?? 0) >= READING_VERSION) {
       setTodayReading(cached);
       incrementStreak().catch(() => {});
+      finish();
       return;
     }
 
     fetchDailyReading()
       .then(({ reading }) => {
+        if (cancelled) return;
         if ((reading?.version ?? 0) < READING_VERSION) {
           const generated = generateDailyReading(today, forecastProfile);
           setTodayReading(generated);
@@ -231,6 +231,7 @@ export default function TodayScreen() {
         incrementStreak().catch(() => {});
       })
       .catch(() => {
+        if (cancelled) return;
         try {
           const generated = generateDailyReading(today, forecastProfile);
           setTodayReading(generated);
@@ -238,7 +239,12 @@ export default function TodayScreen() {
         } catch {
           setRetryKey((value) => value + 1);
         }
-      });
+      })
+      .finally(finish);
+
+    return () => {
+      cancelled = true;
+    };
   }, [
     forecastProfile,
     getCachedReading,
@@ -247,15 +253,15 @@ export default function TodayScreen() {
     setTodayReading,
     today,
     todayKey,
+    refreshing,
   ]);
 
-  const reading = (() => {
-    if (!forecastProfile?.western?.sun || !forecastProfile?.vedic?.rashi || !forecastProfile?.chinese?.animal) return null;
-    if (todayReading?.date === todayKey && (todayReading.version ?? 0) >= READING_VERSION) return todayReading;
-    return null;
-  })();
+  const periodForecast = useMemo(() => {
+    if (!profile) return null;
+    return generatePeriodForecast(today, profile, forecastWindow);
+  }, [profile, today, forecastWindow]);
 
-  const greeting = useMemo(() => getGreeting(today), [today]);
+  const greeting = useMemo(() => getGreetingLabel(today, language), [language, today]);
   const firstName = safeUser?.name?.split(' ')[0] ?? user?.name?.split(' ')[0] ?? 'you';
   const transits = reading?.activeTransits ?? [];
   const positions = reading?.transitPositions ?? [];
@@ -267,70 +273,95 @@ export default function TodayScreen() {
   const toneAccent = TONE_ACCENTS[tone];
   const topSupport = transits.find((transit) => transit.nature === 'support') ?? transits[0];
   const topTension = transits.find((transit) => transit.nature === 'tension');
-  const profile = useMemo(() => {
-    if (!forecastProfile?.western || !forecastProfile?.vedic || !forecastProfile?.chinese) return null;
-    return {
-      western: forecastProfile.western,
-      vedic: forecastProfile.vedic,
-      chinese: forecastProfile.chinese,
-      kp: forecastProfile.kp,
-    };
-  }, [forecastProfile]);
-
   if (!user || !reading) {
     return (
       <StarField>
         <View style={styles.emptyWrap}>
           <CosmicOrb size={176} />
-          <Text style={styles.emptyTitle}>Preparing your daily reading</Text>
-          <Text style={styles.emptyCopy}>Calibrating today's transits against your saved chart.</Text>
+          <Text style={styles.emptyTitle}>{shellCopy.loadingTitle}</Text>
+          <Text style={styles.emptyCopy}>{shellCopy.loadingCopy}</Text>
+          {loadingTimedOut && (
+            <TouchableOpacity
+              style={styles.retryBtn}
+              onPress={() => { setLoadingTimedOut(false); setRetryKey((v) => v + 1); }}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="refresh-outline" size={18} color={COLORS.tide} />
+              <Text style={styles.retryText}>{shellCopy.retry}</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </StarField>
     );
   }
 
-  const headline = reading.unified.headline ?? 'Today wants a more deliberate pace than usual.';
-  const heroBody = compactText(reading.unified.cosmicVibe, 210);
-  const evidenceLine = compactText(reading.unified.evidenceLine ?? reading.western?.overall, 180);
-  const bestUse = compactText(reading.unified.bestUse ?? reading.unified.focusAdvice ?? 'Back the clean, consequential move.', 116);
-  const watchFor = compactText(reading.unified.watchFor ?? topTension?.brief ?? reading.western?.wellness, 124);
-  const timingNote = compactText(reading.unified.timingNote ?? reading.kp?.eventTiming ?? reading.vedic?.dasha, 130);
-  const remedyText = compactText(reading.vedic?.remedy?.description, 108);
-  const focusArea = titleCase(reading.unified.focusArea ?? 'main focus');
+  const todayCopy = getSpokenTodayCopy({
+    language,
+    reading,
+    firstName,
+    tone,
+    focusArea: reading.unified.focusArea,
+    alignmentScore,
+    transitsCount: transits.length,
+    topSupport,
+    topTension,
+    timingFallback: reading.kp?.eventTiming ?? reading.vedic?.dasha,
+  });
+
+  const headline = todayCopy.headline;
+  const heroBody = todayCopy.heroBody;
+  const evidenceLine = todayCopy.evidenceLine;
+  const bestUse = todayCopy.bestUse;
+  const watchFor = todayCopy.watchForText;
+  const timingNote = todayCopy.timingNoteText;
+  const remedyText = todayCopy.remedyText;
+  const focusArea = todayCopy.focusArea;
   const skyPreview = positions
     .filter((position) => ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn'].includes(position.planet))
     .slice(0, 6);
 
   const systems = [
     user.activeSystems.includes('western') && reading.western
-      ? { key: 'western', label: 'Western', route: '/reading/western', text: reading.western.overall, accent: COLORS.western, icon: 'sunny', secondary: '#ece6ff' }
+      ? { key: 'western', label: t('systems.western'), route: '/reading/western', text: getSystemPreviewCopy('western', language, reading.western.overall), accent: COLORS.western, icon: 'sunny', secondary: '#ece6ff' }
       : null,
     user.activeSystems.includes('vedic') && reading.vedic
-      ? { key: 'vedic', label: 'Vedic', route: '/reading/vedic', text: reading.vedic.dasha, accent: COLORS.vedic, icon: 'moon', secondary: '#ffe6d8' }
+      ? { key: 'vedic', label: t('systems.vedic'), route: '/reading/vedic', text: getSystemPreviewCopy('vedic', language, reading.vedic.dasha), accent: COLORS.vedic, icon: 'moon', secondary: '#ffe6d8' }
       : null,
     user.activeSystems.includes('chinese') && reading.chinese
-      ? { key: 'chinese', label: 'Chinese', route: '/reading/chinese', text: reading.chinese.element, accent: COLORS.chinese, icon: 'leaf', secondary: '#ffe7db' }
+      ? { key: 'chinese', label: t('systems.chinese'), route: '/reading/chinese', text: getSystemPreviewCopy('chinese', language, reading.chinese.element), accent: COLORS.chinese, icon: 'leaf', secondary: '#ffe7db' }
       : null,
     user.activeSystems.includes('kp') && reading.kp
-      ? { key: 'kp', label: 'KP', route: '/reading/kp', text: reading.kp.eventTiming, accent: COLORS.kp, icon: 'sparkles', secondary: '#e1f5ef' }
+      ? { key: 'kp', label: t('systems.kp'), route: '/reading/kp', text: getSystemPreviewCopy('kp', language, reading.kp.eventTiming), accent: COLORS.kp, icon: 'sparkles', secondary: '#e1f5ef' }
       : null,
   ].filter(Boolean) as SystemPreview[];
 
   const tabs = [
-    { key: 'brief', label: 'Brief' },
-    { key: 'proof', label: 'Proof' },
-    { key: 'systems', label: 'Systems' },
+    { key: 'brief', label: todayCopy.tabs.brief },
+    { key: 'proof', label: todayCopy.tabs.proof },
+    { key: 'forecast', label: todayCopy.tabs.forecast },
+    { key: 'systems', label: todayCopy.tabs.systems },
   ];
 
   return (
     <StarField>
-      <ResetScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <ResetScrollView
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={COLORS.tide}
+            colors={[COLORS.tide]}
+          />
+        }
+      >
         <View style={styles.header}>
           <Text style={styles.dateLabel}>
-            {today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+            {today.toLocaleDateString(todayCopy.dateLocale, { weekday: 'long', month: 'long', day: 'numeric' })}
           </Text>
           <Text style={styles.greetingText}>{greeting}, {firstName}</Text>
-          <Text style={styles.headerCopy}>A cleaner daily brief built from live transits, dasha timing, and your natal chart.</Text>
+          <Text style={styles.headerCopy}>{todayCopy.headerCopy}</Text>
         </View>
 
         <SectionTabs tabs={tabs} activeKey={activeSection} onChange={setActiveSection} />
@@ -341,10 +372,10 @@ export default function TodayScreen() {
               <LinearGradient colors={heroGradient} style={styles.hero}>
                 <View style={styles.heroTopRow}>
                   <View style={styles.heroBadge}>
-                    <Text style={styles.heroBadgeText}>DAILY BRIEF</Text>
+                    <Text style={styles.heroBadgeText}>{todayCopy.heroBadge}</Text>
                   </View>
                   <View style={[styles.scorePill, { borderColor: `${toneAccent}55`, backgroundColor: `${toneAccent}22` }]}>
-                    <Text style={[styles.scoreText, { color: toneAccent }]}>{alignmentScore}% aligned</Text>
+                    <Text style={[styles.scoreText, { color: toneAccent }]}>{todayCopy.alignedText}</Text>
                   </View>
                 </View>
 
@@ -354,25 +385,25 @@ export default function TodayScreen() {
 
                 <View style={styles.metricRow}>
                   <View style={styles.metricPill}>
-                    <Text style={styles.metricLabel}>Tone</Text>
-                    <Text style={styles.metricValue}>{tone}</Text>
+                    <Text style={styles.metricLabel}>{todayCopy.tone}</Text>
+                    <Text style={styles.metricValue}>{todayCopy.toneLabel}</Text>
                   </View>
                   <View style={styles.metricPill}>
-                    <Text style={styles.metricLabel}>Focus</Text>
+                    <Text style={styles.metricLabel}>{todayCopy.focus}</Text>
                     <Text style={styles.metricValue}>{focusArea}</Text>
                   </View>
                   <View style={styles.metricPill}>
-                    <Text style={styles.metricLabel}>Live signals</Text>
+                    <Text style={styles.metricLabel}>{todayCopy.liveSignals}</Text>
                     <Text style={styles.metricValue}>{transits.length}</Text>
                   </View>
                 </View>
 
                 <View style={styles.signatureRow}>
                   {[
-                    `${profile?.western?.sun} Sun`,
-                    `${profile?.vedic?.rashi} Rashi`,
-                    `${profile?.chinese?.animal} Year`,
-                  ].map((item) => (
+                    formatSignature(profile?.western?.sun, 'sun', language),
+                    formatSignature(profile?.vedic?.rashi, 'rashi', language),
+                    formatSignature(profile?.chinese?.animal, 'year', language),
+                  ].filter(Boolean).map((item) => (
                     <View key={item} style={styles.signatureChip}>
                       <Text style={styles.signatureChipText}>{item}</Text>
                     </View>
@@ -384,14 +415,14 @@ export default function TodayScreen() {
             <AnimatedCard index={1}>
               <View style={styles.duoGrid}>
                 <GradientCard accentColor={COLORS.tide} style={styles.duoCard}>
-                  <Text style={styles.cardEyebrow}>LEAN INTO</Text>
+                  <Text style={styles.cardEyebrow}>{todayCopy.leanInto}</Text>
                   <Text style={styles.cardTitle}>{focusArea}</Text>
                   <Text style={styles.cardBody}>{bestUse}</Text>
                 </GradientCard>
 
                 <GradientCard accentColor={COLORS.coral} style={styles.duoCard}>
-                  <Text style={styles.cardEyebrow}>WATCH FOR</Text>
-                  <Text style={styles.cardTitle}>{tone === 'Pressurized' ? 'Pressure line' : 'Blind spot'}</Text>
+                  <Text style={styles.cardEyebrow}>{todayCopy.watchFor}</Text>
+                  <Text style={styles.cardTitle}>{todayCopy.watchForTitle}</Text>
                   <Text style={styles.cardBody}>{watchFor}</Text>
                 </GradientCard>
               </View>
@@ -399,18 +430,18 @@ export default function TodayScreen() {
 
             <AnimatedCard index={2}>
               <GradientCard accentColor={COLORS.gold}>
-                <Text style={styles.cardEyebrow}>TIMING NOTE</Text>
+                <Text style={styles.cardEyebrow}>{todayCopy.timingNote}</Text>
                 <Text style={styles.timingText}>{timingNote}</Text>
-                {remedyText ? <Text style={styles.timingSupport}>Remedy: {remedyText}</Text> : null}
+                {remedyText ? <Text style={styles.timingSupport}>{todayCopy.remedyPrefix}: {remedyText}</Text> : null}
               </GradientCard>
             </AnimatedCard>
 
             <AnimatedCard index={3}>
               <View style={styles.actions}>
                 {user.activeSystems.length >= 2 ? (
-                  <CosmicButton title="Open full blended reading" onPress={() => router.push('/reading/unified')} />
+                  <CosmicButton title={todayCopy.openFull} onPress={() => router.push('/reading/unified')} />
                 ) : null}
-                <CosmicButton title="Share today's reading" onPress={() => router.push('/share/card')} variant="outline" />
+                <CosmicButton title={todayCopy.shareReading} onPress={() => router.push('/share/card')} variant="outline" />
               </View>
             </AnimatedCard>
           </>
@@ -420,24 +451,24 @@ export default function TodayScreen() {
           <>
             <AnimatedCard index={0}>
               <GradientCard accentColor={COLORS.iris}>
-                <Text style={styles.cardEyebrow}>WHY THIS READING</Text>
-                <Text style={styles.proofLead}>{reading.unified.evidenceLine ?? evidenceLine}</Text>
+                <Text style={styles.cardEyebrow}>{todayCopy.why}</Text>
+                <Text style={styles.proofLead}>{todayCopy.proofLead}</Text>
                 <View style={styles.proofList}>
                   <ProofRow
                     icon="pulse-outline"
-                    label="Main driver"
-                    text={topSupport ? `${formatTransitTitle(topSupport)}. ${compactText(topSupport.brief, 96)}` : compactText(reading.western?.overall, 110)}
+                    label={todayCopy.mainDriver}
+                    text={todayCopy.mainDriverText}
                     color={COLORS.tide}
                   />
                   <ProofRow
                     icon="alert-circle-outline"
-                    label="Pressure line"
-                    text={topTension ? `${formatTransitTitle(topTension)}. ${compactText(topTension.brief, 96)}` : compactText(reading.western?.wellness ?? reading.kp?.sublordGuidance, 110)}
+                    label={todayCopy.pressureLine}
+                    text={todayCopy.pressureText}
                     color={COLORS.coral}
                   />
                   <ProofRow
                     icon="time-outline"
-                    label="Timing layer"
+                    label={todayCopy.timingLayer}
                     text={timingNote}
                     color={COLORS.gold}
                   />
@@ -448,11 +479,11 @@ export default function TodayScreen() {
             {skyPreview.length > 0 && (
               <AnimatedCard index={1}>
                 <GradientCard accentColor={COLORS.tide}>
-                  <Text style={styles.cardEyebrow}>SKY NOW</Text>
-                  <Text style={styles.skyIntro}>The fastest check on the current atmosphere.</Text>
+                  <Text style={styles.cardEyebrow}>{todayCopy.skyNow}</Text>
+                  <Text style={styles.skyIntro}>{todayCopy.skyIntro}</Text>
                   <View style={styles.skyWrap}>
                     {skyPreview.map((position) => (
-                      <SkyChip key={`${position.planet}-${position.sign}`} position={position} />
+                      <SkyChip key={`${position.planet}-${position.sign}`} position={position} language={language} />
                     ))}
                   </View>
                 </GradientCard>
@@ -461,12 +492,23 @@ export default function TodayScreen() {
           </>
         )}
 
+        {activeSection === 'forecast' && periodForecast && (
+          <AnimatedCard index={0}>
+            <ForecastPanel
+              forecast={periodForecast}
+              window={forecastWindow}
+              onChange={setForecastWindow}
+              language={language}
+            />
+          </AnimatedCard>
+        )}
+
         {activeSection === 'systems' && (
           <>
             <AnimatedCard index={0}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>By system</Text>
-                <Text style={styles.sectionCopy}>Open the lens that best matches the decision you need to make today.</Text>
+                <Text style={styles.sectionTitle}>{todayCopy.bySystem}</Text>
+                <Text style={styles.sectionCopy}>{todayCopy.bySystemCopy}</Text>
               </View>
             </AnimatedCard>
 
@@ -792,6 +834,23 @@ const styles = StyleSheet.create({
   },
   actions: {
     gap: SPACING.md,
+  },
+  retryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    marginTop: SPACING.md,
+    paddingVertical: 12,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
+    borderColor: `${COLORS.tide}44`,
+    backgroundColor: `${COLORS.tide}10`,
+  },
+  retryText: {
+    color: COLORS.tide,
+    fontSize: 15,
+    fontFamily: FONTS.heading,
   },
   bottomPad: {
     height: 40,

@@ -1,16 +1,34 @@
 import { CompatibilityResult, CosmicProfile } from '../../types/astrology';
+import type { RelationshipMode } from '../../types/appData';
 import { getVedicCompatibility } from '../vedic/compatibility';
 import { getChineseCompatibility } from '../chinese/compatibility';
+
+/**
+ * Mode-aware weighting for compatibility dimensions.
+ *
+ * Romantic: emphasizes Vedic (emotional/karmic) and Western (element chemistry)
+ * Friend: balanced across all systems
+ * Work: emphasizes Chinese (element/timing) and Western (communication elements)
+ * Family: emphasizes Vedic (karmic bonds) with gentle Chinese weighting
+ */
+const MODE_WEIGHTS: Record<RelationshipMode, { western: number; vedic: number; chinese: number }> = {
+  romantic: { western: 0.30, vedic: 0.40, chinese: 0.30 },
+  friend:   { western: 0.33, vedic: 0.34, chinese: 0.33 },
+  work:     { western: 0.35, vedic: 0.25, chinese: 0.40 },
+  family:   { western: 0.25, vedic: 0.45, chinese: 0.30 },
+};
 
 /**
  * Calculate cross-system compatibility between two Cosmic Profiles.
  *
  * Combines scores from Western, Vedic, Chinese, and KP systems
  * into a unified compatibility result. All framing is positive.
+ * The optional `mode` parameter adjusts system weighting.
  */
 export function calculateCrossCompatibility(
   profile1: CosmicProfile,
   profile2: CosmicProfile,
+  mode: RelationshipMode = 'romantic',
 ): CompatibilityResult {
   // Western compatibility (element-based)
   const westernScore = calculateWesternCompat(
@@ -37,9 +55,10 @@ export function calculateCrossCompatibility(
     profile2.chinese.element,
   );
 
-  // Overall weighted average
+  // Mode-aware weighted average
+  const weights = MODE_WEIGHTS[mode];
   const overall = Math.round(
-    westernScore.score * 0.3 + vedicScore * 0.35 + chinese.score * 0.35
+    westernScore.score * weights.western + vedicScore * weights.vedic + chinese.score * weights.chinese
   );
 
   const shareText = getShareText(overall, profile1, profile2);

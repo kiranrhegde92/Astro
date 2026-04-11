@@ -49,6 +49,37 @@ const geocoding_1 = require("./utils/geocoding");
 admin.initializeApp();
 const db = admin.firestore();
 const DAILY_READING_VERSION = 4;
+const HIGH_IMPACT_TRANSIT_ORB = 1.25;
+function isPremiumSubscriber(userData) {
+    var _a, _b;
+    const tier = (_a = userData.subscription) === null || _a === void 0 ? void 0 : _a.tier;
+    const status = (_b = userData.subscription) === null || _b === void 0 ? void 0 : _b.status;
+    return (tier === 'premium' || tier === 'family') && (status === 'active' || status === 'trial');
+}
+function formatTransitPart(value) {
+    return String(value !== null && value !== void 0 ? value : '')
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .trim();
+}
+function getPremiumTransitNotification(reading) {
+    const transits = Array.isArray(reading === null || reading === void 0 ? void 0 : reading.activeTransits) ? reading.activeTransits : [];
+    const hit = transits
+        .filter((transit) => typeof (transit === null || transit === void 0 ? void 0 : transit.orb) === 'number' &&
+        transit.orb <= HIGH_IMPACT_TRANSIT_ORB &&
+        (transit.nature === 'support' || transit.nature === 'tension'))
+        .sort((a, b) => a.orb - b.orb)[0];
+    if (!hit)
+        return null;
+    const transitPlanet = formatTransitPart(hit.transitPlanet);
+    const natalPlanet = formatTransitPart(hit.natalPlanet);
+    const aspect = formatTransitPart(hit.aspect).toLowerCase();
+    const label = `${transitPlanet} ${aspect} natal ${natalPlanet}`.replace(/\s+/g, ' ').trim();
+    const body = String(hit.brief || `A tight ${label} transit is active today.`).trim();
+    return {
+        title: hit.nature === 'support' ? `Transit opening: ${transitPlanet}` : `Transit alert: ${transitPlanet}`,
+        body: body.length > 100 ? `${body.slice(0, 97)}...` : body,
+    };
+}
 // ─── calculateChart ───────────────────────────────────────────────────────────
 // Called from app after user enters birth details.
 // Returns full chart for all 4 systems + saves to Firestore.
@@ -414,17 +445,25 @@ exports.scheduledDailyReadings = (0, scheduler_1.onSchedule)({ schedule: '0 0 * 
             const reading = (0, dailyPrediction_1.buildTransitReading)(chartSnap.data(), transits, new Date());
             await db.doc(`dailyReadings/${uid}/dates/${dateKey}`).set(Object.assign(Object.assign({}, reading), { generatedAt: admin.firestore.FieldValue.serverTimestamp() }));
             // Send FCM push notification if token exists
-            const fcmToken = doc.data().fcmToken;
+            const userData = doc.data();
+            const fcmToken = userData.fcmToken;
             if (fcmToken) {
-                const firstName = ((_b = doc.data().name) !== null && _b !== void 0 ? _b : 'you').split(' ')[0];
+                const premiumTransitNotification = isPremiumSubscriber(userData)
+                    ? getPremiumTransitNotification(reading)
+                    : null;
+                const firstName = ((_b = userData.name) !== null && _b !== void 0 ? _b : 'you').split(' ')[0];
                 const vibe = (_d = (_c = reading.unified) === null || _c === void 0 ? void 0 : _c.cosmicVibe) !== null && _d !== void 0 ? _d : 'Your cosmic reading is ready.';
+                const notification = premiumTransitNotification !== null && premiumTransitNotification !== void 0 ? premiumTransitNotification : {
+                    title: `Good morning, ${firstName}`,
+                    body: vibe.length > 100 ? `${vibe.slice(0, 97)}...` : vibe,
+                };
                 await admin.messaging().send({
                     token: fcmToken,
                     notification: {
-                        title: `Good morning, ${firstName} ✨`,
-                        body: vibe.length > 100 ? `${vibe.slice(0, 97)}…` : vibe,
+                        title: notification.title,
+                        body: notification.body,
                     },
-                    data: { screen: 'today', date: dateKey },
+                    data: { screen: 'today', date: dateKey, alertType: premiumTransitNotification ? 'transit' : 'daily' },
                     android: { notification: { channelId: 'cosmic-daily' } },
                     apns: { payload: { aps: { sound: 'default' } } },
                 }).catch(() => { }); // Silently ignore stale tokens

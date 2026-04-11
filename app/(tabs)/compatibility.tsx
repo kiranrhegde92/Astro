@@ -22,6 +22,7 @@ import type {
 } from '../../src/types/appData';
 import type { CompatibilityResult, CosmicProfile } from '../../src/types/astrology';
 import { getDateKey, formatDisplayDate } from '../../src/utils/dateUtils';
+import { geocodePlace } from '../../src/utils/geocoding';
 import { captureAndShare } from '../../src/utils/shareUtils';
 
 const MODES: Array<{ value: RelationshipMode; label: string; help: string }> = [
@@ -125,10 +126,36 @@ export default function CompatibilityScreen() {
   const [activeSection, setActiveSection] = useState('setup');
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(params.profileId ?? null);
   const [savePartner, setSavePartner] = useState(true);
+  const [isRunningCheck, setIsRunningCheck] = useState(false);
   const [activePartnerProfile, setActivePartnerProfile] = useState<CosmicProfile | null>(null);
   const compatCardRef = useRef<ViewShot>(null);
 
-  const isValid = Boolean(name.trim() && day && month && year);
+  const dateValidation = useMemo(() => {
+    if (!day || !month || !year) return { valid: false, error: '' };
+    const d = parseInt(day, 10);
+    const m = parseInt(month, 10);
+    const y = parseInt(year, 10);
+    if (m < 1 || m > 12) return { valid: false, error: 'Month must be 1-12' };
+    if (d < 1 || d > 31) return { valid: false, error: 'Day must be 1-31' };
+    if (y < 1900 || y > new Date().getFullYear()) return { valid: false, error: `Year must be 1900-${new Date().getFullYear()}` };
+    const daysInMonth = new Date(y, m, 0).getDate();
+    if (d > daysInMonth) return { valid: false, error: `${month}/${year} only has ${daysInMonth} days` };
+    const birthDate = new Date(y, m - 1, d);
+    if (birthDate > new Date()) return { valid: false, error: 'Birth date cannot be in the future' };
+    return { valid: true, error: '' };
+  }, [day, month, year]);
+
+  const timeValidation = useMemo(() => {
+    if (!hour && !minute) return { valid: true, error: '' };
+    if ((hour && !minute) || (!hour && minute)) return { valid: false, error: 'Enter both hour and minute, or leave both blank' };
+    const h = parseInt(hour, 10);
+    const m = parseInt(minute, 10);
+    if (hour && (isNaN(h) || h < 0 || h > 23)) return { valid: false, error: 'Hour must be 0-23' };
+    if (minute && (isNaN(m) || m < 0 || m > 59)) return { valid: false, error: 'Minute must be 0-59' };
+    return { valid: true, error: '' };
+  }, [hour, minute]);
+
+  const isValid = Boolean(name.trim() && day && month && year && dateValidation.valid && timeValidation.valid);
   const todayKey = getDateKey(new Date());
   const freeChecksToday = compatibilityHistory.filter((entry) => getDateKey(new Date(entry.createdAt)) === todayKey).length;
   const canRunCheck = user?.subscription.tier !== 'free' || freeChecksToday < 1;
@@ -166,7 +193,7 @@ export default function CompatibilityScreen() {
         chinese: user.chinese,
         kp: user.kp,
       };
-      const nextResult = calculateCrossCompatibility(myProfile, partnerProfile);
+      const nextResult = calculateCrossCompatibility(myProfile, partnerProfile, mode);
       const historyEntry: CompatibilityHistoryEntry = {
         id: `compat_${Date.now()}`,
         partnerId,
@@ -190,51 +217,71 @@ export default function CompatibilityScreen() {
 
   const handleCheck = useCallback(async () => {
     if (!user?.western || !user?.vedic || !user?.chinese) return;
+    if (isRunningCheck) return;
+    if (!isValid) {
+      showAlert('Check birth details', dateValidation.error || timeValidation.error || 'Enter a valid name and birth date.');
+      return;
+    }
     if (!canRunCheck) {
       showAlert('Daily limit reached', 'Free tier includes one saved comparison per day. Upgrade to unlock unlimited checks.');
       return;
     }
 
-    const birthDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1, parseInt(day, 10));
-    const birthTime = hour && minute ? `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}` : undefined;
-    const partnerProfile = calculateCosmicProfile(birthDate, birthTime);
+    setIsRunningCheck(true);
+    try {
+      const birthDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1, parseInt(day, 10));
+      const birthTime = hour && minute ? `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}` : undefined;
+      const resolvedPlace = place.trim() ? await geocodePlace(place.trim()) : null;
 
-    let partnerId = selectedSavedProfile?.id;
-    if (savePartner) {
-      const savedProfile: SavedProfile = {
-        id: partnerId ?? `saved_${Date.now()}`,
-        name: name.trim(),
-        relation:
-          mode === 'romantic'
-            ? 'partner'
-            : mode === 'work'
-              ? 'coworker'
-              : mode === 'family'
-                ? 'family'
-                : 'friend',
-        birthDetails: {
-          date: birthDate,
-          time: birthTime,
-          place: place ? { name: place, lat: 0, lng: 0, timezone: 'UTC' } : undefined,
-        },
-        activeSystems: user.activeSystems,
-        profile: partnerProfile,
-        source: selectedSavedProfile ? selectedSavedProfile.source : 'manual',
-        cosmicDNA: `${partnerProfile.western.sun} Sun + ${partnerProfile.vedic.rashi} Rashi + ${partnerProfile.chinese.element} ${partnerProfile.chinese.animal}`,
-        createdAt: selectedSavedProfile?.createdAt ?? new Date().toISOString(),
-        lastComparedAt: new Date().toISOString(),
-      };
-      partnerId = savedProfile.id;
-      await addSavedProfile(savedProfile);
-      setSelectedProfileId(savedProfile.id);
+      if (place.trim() && !resolvedPlace) {
+        showAlert('Place not found', 'Try a city and country, or leave place blank to compare without location-specific rising details.');
+        return;
+      }
+
+      const partnerProfile = calculateCosmicProfile(birthDate, birthTime, resolvedPlace?.lat, resolvedPlace?.lng);
+
+      let partnerId = selectedSavedProfile?.id;
+      if (savePartner) {
+        const savedProfile: SavedProfile = {
+          id: partnerId ?? `saved_${Date.now()}`,
+          name: name.trim(),
+          relation:
+            mode === 'romantic'
+              ? 'partner'
+              : mode === 'work'
+                ? 'coworker'
+                : mode === 'family'
+                  ? 'family'
+                  : 'friend',
+          birthDetails: {
+            date: birthDate,
+            time: birthTime,
+            place: resolvedPlace ?? undefined,
+          },
+          activeSystems: user.activeSystems,
+          profile: partnerProfile,
+          source: selectedSavedProfile ? selectedSavedProfile.source : 'manual',
+          cosmicDNA: `${partnerProfile.western.sun} Sun + ${partnerProfile.vedic.rashi} Rashi + ${partnerProfile.chinese.element} ${partnerProfile.chinese.animal}`,
+          createdAt: selectedSavedProfile?.createdAt ?? new Date().toISOString(),
+          lastComparedAt: new Date().toISOString(),
+        };
+        partnerId = savedProfile.id;
+        await addSavedProfile(savedProfile);
+        setSelectedProfileId(savedProfile.id);
+      }
+
+      await runComparison(partnerProfile, name.trim(), partnerId);
+    } finally {
+      setIsRunningCheck(false);
     }
-
-    await runComparison(partnerProfile, name.trim(), partnerId);
   }, [
     addSavedProfile,
     canRunCheck,
     day,
+    dateValidation.error,
     hour,
+    isRunningCheck,
+    isValid,
     minute,
     mode,
     month,
@@ -243,6 +290,8 @@ export default function CompatibilityScreen() {
     runComparison,
     savePartner,
     selectedSavedProfile,
+    showAlert,
+    timeValidation.error,
     user,
     year,
   ]);
@@ -333,6 +382,9 @@ export default function CompatibilityScreen() {
                   maxLength={4}
                 />
               </View>
+              {dateValidation.error ? (
+                <Text style={styles.validationError}>{dateValidation.error}</Text>
+              ) : null}
               <View style={styles.dateRow}>
                 <TextInput
                   style={[styles.input, styles.small]}
@@ -360,6 +412,9 @@ export default function CompatibilityScreen() {
                   placeholderTextColor={COLORS.textMuted}
                 />
               </View>
+              {timeValidation.error ? (
+                <Text style={styles.validationError}>{timeValidation.error}</Text>
+              ) : null}
               <TouchableOpacity onPress={() => setSavePartner((value) => !value)} activeOpacity={0.84} style={[styles.saveToggle, savePartner && styles.saveToggleActive]}>
                 <Text style={[styles.saveToggleText, savePartner && styles.saveToggleTextActive]}>
                   {savePartner ? 'Saved after compare' : 'Compare once only'}
@@ -369,9 +424,10 @@ export default function CompatibilityScreen() {
 
             <View style={styles.actions}>
               <CosmicButton
-                title={canRunCheck ? 'Run the match' : 'Upgrade for more checks'}
+                title={canRunCheck ? (isRunningCheck ? 'Checking the match' : 'Run the match') : 'Upgrade for more checks'}
                 onPress={canRunCheck ? () => void handleCheck() : () => router.push('/subscription')}
-                disabled={!canRunCheck && user.subscription.tier === 'free' ? false : !isValid}
+                disabled={!canRunCheck && user.subscription.tier === 'free' ? false : !isValid || isRunningCheck}
+                loading={isRunningCheck}
               />
               <CosmicButton title="Scan or paste a shared profile" onPress={() => router.push('/qr/scan')} variant="outline" />
             </View>
@@ -732,6 +788,12 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontSize: 14,
     lineHeight: 22,
+  },
+  validationError: {
+    color: COLORS.coral,
+    fontSize: 12,
+    lineHeight: 16,
+    fontFamily: FONTS.accent,
   },
   hiddenCard: {
     position: 'absolute',

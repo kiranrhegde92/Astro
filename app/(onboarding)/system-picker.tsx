@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { StarField } from '../../src/components/ui/StarField';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
 import { CosmicButton } from '../../src/components/ui/CosmicButton';
@@ -11,35 +12,35 @@ import { BORDER_RADIUS, COLORS, FONTS, SPACING } from '../../src/constants/theme
 import { useUserStore } from '../../src/store/userStore';
 import type { AstrologySystem } from '../../src/types/user';
 
-const SYSTEMS: Array<{ key: AstrologySystem; title: string; body: string; accent: string; secondary: string; icon: React.ComponentProps<typeof OrbIcon>['icon'] }> = [
+const SYSTEMS: Array<{ key: AstrologySystem; titleKey: string; bodyKey: string; accent: string; secondary: string; icon: React.ComponentProps<typeof OrbIcon>['icon'] }> = [
   {
     key: 'western',
-    title: 'Western astrology',
-    body: 'Psychology, identity, and how today lands in your inner weather.',
+    titleKey: 'onboarding.systemPicker.western',
+    bodyKey: 'onboarding.systemPicker.westernDesc',
     accent: COLORS.western,
     secondary: '#ece6ff',
     icon: 'sunny',
   },
   {
     key: 'vedic',
-    title: 'Vedic astrology',
-    body: 'Life periods, karma, and timing when a season starts to shift.',
+    titleKey: 'onboarding.systemPicker.vedic',
+    bodyKey: 'onboarding.systemPicker.vedicDesc',
     accent: COLORS.vedic,
     secondary: '#ffe6d8',
     icon: 'moon',
   },
   {
     key: 'chinese',
-    title: 'Chinese astrology',
-    body: 'Animals, elements, and the long rhythm of your temperament.',
+    titleKey: 'onboarding.systemPicker.chinese',
+    bodyKey: 'onboarding.systemPicker.chineseDesc',
     accent: COLORS.chinese,
     secondary: '#ffe7db',
     icon: 'leaf',
   },
   {
     key: 'kp',
-    title: 'KP system',
-    body: 'A sharper lens for event timing when you want precision.',
+    titleKey: 'onboarding.systemPicker.kp',
+    bodyKey: 'onboarding.systemPicker.kpDesc',
     accent: COLORS.kp,
     secondary: '#e1f5ef',
     icon: 'sparkles',
@@ -48,6 +49,7 @@ const SYSTEMS: Array<{ key: AstrologySystem; title: string; body: string; accent
 
 export default function SystemPickerScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const setActiveSystems = useUserStore((state) => state.setActiveSystems);
   const [selected, setSelected] = useState<Set<AstrologySystem>>(new Set(SYSTEMS.map((system) => system.key)));
 
@@ -63,11 +65,11 @@ export default function SystemPickerScreen() {
 
   return (
     <StarField>
-      <ScreenHeader title="Choose your blend" />
+      <ScreenHeader title={t('onboarding.systemPicker.title')} />
       <ResetScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <Text style={styles.step}>Step 2 of 3</Text>
-        <Text style={styles.headline}>Blend the traditions you want in your daily ritual.</Text>
-        <Text style={styles.copy}>Keep all four for the richest read, or narrow the voice if you prefer something quieter.</Text>
+        <Text style={styles.step}>{t('onboarding.systemPicker.step')}</Text>
+        <Text style={styles.headline}>{t('onboarding.systemPicker.headline')}</Text>
+        <Text style={styles.copy}>{t('onboarding.systemPicker.copy')}</Text>
 
         {SYSTEMS.map((system) => {
           const active = selected.has(system.key);
@@ -83,20 +85,20 @@ export default function SystemPickerScreen() {
                       secondaryColor={system.secondary}
                       active={active}
                     />
-                    <Text style={styles.rowText}>{system.title}</Text>
+                    <Text style={styles.rowText}>{t(system.titleKey)}</Text>
                   </View>
                   <View style={[styles.rowMark, active && styles.rowMarkActive]}>
-                    <Text style={[styles.rowMarkText, active && styles.rowMarkTextActive]}>{active ? 'On' : 'Off'}</Text>
+                    <Text style={[styles.rowMarkText, active && styles.rowMarkTextActive]}>{active ? t('common.on') : t('common.off')}</Text>
                   </View>
                 </View>
-                <Text style={styles.rowBody}>{system.body}</Text>
+                <Text style={styles.rowBody}>{t(system.bodyKey)}</Text>
               </GradientCard>
             </TouchableOpacity>
           );
         })}
 
         <CosmicButton
-          title="Create my almanac"
+          title={t('onboarding.systemPicker.continue')}
           onPress={() => {
             setActiveSystems(Array.from(selected));
             router.push('/(onboarding)/cosmic-reveal');
