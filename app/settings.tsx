@@ -11,6 +11,7 @@ import { useCosmicAlert } from '../src/components/ui/CosmicAlert';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS } from '../src/constants/theme';
 import { useSettingsStore } from '../src/store/settingsStore';
 import { useUserStore } from '../src/store/userStore';
+import { hasPremiumEntitlement } from '../src/utils/subscription';
 import type { AstrologySystem } from '../src/types/user';
 
 const NOTIFICATION_TIMES = [
@@ -44,8 +45,21 @@ export default function SettingsScreen() {
   const { notificationsEnabled, dailyNotificationTime, setNotifications, setNotificationTime } = useSettingsStore();
   const user = useUserStore((s) => s.user);
   const setActiveSystems = useUserStore((s) => s.setActiveSystems);
+  const setSubscription = useUserStore((s) => s.setSubscription);
   const { showAlert, alertModal } = useCosmicAlert();
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const isPremium = hasPremiumEntitlement(user?.subscription);
+
+  const toggleTestPremium = () => {
+    if (!user) return;
+    if (isPremium) {
+      setSubscription({ tier: 'free', status: 'expired' });
+    } else {
+      const expiresAt = new Date();
+      expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+      setSubscription({ tier: 'premium', status: 'active', expiresAt });
+    }
+  };
 
   const toggleSystem = (system: AstrologySystem) => {
     if (!user) return;
@@ -175,6 +189,26 @@ export default function SettingsScreen() {
             <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
           </TouchableOpacity>
         </GradientCard>
+
+        {/* ── Dev Testing ──────────────────────────────────────────────── */}
+        {user ? (
+          <GradientCard style={styles.section} accentColor={COLORS.coral}>
+            <Text style={styles.sectionLabel}>Testing</Text>
+            <Text style={styles.sectionNote}>Toggle premium status for testing. This does not process real payments.</Text>
+            <View style={styles.switchRow}>
+              <View style={styles.systemLabelRow}>
+                <Ionicons name="star" size={16} color={isPremium ? COLORS.starGold : COLORS.textMuted} />
+                <Text style={styles.rowText}>{isPremium ? 'Premium active' : 'Free tier'}</Text>
+              </View>
+              <Switch
+                value={isPremium}
+                onValueChange={toggleTestPremium}
+                trackColor={{ false: 'rgba(40,49,73,0.16)', true: COLORS.starGold }}
+                thumbColor="#fffaf1"
+              />
+            </View>
+          </GradientCard>
+        ) : null}
 
         {/* ── App Info ────────────────────────────────────────────────── */}
         <View style={styles.appInfo}>

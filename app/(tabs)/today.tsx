@@ -402,9 +402,17 @@ export default function TodayScreen() {
         }
       >
         <View style={styles.header}>
-          <Text style={styles.dateLabel}>
-            {today.toLocaleDateString(todayCopy.dateLocale, { weekday: 'long', month: 'long', day: 'numeric' })}
-          </Text>
+          <View style={styles.datePremiumRow}>
+            <Text style={styles.dateLabel}>
+              {today.toLocaleDateString(todayCopy.dateLocale, { weekday: 'long', month: 'long', day: 'numeric' })}
+            </Text>
+            {isPremium ? (
+              <View style={styles.premiumBadge}>
+                <Ionicons name="star" size={11} color={COLORS.starGold} />
+                <Text style={styles.premiumBadgeText}>PREMIUM</Text>
+              </View>
+            ) : null}
+          </View>
           <Text style={styles.greetingText}>{greeting}, {firstName}</Text>
           <Text style={styles.headerCopy}>{todayCopy.headerCopy}</Text>
         </View>
@@ -414,10 +422,11 @@ export default function TodayScreen() {
         {activeSection === 'brief' && (
           <>
             <AnimatedCard index={0}>
-              <LinearGradient colors={heroGradient} style={styles.hero}>
+              <LinearGradient colors={heroGradient} style={[styles.hero, isPremium && styles.heroPremium]}>
                 <View style={styles.heroTopRow}>
-                  <View style={styles.heroBadge}>
-                    <Text style={styles.heroBadgeText}>{todayCopy.heroBadge}</Text>
+                  <View style={[styles.heroBadge, isPremium && styles.heroBadgePremium]}>
+                    {isPremium ? <Ionicons name="star" size={10} color={COLORS.starGold} style={{ marginRight: 4 }} /> : null}
+                    <Text style={[styles.heroBadgeText, isPremium && styles.heroBadgeTextPremium]}>{todayCopy.heroBadge}</Text>
                   </View>
                   <View style={[styles.scorePill, { borderColor: `${toneAccent}55`, backgroundColor: `${toneAccent}22` }]}>
                     <Text style={[styles.scoreText, { color: toneAccent }]}>{todayCopy.alignedText}</Text>
@@ -635,6 +644,28 @@ const styles = StyleSheet.create({
   header: {
     gap: 4,
   },
+  datePremiumRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  premiumBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
+    borderColor: `${COLORS.starGold}55`,
+    backgroundColor: `${COLORS.starGold}18`,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  premiumBadgeText: {
+    color: COLORS.starGold,
+    fontSize: 9,
+    fontFamily: FONTS.accent,
+    letterSpacing: 1,
+  },
   dateLabel: {
     color: COLORS.textMuted,
     fontSize: 11,
@@ -660,6 +691,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...SHADOWS.deep,
   },
+  heroPremium: {
+    borderWidth: 1,
+    borderColor: `${COLORS.starGold}40`,
+  },
   heroTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -667,6 +702,8 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   heroBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     borderRadius: BORDER_RADIUS.full,
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -674,11 +711,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.16)',
   },
+  heroBadgePremium: {
+    backgroundColor: `${COLORS.starGold}20`,
+    borderColor: `${COLORS.starGold}44`,
+  },
   heroBadgeText: {
     color: '#fffaf1',
     fontSize: 9,
     fontFamily: FONTS.accent,
     letterSpacing: 1.2,
+  },
+  heroBadgeTextPremium: {
+    color: COLORS.starGold,
   },
   scorePill: {
     borderRadius: BORDER_RADIUS.full,
