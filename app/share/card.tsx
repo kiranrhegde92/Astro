@@ -1,23 +1,37 @@
 import React, { useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
 import ViewShot from 'react-native-view-shot';
 import { StarField } from '../../src/components/ui/StarField';
 import { OrbIcon } from '../../src/components/ui/OrbIcon';
 import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
 import { CosmicButton } from '../../src/components/ui/CosmicButton';
+import { useCosmicAlert } from '../../src/components/ui/CosmicAlert';
 import { ShareableCard, DailyVibeCard } from '../../src/components/share/ShareableCard';
 import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../../src/constants/theme';
+import { useActiveProfile } from '../../src/hooks/useActiveProfile';
+import { showRewardedAd } from '../../src/services/rewardedAds';
+import { useAdUnlockStore } from '../../src/store/adUnlockStore';
 import { useUserStore } from '../../src/store/userStore';
 import { captureAndShare } from '../../src/utils/shareUtils';
 import { getDailyAffirmation, getDailyOpener } from '../../src/content/positiveFraming';
+import { hasPremiumEntitlement } from '../../src/utils/subscription';
 
 type CardType = 'cosmic-dna' | 'daily-vibe';
 
 export default function ShareCardScreen() {
-  const user = useUserStore((s) => s.user);
+  const router = useRouter();
+  const accountUser = useUserStore((s) => s.user);
+  const user = useActiveProfile();
+  const tokens = useAdUnlockStore((s) => s.tokens);
+  const grantUnlock = useAdUnlockStore((s) => s.grantUnlock);
+  const consumeUnlock = useAdUnlockStore((s) => s.consumeUnlock);
   const viewShotRef = useRef<ViewShot>(null);
   const [activeTab, setActiveTab] = useState<CardType>('cosmic-dna');
+  const [premiumCardUnlocked, setPremiumCardUnlocked] = useState(false);
+  const [adLoading, setAdLoading] = useState(false);
+  const { showAlert, alertModal } = useCosmicAlert();
 
   if (!user?.western || !user?.vedic || !user?.chinese) return null;
 
@@ -28,9 +42,33 @@ export default function ShareCardScreen() {
     chinese: user.chinese,
     kp: user.kp,
   };
+  const hasPremiumShareUnlock = tokens.some((token) => token.feature === 'premium_share_card' && !token.consumedAt);
+  const canShareWithoutWatermark = hasPremiumEntitlement(accountUser?.subscription) || premiumCardUnlocked;
 
   const handleShare = () => {
     captureAndShare(viewShotRef, 'Check out my Cosmic DNA!');
+  };
+
+  const handleUsePremiumCardUnlock = async () => {
+    const consumed = await consumeUnlock('premium_share_card');
+    if (consumed) setPremiumCardUnlocked(true);
+  };
+
+  const handleWatchAd = async () => {
+    if (adLoading) return;
+    setAdLoading(true);
+    try {
+      const earned = await showRewardedAd('premium_share_card');
+      if (!earned) {
+        showAlert('Ad not completed', 'The premium card was not unlocked. Try again when a rewarded ad is available.');
+        return;
+      }
+      await grantUnlock('premium_share_card');
+      await consumeUnlock('premium_share_card');
+      setPremiumCardUnlocked(true);
+    } finally {
+      setAdLoading(false);
+    }
   };
 
   return (
@@ -75,6 +113,7 @@ export default function ShareCardScreen() {
               profile={profile}
               type="cosmic-dna"
               viewShotRef={viewShotRef}
+              showWatermark={!canShareWithoutWatermark}
             />
           ) : (
             <DailyVibeCard
@@ -84,9 +123,23 @@ export default function ShareCardScreen() {
               affirmation={getDailyAffirmation(today)}
               date={today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
               viewShotRef={viewShotRef}
+              showWatermark={!canShareWithoutWatermark}
             />
           )}
         </View>
+
+        {!canShareWithoutWatermark ? (
+          <View style={styles.premiumActions}>
+            <CosmicButton
+              title={hasPremiumShareUnlock ? 'Use no-watermark unlock' : adLoading ? 'Loading ad' : 'Watch ad to remove watermark'}
+              onPress={hasPremiumShareUnlock ? () => void handleUsePremiumCardUnlock() : () => void handleWatchAd()}
+              loading={adLoading}
+            />
+            <CosmicButton title="Go Premium for clean cards" onPress={() => router.push('/subscription')} variant="outline" />
+          </View>
+        ) : (
+          <Text style={styles.premiumNote}>Premium card active for this export.</Text>
+        )}
 
         {/* Share Button */}
         <CosmicButton
@@ -101,6 +154,7 @@ export default function ShareCardScreen() {
 
         <View style={styles.bottomPad} />
       </ResetScrollView>
+      {alertModal}
     </StarField>
   );
 }
@@ -156,6 +210,17 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: 'center',
     marginTop: SPACING.md,
+  },
+  premiumActions: {
+    gap: SPACING.sm,
+    marginBottom: SPACING.lg,
+  },
+  premiumNote: {
+    color: COLORS.tide,
+    fontSize: 12,
+    textAlign: 'center',
+    marginBottom: SPACING.md,
+    fontFamily: FONTS.heading,
   },
   bottomPad: { height: 20 },
 });

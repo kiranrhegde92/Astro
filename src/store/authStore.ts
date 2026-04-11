@@ -5,6 +5,8 @@ import { onAuthChange, signOut } from '../services/authService';
 import { deleteMyAccount } from '../services/functionsService';
 import { useConnectionsStore } from './connectionsStore';
 import { useJournalStore } from './journalStore';
+import { useAdUnlockStore } from './adUnlockStore';
+import { useManagedProfilesStore } from './managedProfilesStore';
 import { useReadingStore } from './readingStore';
 import { useSettingsStore } from './settingsStore';
 import { getChart, getUserProfile } from '../services/firestoreService';
@@ -25,7 +27,7 @@ function buildPendingProfile(user: User) {
     language: 'en',
     birthDetails: {} as any,
     activeSystems: [],
-    subscription: { tier: 'free' as const, status: 'active' as const, purchasedItems: [] },
+    subscription: { tier: 'free' as const, status: 'active' as const },
     cosmicPoints: 0,
     streak: 0,
     onboardingComplete: false,
@@ -65,7 +67,11 @@ export const useAuthStore = create<AuthState>((set) => ({
         const hasMatchingLocalUser = currentLocalUser?.id === user.uid;
 
         if (currentLocalUser?.id && currentLocalUser.id !== user.uid) {
-          await useUserStore.getState().clearUser();
+          await Promise.all([
+            useUserStore.getState().clearUser(),
+            useAdUnlockStore.getState().clearAdUnlocks(),
+            useManagedProfilesStore.getState().clearManagedProfiles(),
+          ]);
         }
 
         // Load Firestore profile
@@ -120,6 +126,8 @@ export const useAuthStore = create<AuthState>((set) => ({
         useReadingStore.getState().clearReadings(),
         useConnectionsStore.getState().clearConnections(),
         useJournalStore.getState().clearJournal(),
+        useAdUnlockStore.getState().clearAdUnlocks(),
+        useManagedProfilesStore.getState().clearManagedProfiles(),
         useSettingsStore.getState().clearSettings(),
       ]);
     };

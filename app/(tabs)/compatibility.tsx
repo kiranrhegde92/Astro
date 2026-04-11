@@ -13,6 +13,9 @@ import { BORDER_RADIUS, COLORS, FONTS, SPACING } from '../../src/constants/theme
 import { CompatibilityCard } from '../../src/components/share/ShareableCard';
 import { calculateCosmicProfile } from '../../src/engines/unified';
 import { calculateCrossCompatibility } from '../../src/engines/unified/crossCompatibility';
+import { useActiveProfile } from '../../src/hooks/useActiveProfile';
+import { showRewardedAd } from '../../src/services/rewardedAds';
+import { useAdUnlockStore } from '../../src/store/adUnlockStore';
 import { useConnectionsStore } from '../../src/store/connectionsStore';
 import { useUserStore } from '../../src/store/userStore';
 import type {
@@ -24,6 +27,7 @@ import type { CompatibilityResult, CosmicProfile } from '../../src/types/astrolo
 import { getDateKey, formatDisplayDate } from '../../src/utils/dateUtils';
 import { geocodePlace } from '../../src/utils/geocoding';
 import { captureAndShare } from '../../src/utils/shareUtils';
+import { hasPremiumEntitlement } from '../../src/utils/subscription';
 
 const MODES: Array<{ value: RelationshipMode; label: string; help: string }> = [
   { value: 'romantic', label: 'Romantic', help: 'Look for chemistry, tenderness, and long-term ease.' },
@@ -104,7 +108,11 @@ function getModeSummary(mode: RelationshipMode, result: CompatibilityResult) {
 export default function CompatibilityScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ profileId?: string }>();
-  const user = useUserStore((state) => state.user);
+  const accountUser = useUserStore((state) => state.user);
+  const user = useActiveProfile();
+  const tokens = useAdUnlockStore((state) => state.tokens);
+  const grantUnlock = useAdUnlockStore((state) => state.grantUnlock);
+  const consumeUnlock = useAdUnlockStore((state) => state.consumeUnlock);
   const savedProfiles = useConnectionsStore((state) => state.savedProfiles);
   const compatibilityHistory = useConnectionsStore((state) => state.compatibilityHistory);
   const addSavedProfile = useConnectionsStore((state) => state.addSavedProfile);
@@ -127,6 +135,7 @@ export default function CompatibilityScreen() {
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(params.profileId ?? null);
   const [savePartner, setSavePartner] = useState(true);
   const [isRunningCheck, setIsRunningCheck] = useState(false);
+  const [adLoading, setAdLoading] = useState(false);
   const [activePartnerProfile, setActivePartnerProfile] = useState<CosmicProfile | null>(null);
   const compatCardRef = useRef<ViewShot>(null);
 
@@ -158,7 +167,10 @@ export default function CompatibilityScreen() {
   const isValid = Boolean(name.trim() && day && month && year && dateValidation.valid && timeValidation.valid);
   const todayKey = getDateKey(new Date());
   const freeChecksToday = compatibilityHistory.filter((entry) => getDateKey(new Date(entry.createdAt)) === todayKey).length;
-  const canRunCheck = user?.subscription.tier !== 'free' || freeChecksToday < 1;
+  const isPremium = hasPremiumEntitlement(accountUser?.subscription);
+  const hasExtraCheckUnlock = tokens.some((token) => token.feature === 'extra_compatibility_check' && !token.consumedAt);
+  const needsAdUnlock = !isPremium && freeChecksToday >= 1;
+  const canRunCheck = isPremium || freeChecksToday < 1 || hasExtraCheckUnlock;
   const selectedSavedProfile = selectedProfileId
     ? savedProfiles.find((profile) => profile.id === selectedProfileId) ?? null
     : null;
@@ -223,7 +235,7 @@ export default function CompatibilityScreen() {
       return;
     }
     if (!canRunCheck) {
-      showAlert('Daily limit reached', 'Free tier includes one saved comparison per day. Upgrade to unlock unlimited checks.');
+      showAlert('Daily limit reached', 'Free includes one comparison per day. Watch an ad for one more check, or upgrade for unlimited matches.');
       return;
     }
 
@@ -236,6 +248,14 @@ export default function CompatibilityScreen() {
       if (place.trim() && !resolvedPlace) {
         showAlert('Place not found', 'Try a city and country, or leave place blank to compare without location-specific rising details.');
         return;
+      }
+
+      if (needsAdUnlock) {
+        const consumed = await consumeUnlock('extra_compatibility_check');
+        if (!consumed) {
+          showAlert('Unlock needed', 'Watch a rewarded ad or upgrade to run another match today.');
+          return;
+        }
       }
 
       const partnerProfile = calculateCosmicProfile(birthDate, birthTime, resolvedPlace?.lat, resolvedPlace?.lng);
@@ -277,6 +297,7 @@ export default function CompatibilityScreen() {
   }, [
     addSavedProfile,
     canRunCheck,
+    consumeUnlock,
     day,
     dateValidation.error,
     hour,
@@ -286,6 +307,7 @@ export default function CompatibilityScreen() {
     mode,
     month,
     name,
+    needsAdUnlock,
     place,
     runComparison,
     savePartner,
@@ -296,12 +318,35 @@ export default function CompatibilityScreen() {
     year,
   ]);
 
+  const handleWatchAdForCheck = useCallback(async () => {
+    if (adLoading) return;
+    setAdLoading(true);
+    try {
+      const earned = await showRewardedAd('extra_compatibility_check');
+      if (!earned) {
+        showAlert('Ad not completed', 'No extra check was unlocked. Try again when a rewarded ad is available.');
+        return;
+      }
+      await grantUnlock('extra_compatibility_check');
+      showAlert('Extra check unlocked', 'Run the match again and the ad unlock will be used once.');
+    } finally {
+      setAdLoading(false);
+    }
+  }, [adLoading, grantUnlock, showAlert]);
+
   const handleCompareSaved = useCallback(
     async (profile: SavedProfile) => {
+      if (!isPremium && freeChecksToday >= 1) {
+        const consumed = await consumeUnlock('extra_compatibility_check');
+        if (!consumed) {
+          showAlert('Daily limit reached', 'Watch an ad for one more check, or upgrade for unlimited matches.');
+          return;
+        }
+      }
       setSelectedProfileId(profile.id);
       await runComparison(profile.profile, profile.name, profile.id);
     },
-    [runComparison]
+    [consumeUnlock, freeChecksToday, isPremium, runComparison, showAlert]
   );
 
   const handleShare = useCallback(async () => {
@@ -312,7 +357,7 @@ export default function CompatibilityScreen() {
     }
   }, []);
 
-  if (!user?.western || !user?.vedic || !user?.chinese) return null;
+  if (!accountUser || !user?.western || !user?.vedic || !user?.chinese) return null;
 
   return (
     <StarField>
@@ -339,8 +384,10 @@ export default function CompatibilityScreen() {
                 })}
               </View>
               <Text style={styles.modeHelp}>{MODES.find((item) => item.value === mode)?.help}</Text>
-              {user.subscription.tier === 'free' ? (
-                <Text style={styles.limitNote}>Free plan: {Math.max(0, 1 - freeChecksToday)} comparison left today.</Text>
+              {!isPremium ? (
+                <Text style={styles.limitNote}>
+                  Free plan: {Math.max(0, 1 - freeChecksToday)} comparison left today{hasExtraCheckUnlock ? ' + 1 ad unlock ready' : ''}.
+                </Text>
               ) : null}
             </GradientCard>
 
@@ -424,11 +471,19 @@ export default function CompatibilityScreen() {
 
             <View style={styles.actions}>
               <CosmicButton
-                title={canRunCheck ? (isRunningCheck ? 'Checking the match' : 'Run the match') : 'Upgrade for more checks'}
+                title={canRunCheck ? (isRunningCheck ? 'Checking the match' : needsAdUnlock ? 'Use ad unlock for match' : 'Run the match') : 'Upgrade for more checks'}
                 onPress={canRunCheck ? () => void handleCheck() : () => router.push('/subscription')}
-                disabled={!canRunCheck && user.subscription.tier === 'free' ? false : !isValid || isRunningCheck}
+                disabled={!canRunCheck && !isPremium ? false : !isValid || isRunningCheck}
                 loading={isRunningCheck}
               />
+              {!isPremium && freeChecksToday >= 1 && !hasExtraCheckUnlock ? (
+                <CosmicButton
+                  title={adLoading ? 'Loading ad' : 'Watch ad for one more check'}
+                  onPress={() => void handleWatchAdForCheck()}
+                  loading={adLoading}
+                  variant="outline"
+                />
+              ) : null}
               <CosmicButton title="Scan or paste a shared profile" onPress={() => router.push('/qr/scan')} variant="outline" />
             </View>
 
@@ -484,6 +539,7 @@ export default function CompatibilityScreen() {
                 vedicScore={result.vedic.score}
                 chineseScore={result.chinese.score}
                 viewShotRef={compatCardRef}
+                showWatermark={!isPremium}
               />
             </View>
           </>

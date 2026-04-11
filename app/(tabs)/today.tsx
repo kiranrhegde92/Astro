@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import type { DailyReading } from '../../src/types/astrology';
 import { CosmicButton } from '../../src/components/ui/CosmicButton';
+import { useCosmicAlert } from '../../src/components/ui/CosmicAlert';
 import { CosmicOrb } from '../../src/components/ui/CosmicOrb';
 import { GradientCard } from '../../src/components/ui/GradientCard';
 import { OrbIcon } from '../../src/components/ui/OrbIcon';
@@ -19,6 +20,9 @@ import { generatePeriodForecast, type ForecastWindow } from '../../src/content/f
 import { ForecastPanel } from '../../src/components/ui/ForecastPanel';
 import { buildForecastProfile } from '../../src/content/predictionSignals';
 import { fetchDailyReading } from '../../src/services/functionsService';
+import { showRewardedAd } from '../../src/services/rewardedAds';
+import { useActiveProfile } from '../../src/hooks/useActiveProfile';
+import { useAdUnlockStore } from '../../src/store/adUnlockStore';
 import { useReadingStore } from '../../src/store/readingStore';
 import { useUserStore } from '../../src/store/userStore';
 import { getDateKey } from '../../src/utils/dateUtils';
@@ -32,6 +36,7 @@ import {
   getSystemPreviewCopy,
   getTodayShellCopy,
 } from '../../src/i18n/spokenContent';
+import { hasPremiumEntitlement } from '../../src/utils/subscription';
 
 const READING_VERSION = 4;
 
@@ -134,8 +139,12 @@ function SystemStrip({
 export default function TodayScreen() {
   const router = useRouter();
   const { i18n, t } = useTranslation();
-  const user = useUserStore((state) => state.user);
+  const accountUser = useUserStore((state) => state.user);
+  const user = useActiveProfile();
   const incrementStreak = useUserStore((state) => state.incrementStreak);
+  const tokens = useAdUnlockStore((state) => state.tokens);
+  const grantUnlock = useAdUnlockStore((state) => state.grantUnlock);
+  const consumeUnlock = useAdUnlockStore((state) => state.consumeUnlock);
   const todayReading = useReadingStore((state) => state.todayReading);
   const getCachedReading = useReadingStore((state) => state.getCachedReading);
   const setTodayReading = useReadingStore((state) => state.setTodayReading);
@@ -144,12 +153,19 @@ export default function TodayScreen() {
   const [forecastWindow, setForecastWindow] = useState<ForecastWindow>('week');
   const [loadingTimedOut, setLoadingTimedOut] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [forecastAdLoading, setForecastAdLoading] = useState(false);
+  const [forecastUnlocked, setForecastUnlocked] = useState(false);
+  const { showAlert, alertModal } = useCosmicAlert();
   const today = useMemo(() => new Date(), []);
   const language = normalizeLanguage(user?.language ?? i18n.language);
   const shellCopy = useMemo(() => getTodayShellCopy(language), [language]);
   const todayKey = getDateKey(today);
   const safeUser = useMemo(() => (user ? normalizeUserProfile(user) : null), [user]);
   const forecastProfile = useMemo(() => (safeUser ? buildForecastProfile(safeUser) : null), [safeUser]);
+  const isManagedProfile = Boolean(user?.isManagedProfile);
+  const isPremium = hasPremiumEntitlement(accountUser?.subscription);
+  const hasForecastUnlock = tokens.some((token) => token.feature === 'period_forecast' && !token.consumedAt);
+  const canViewForecast = isPremium || forecastUnlocked || hasForecastUnlock;
   const profile = useMemo(() => {
     if (!forecastProfile?.western || !forecastProfile?.vedic || !forecastProfile?.chinese) return null;
     return {
@@ -161,9 +177,10 @@ export default function TodayScreen() {
   }, [forecastProfile]);
   const reading = useMemo(() => {
     if (!profile) return null;
+    if (isManagedProfile && forecastProfile) return generateDailyReading(today, forecastProfile);
     if (todayReading?.date === todayKey && (todayReading.version ?? 0) >= READING_VERSION) return todayReading;
     return null;
-  }, [profile, todayKey, todayReading]);
+  }, [forecastProfile, isManagedProfile, profile, today, todayKey, todayReading]);
 
   // Show retry if the reading fetch does not settle quickly.
   useEffect(() => {
@@ -183,6 +200,11 @@ export default function TodayScreen() {
 
   useEffect(() => {
     let cancelled = false;
+
+    if (isManagedProfile) {
+      if (refreshing) setRefreshing(false);
+      return;
+    }
 
     if (!forecastProfile?.western?.sun || !forecastProfile?.vedic?.rashi || !forecastProfile?.chinese?.animal) {
       if (refreshing) setRefreshing(false);
@@ -249,6 +271,7 @@ export default function TodayScreen() {
     forecastProfile,
     getCachedReading,
     incrementStreak,
+    isManagedProfile,
     retryKey,
     setTodayReading,
     today,
@@ -260,6 +283,28 @@ export default function TodayScreen() {
     if (!profile) return null;
     return generatePeriodForecast(today, profile, forecastWindow);
   }, [profile, today, forecastWindow]);
+
+  const handleUseForecastUnlock = useCallback(async () => {
+    const consumed = await consumeUnlock('period_forecast');
+    if (consumed) setForecastUnlocked(true);
+  }, [consumeUnlock]);
+
+  const handleWatchForecastAd = useCallback(async () => {
+    if (forecastAdLoading) return;
+    setForecastAdLoading(true);
+    try {
+      const earned = await showRewardedAd('period_forecast');
+      if (!earned) {
+        showAlert('Ad not completed', 'The forecast was not unlocked. Try again when a rewarded ad is available.');
+        return;
+      }
+      await grantUnlock('period_forecast');
+      await consumeUnlock('period_forecast');
+      setForecastUnlocked(true);
+    } finally {
+      setForecastAdLoading(false);
+    }
+  }, [consumeUnlock, forecastAdLoading, grantUnlock, showAlert]);
 
   const greeting = useMemo(() => getGreetingLabel(today, language), [language, today]);
   const firstName = safeUser?.name?.split(' ')[0] ?? user?.name?.split(' ')[0] ?? 'you';
@@ -494,12 +539,34 @@ export default function TodayScreen() {
 
         {activeSection === 'forecast' && periodForecast && (
           <AnimatedCard index={0}>
-            <ForecastPanel
-              forecast={periodForecast}
-              window={forecastWindow}
-              onChange={setForecastWindow}
-              language={language}
-            />
+            {canViewForecast ? (
+              <ForecastPanel
+                forecast={periodForecast}
+                window={forecastWindow}
+                onChange={setForecastWindow}
+                language={language}
+              />
+            ) : (
+              <GradientCard accentColor={COLORS.starGold}>
+                <Text style={styles.cardEyebrow}>PREMIUM FORECAST</Text>
+                <Text style={styles.cardTitle}>The longer view is a premium reading.</Text>
+                <Text style={styles.cardBody}>
+                  Watch one rewarded ad for this forecast, or go Premium for weekly and monthly forecasts without ads.
+                </Text>
+                <View style={styles.actions}>
+                  {hasForecastUnlock ? (
+                    <CosmicButton title="Use ad unlock" onPress={() => void handleUseForecastUnlock()} />
+                  ) : (
+                    <CosmicButton
+                      title={forecastAdLoading ? 'Loading ad' : 'Watch ad to unlock'}
+                      onPress={() => void handleWatchForecastAd()}
+                      loading={forecastAdLoading}
+                    />
+                  )}
+                  <CosmicButton title="See Premium" onPress={() => router.push('/subscription')} variant="outline" />
+                </View>
+              </GradientCard>
+            )}
           </AnimatedCard>
         )}
 
@@ -532,6 +599,7 @@ export default function TodayScreen() {
 
         <View style={styles.bottomPad} />
       </ResetScrollView>
+      {alertModal}
     </StarField>
   );
 }

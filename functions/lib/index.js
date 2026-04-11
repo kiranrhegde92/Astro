@@ -54,7 +54,7 @@ function isPremiumSubscriber(userData) {
     var _a, _b;
     const tier = (_a = userData.subscription) === null || _a === void 0 ? void 0 : _a.tier;
     const status = (_b = userData.subscription) === null || _b === void 0 ? void 0 : _b.status;
-    return (tier === 'premium' || tier === 'family') && (status === 'active' || status === 'trial');
+    return tier === 'premium' && (status === 'active' || status === 'trial');
 }
 function formatTransitPart(value) {
     return String(value !== null && value !== void 0 ? value : '')

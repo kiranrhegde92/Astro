@@ -12,9 +12,12 @@ import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { BORDER_RADIUS, COLORS, FONTS, SHADOWS, SPACING } from '../../src/constants/theme';
 import { getEarnedBadges, getNextBadge } from '../../src/constants/badges';
 import { calculateCosmicProfile, getCosmicDNASummary } from '../../src/engines/unified';
+import { useActiveProfile } from '../../src/hooks/useActiveProfile';
+import { useAdUnlockStore } from '../../src/store/adUnlockStore';
 import { useAuthStore } from '../../src/store/authStore';
 import { useConnectionsStore } from '../../src/store/connectionsStore';
 import { useJournalStore } from '../../src/store/journalStore';
+import { useManagedProfilesStore } from '../../src/store/managedProfilesStore';
 import { useReadingStore } from '../../src/store/readingStore';
 import { useUserStore } from '../../src/store/userStore';
 import { useSettingsStore } from '../../src/store/settingsStore';
@@ -26,13 +29,18 @@ import { LANGUAGE_OPTIONS, normalizeLanguage } from '../../src/i18n/language';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const user = useUserStore((s) => s.user);
+  const accountUser = useUserStore((s) => s.user);
+  const user = useActiveProfile();
   const clearUser = useUserStore((s) => s.clearUser);
   const logout = useAuthStore((s) => s.logout);
   const deleteAccount = useAuthStore((s) => s.deleteAccount);
   const clearReadings = useReadingStore((s) => s.clearReadings);
   const clearConnections = useConnectionsStore((s) => s.clearConnections);
   const clearJournal = useJournalStore((s) => s.clearJournal);
+  const clearAdUnlocks = useAdUnlockStore((s) => s.clearAdUnlocks);
+  const clearManagedProfiles = useManagedProfilesStore((s) => s.clearManagedProfiles);
+  const managedProfiles = useManagedProfilesStore((s) => s.managedProfiles);
+  const updateManagedProfile = useManagedProfilesStore((s) => s.updateManagedProfile);
   const clearSettings = useSettingsStore((s) => s.clearSettings);
   const savedProfiles = useConnectionsStore((s) => s.savedProfiles);
   const compatibilityHistory = useConnectionsStore((s) => s.compatibilityHistory);
@@ -65,29 +73,29 @@ export default function ProfileScreen() {
   }, [user?.western, user?.vedic, user?.chinese, user?.kp]);
 
   const earnedBadges = useMemo(() => {
-    if (!user) return [];
+    if (!accountUser) return [];
     return getEarnedBadges(
-      user.streak,
-      user.cosmicPoints,
-      user.activeSystems,
+      accountUser.streak,
+      accountUser.cosmicPoints,
+      accountUser.activeSystems,
       compatibilityHistory.length,
       false, // hasShared — tracked elsewhere
     );
-  }, [user?.streak, user?.cosmicPoints, user?.activeSystems, compatibilityHistory.length]);
+  }, [accountUser?.streak, accountUser?.cosmicPoints, accountUser?.activeSystems, compatibilityHistory.length]);
 
   const nextBadge = useMemo(() => {
-    if (!user) return null;
-    return getNextBadge(user.streak, user.cosmicPoints);
-  }, [user?.streak, user?.cosmicPoints]);
+    if (!accountUser) return null;
+    return getNextBadge(accountUser.streak, accountUser.cosmicPoints);
+  }, [accountUser?.streak, accountUser?.cosmicPoints]);
 
   const streakProgress = useMemo(() => {
-    if (!user) return 0;
+    if (!accountUser) return 0;
     const targets = [3, 7, 14, 30, 90, 365];
-    const next = targets.find((t) => t > user.streak) ?? 365;
-    return Math.min(user.streak / next, 1);
-  }, [user?.streak]);
+    const next = targets.find((t) => t > accountUser.streak) ?? 365;
+    return Math.min(accountUser.streak / next, 1);
+  }, [accountUser?.streak]);
 
-  if (!user) return null;
+  if (!user || !accountUser) return null;
 
   const birthDate = new Date(user.birthDetails.date).toLocaleDateString('en-US', {
     month: 'long', day: 'numeric', year: 'numeric',
@@ -100,6 +108,18 @@ export default function ProfileScreen() {
     setLanguage(normalized); // persist to user store + Firestore
   };
 
+  const handleCommitName = () => {
+    const trimmed = editName.trim();
+    if (trimmed) {
+      if (user.isManagedProfile && user.managedProfileId) {
+        void updateManagedProfile(user.managedProfileId, { name: trimmed });
+      } else {
+        setUser({ ...accountUser, name: trimmed });
+      }
+    }
+    setEditingName(false);
+  };
+
   const handleRecalculate = async () => {
     const bd = user.birthDetails as any;
     const rawDate = bd.date;
@@ -108,6 +128,22 @@ export default function ProfileScreen() {
 
     setRecalculating(true);
     try {
+      if (user.isManagedProfile && user.managedProfileId) {
+        const local = calculateCosmicProfile(
+          new Date(d.getFullYear(), d.getMonth(), d.getDate()),
+          birthTime,
+          bd.place?.lat,
+          bd.place?.lng,
+        );
+        await updateManagedProfile(user.managedProfileId, {
+          activeSystems: user.activeSystems,
+          profile: local,
+          cosmicDNA: getCosmicDNASummary(local),
+        });
+        showAlert('Chart recalculated', `Updated ${user.name}'s local profile.`);
+        return;
+      }
+
       // Try cloud function first
       const { calculateUserChart } = await import('../../src/services/functionsService');
       const birthDateStr = bd.birthDateStr ?? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -156,7 +192,7 @@ export default function ProfileScreen() {
         {
           text: 'Log out', style: 'destructive',
           onPress: async () => {
-            await Promise.all([logout(), clearUser(), clearReadings(), clearConnections(), clearJournal()]);
+            await Promise.all([logout(), clearUser(), clearReadings(), clearConnections(), clearJournal(), clearAdUnlocks(), clearManagedProfiles()]);
             await clearSettings();
             router.dismissAll();
             router.replace('/(auth)/login');
@@ -220,6 +256,11 @@ export default function ProfileScreen() {
           <View style={styles.posterWrap}>
             <LinearGradient colors={COLORS.gradientInk} style={styles.poster}>
               <Text style={styles.posterLabel}>Your chart</Text>
+              {user.isManagedProfile ? (
+                <TouchableOpacity style={styles.profileModePill} onPress={() => router.push('/profile/family-profiles')} activeOpacity={0.84}>
+                  <Text style={styles.profileModeText}>Viewing family profile</Text>
+                </TouchableOpacity>
+              ) : null}
               {editingName ? (
                 <View style={styles.editNameRow}>
                   <TextInput
@@ -228,18 +269,10 @@ export default function ProfileScreen() {
                     onChangeText={setEditName}
                     autoFocus
                     placeholderTextColor="rgba(255,250,241,0.4)"
-                    onSubmitEditing={() => {
-                      if (editName.trim()) {
-                        setUser({ ...user, name: editName.trim() });
-                      }
-                      setEditingName(false);
-                    }}
+                    onSubmitEditing={handleCommitName}
                   />
                   <TouchableOpacity
-                    onPress={() => {
-                      if (editName.trim()) setUser({ ...user, name: editName.trim() });
-                      setEditingName(false);
-                    }}
+                    onPress={handleCommitName}
                     activeOpacity={0.8}
                   >
                     <Ionicons name="checkmark-circle" size={28} color={COLORS.tide} />
@@ -298,8 +331,8 @@ export default function ProfileScreen() {
             <Text style={styles.sectionLabel}>Activity</Text>
             <View style={styles.row3}>
               {[
-                { value: String(user.streak), label: 'Day streak', onPress: undefined },
-                { value: String(user.cosmicPoints), label: 'Points', onPress: undefined },
+                { value: String(accountUser.streak), label: 'Day streak', onPress: undefined },
+                { value: String(accountUser.cosmicPoints), label: 'Points', onPress: undefined },
                 { value: String(entries.length), label: 'Journal notes', onPress: () => router.push('/journal') },
               ].map((m) => (
                 <TouchableOpacity key={m.label} style={styles.chip} onPress={m.onPress} activeOpacity={m.onPress ? 0.8 : 1} disabled={!m.onPress}>
@@ -313,7 +346,7 @@ export default function ProfileScreen() {
               {[
                 { value: String(savedProfiles.length), label: 'Connections' },
                 { value: String(archiveCount), label: 'Archive days' },
-                { value: user.subscription.tier, label: 'Plan' },
+                { value: accountUser.subscription.tier, label: 'Plan' },
               ].map((m) => (
                 <View key={m.label} style={styles.chip}>
                   <Text style={styles.chipValue}>{m.value}</Text>
@@ -334,7 +367,7 @@ export default function ProfileScreen() {
                 size={72}
                 strokeWidth={5}
                 color={COLORS.starGold}
-                value={`${user.streak}`}
+                value={`${accountUser.streak}`}
                 label="Streak"
               />
               <View style={styles.badgeGrid}>
@@ -365,6 +398,18 @@ export default function ProfileScreen() {
         <AnimatedCard index={4}>
           <TouchableOpacity
             style={styles.settingsBtn}
+            onPress={() => router.push('/profile/family-profiles')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="people-outline" size={20} color={COLORS.textSecondary} />
+            <Text style={styles.settingsLabel}>Profiles ({managedProfiles.length + 1}/5)</Text>
+            <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+          </TouchableOpacity>
+        </AnimatedCard>
+
+        <AnimatedCard index={5}>
+          <TouchableOpacity
+            style={styles.settingsBtn}
             onPress={() => router.push('/settings')}
             activeOpacity={0.8}
           >
@@ -375,7 +420,7 @@ export default function ProfileScreen() {
         </AnimatedCard>
 
         {/* ── Language ───────────────────────────────────────────────── */}
-        <AnimatedCard index={5}>
+        <AnimatedCard index={6}>
           <GradientCard style={styles.card} colors={COLORS.gradientSilver}>
             <Text style={styles.sectionLabel}>Language</Text>
             <Text style={styles.langNote}>Changes navigation and rewrites the Today reading in a natural spoken style where supported.</Text>
@@ -398,7 +443,7 @@ export default function ProfileScreen() {
         </AnimatedCard>
 
         {/* ── Recalculate ───────────────────────────────────────────────── */}
-        <AnimatedCard index={6}>
+        <AnimatedCard index={7}>
           <View style={styles.profileActionStack}>
             <TouchableOpacity style={styles.recalcBtn} onPress={handleRecalculate} activeOpacity={0.8} disabled={recalculating}>
               {recalculating
@@ -407,7 +452,17 @@ export default function ProfileScreen() {
               }
               <Text style={styles.recalcText}>{recalculating ? 'Recalculating...' : 'Recalculate my chart'}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.editBirthBtn} onPress={() => router.push('/profile/birth-details')} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={styles.editBirthBtn}
+              onPress={() => {
+                if (user.isManagedProfile) {
+                  showAlert('Main profile only', 'Birth-detail editing is available for the main profile. Add a new family profile if these details need to change.');
+                } else {
+                  router.push('/profile/birth-details');
+                }
+              }}
+              activeOpacity={0.8}
+            >
               <Ionicons name="create-outline" size={20} color={COLORS.iris} />
               <Text style={styles.editBirthText}>Edit birth details</Text>
             </TouchableOpacity>
@@ -415,7 +470,7 @@ export default function ProfileScreen() {
         </AnimatedCard>
 
         {/* ── Logout ────────────────────────────────────────────────────── */}
-        <AnimatedCard index={7}>
+        <AnimatedCard index={8}>
           <TouchableOpacity
             style={styles.datasetBtn}
             onPress={handleExportDataset}
@@ -430,14 +485,14 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </AnimatedCard>
 
-        <AnimatedCard index={8}>
+        <AnimatedCard index={9}>
           <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
             <Ionicons name="log-out-outline" size={20} color={COLORS.coral} />
             <Text style={styles.logoutText}>Log out</Text>
           </TouchableOpacity>
         </AnimatedCard>
 
-        <AnimatedCard index={9}>
+        <AnimatedCard index={10}>
           <TouchableOpacity
             style={[styles.deleteBtn, deletingAccount && styles.deleteBtnDisabled]}
             onPress={handleDeleteAccount}
@@ -481,6 +536,22 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: FONTS.accent,
     letterSpacing: 1.1,
+  },
+  profileModePill: {
+    alignSelf: 'flex-start',
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255,250,241,0.22)',
+    backgroundColor: 'rgba(255,250,241,0.10)',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    marginTop: SPACING.xs,
+  },
+  profileModeText: {
+    color: 'rgba(255,250,241,0.78)',
+    fontSize: 10,
+    fontFamily: FONTS.accent,
+    letterSpacing: 0.7,
   },
   name: {
     color: '#fffaf1',

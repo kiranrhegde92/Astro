@@ -13,22 +13,32 @@ interface ShareableCardProps {
   type: 'cosmic-dna' | 'daily-vibe' | 'compatibility';
   onCapture?: (uri: string) => void;
   viewShotRef?: React.RefObject<ViewShot | null>;
+  showWatermark?: boolean;
 }
 
 function CardShell({
   children,
   colors,
   viewShotRef,
+  showWatermark = true,
 }: {
   children: React.ReactNode;
   colors: [string, string, ...string[]];
   viewShotRef?: React.RefObject<ViewShot | null>;
+  showWatermark?: boolean;
 }) {
   return (
     <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 1 }}>
       <LinearGradient colors={colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.card}>
         <View style={styles.cardGlow} />
-        <View style={styles.cardContent}>{children}</View>
+        <View style={styles.cardContent}>
+          {children}
+          {showWatermark ? (
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>cosmicself.app</Text>
+            </View>
+          ) : null}
+        </View>
       </LinearGradient>
     </ViewShot>
   );
@@ -38,11 +48,12 @@ export function ShareableCard({
   userName,
   profile,
   viewShotRef,
+  showWatermark = true,
 }: ShareableCardProps) {
   const cosmicDNA = getCosmicDNASummary(profile);
 
   return (
-    <CardShell colors={['#fffaf1', '#f7efe0', '#eddcc1']} viewShotRef={viewShotRef}>
+    <CardShell colors={['#fffaf1', '#f7efe0', '#eddcc1']} viewShotRef={viewShotRef} showWatermark={showWatermark}>
       <Text style={styles.appName}>COSMICSELF</Text>
       <Text style={styles.userName}>{userName}</Text>
 
@@ -92,9 +103,6 @@ export function ShareableCard({
         ) : null}
       </View>
 
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>cosmicself.app</Text>
-      </View>
     </CardShell>
   );
 }
@@ -107,6 +115,7 @@ export function CompatibilityCard({
   vedicScore,
   chineseScore,
   viewShotRef,
+  showWatermark = true,
 }: {
   name1: string;
   name2: string;
@@ -115,9 +124,10 @@ export function CompatibilityCard({
   vedicScore: number;
   chineseScore: number;
   viewShotRef?: React.RefObject<ViewShot | null>;
+  showWatermark?: boolean;
 }) {
   return (
-    <CardShell colors={['#fff3ec', '#ffe0d4', '#ffd2c4']} viewShotRef={viewShotRef}>
+    <CardShell colors={['#fff3ec', '#ffe0d4', '#ffd2c4']} viewShotRef={viewShotRef} showWatermark={showWatermark}>
       <Text style={styles.appName}>COSMICSELF</Text>
       <Text style={styles.compatTitle}>Cosmic compatibility</Text>
 
@@ -142,9 +152,6 @@ export function CompatibilityCard({
         <ScoreBadge icon="leaf" label="Chinese" score={chineseScore} accent={COLORS.chinese} secondary="#ffe7db" />
       </View>
 
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>cosmicself.app</Text>
-      </View>
     </CardShell>
   );
 }
@@ -202,6 +209,7 @@ export function DailyVibeCard({
   affirmation,
   date,
   viewShotRef,
+  showWatermark = true,
 }: {
   userName: string;
   sunSign: string;
@@ -209,9 +217,10 @@ export function DailyVibeCard({
   affirmation: string;
   date: string;
   viewShotRef?: React.RefObject<ViewShot | null>;
+  showWatermark?: boolean;
 }) {
   return (
-    <CardShell colors={['#fffaf1', '#f8e8d6', '#f2d3b0']} viewShotRef={viewShotRef}>
+    <CardShell colors={['#fffaf1', '#f8e8d6', '#f2d3b0']} viewShotRef={viewShotRef} showWatermark={showWatermark}>
       <Text style={styles.appName}>COSMICSELF</Text>
       <Text style={styles.vibeDate}>{date}</Text>
 
@@ -225,9 +234,6 @@ export function DailyVibeCard({
         <Text style={styles.affirmationText}>"{affirmation}"</Text>
       </View>
 
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>cosmicself.app</Text>
-      </View>
     </CardShell>
   );
 }

@@ -113,7 +113,7 @@ export default function BirthDetailsScreen() {
       language: selectedLanguage,
       birthDetails,
       activeSystems: [] as any[],
-      subscription: { tier: 'free' as const, status: 'active' as const, purchasedItems: [] },
+      subscription: { tier: 'free' as const, status: 'active' as const },
       cosmicPoints: 0,
       streak: 0,
       onboardingComplete: false,

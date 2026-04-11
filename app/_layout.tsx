@@ -16,9 +16,11 @@ import {
   Cinzel_900Black,
 } from '@expo-google-fonts/cinzel';
 import { COLORS } from '../src/constants/theme';
+import { useAdUnlockStore } from '../src/store/adUnlockStore';
 import { useAuthStore } from '../src/store/authStore';
 import { useConnectionsStore } from '../src/store/connectionsStore';
 import { useJournalStore } from '../src/store/journalStore';
+import { useManagedProfilesStore } from '../src/store/managedProfilesStore';
 import { useReadingStore } from '../src/store/readingStore';
 import { useSettingsStore } from '../src/store/settingsStore';
 import { useUserStore } from '../src/store/userStore';
@@ -83,6 +85,8 @@ export default function RootLayout() {
   const loadConnections = useConnectionsStore((s) => s.loadConnections);
   const importSharedProfile = useConnectionsStore((s) => s.importSharedProfile);
   const loadJournal = useJournalStore((s) => s.loadJournal);
+  const loadAdUnlocks = useAdUnlockStore((s) => s.loadAdUnlocks);
+  const loadManagedProfiles = useManagedProfilesStore((s) => s.loadManagedProfiles);
 
   const router = useRouter();
   const segments = useSegments();
@@ -110,8 +114,8 @@ export default function RootLayout() {
   useEffect(() => {
     if (!authReady) return;
     syncSubscriptionStatus();
-    Promise.all([loadSettings(), loadReadings(), loadConnections(), loadJournal()]).catch(() => {});
-  }, [authReady, loadConnections, loadJournal, loadReadings, loadSettings, syncSubscriptionStatus]);
+    Promise.all([loadSettings(), loadReadings(), loadConnections(), loadJournal(), loadAdUnlocks(), loadManagedProfiles()]).catch(() => {});
+  }, [authReady, loadAdUnlocks, loadConnections, loadJournal, loadManagedProfiles, loadReadings, loadSettings, syncSubscriptionStatus]);
 
   // Restore user's saved language preference
   useEffect(() => {

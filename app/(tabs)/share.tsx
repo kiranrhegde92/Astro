@@ -13,12 +13,14 @@ import { BORDER_RADIUS, COLORS, FONTS, SHADOWS, SPACING } from '../../src/consta
 import { useReadingStore } from '../../src/store/readingStore';
 import { useUserStore } from '../../src/store/userStore';
 import { formatDisplayDate } from '../../src/utils/dateUtils';
+import { hasPremiumEntitlement } from '../../src/utils/subscription';
 
 export default function ShareScreen() {
   const router = useRouter();
   const user = useUserStore((s) => s.user);
   const getRecentReadings = useReadingStore((s) => s.getRecentReadings);
-  const archive = getRecentReadings(8);
+  const isPremium = hasPremiumEntitlement(user?.subscription);
+  const archive = getRecentReadings(isPremium ? 30 : 3);
 
   if (!user) return null;
 
@@ -77,6 +79,12 @@ export default function ShareScreen() {
           <View style={styles.archiveHeader}>
             <Text style={styles.archiveTitle}>Recent readings</Text>
             <Text style={styles.archiveSubtitle}>Your last few days at a glance</Text>
+            {!isPremium ? (
+              <TouchableOpacity style={styles.archiveUpgrade} onPress={() => router.push('/subscription')} activeOpacity={0.84}>
+                <Text style={styles.archiveUpgradeText}>Free archive shows 3 readings. Premium opens the full archive.</Text>
+                <Ionicons name="chevron-forward" size={16} color={COLORS.starGold} />
+              </TouchableOpacity>
+            ) : null}
           </View>
           {archive.length > 0 ? (
             <View style={styles.archiveList}>
@@ -194,6 +202,24 @@ const styles = StyleSheet.create({
   archiveSubtitle: {
     color: COLORS.textSecondary,
     fontSize: 14,
+  },
+  archiveUpgrade: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    borderWidth: 1,
+    borderColor: `${COLORS.starGold}44`,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: `${COLORS.starGold}12`,
+    padding: SPACING.sm,
+    marginTop: SPACING.xs,
+  },
+  archiveUpgradeText: {
+    flex: 1,
+    color: COLORS.starGoldDeep,
+    fontSize: 12,
+    lineHeight: 17,
+    fontFamily: FONTS.heading,
   },
   archiveList: {
     gap: SPACING.sm,

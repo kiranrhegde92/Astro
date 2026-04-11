@@ -1,38 +1,31 @@
 import { create } from 'zustand';
-import type { Subscription, SubscriptionTier } from '../types/user';
+import type { Subscription } from '../types/user';
 
 interface SubscriptionState {
   subscription: Subscription;
   isPremium: () => boolean;
-  isFamily: () => boolean;
   canCheckCompatibility: (checksToday: number) => boolean;
   startTrial: () => void;
-  upgradeTo: (tier: SubscriptionTier) => void;
+  upgradeTo: (billingPeriod?: Subscription['billingPeriod']) => void;
 }
 
 export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
   subscription: {
     tier: 'free',
     status: 'active',
-    purchasedItems: [],
   },
 
   isPremium: () => {
     const { subscription } = get();
     return (
-      (subscription.tier === 'premium' || subscription.tier === 'family') &&
-      subscription.status === 'active'
+      subscription.tier === 'premium' &&
+      (subscription.status === 'active' || subscription.status === 'trial')
     );
-  },
-
-  isFamily: () => {
-    const { subscription } = get();
-    return subscription.tier === 'family' && subscription.status === 'active';
   },
 
   canCheckCompatibility: (checksToday: number) => {
     const { subscription } = get();
-    if (subscription.tier !== 'free') return true;
+    if (subscription.tier === 'premium' && (subscription.status === 'active' || subscription.status === 'trial')) return true;
     return checksToday < 1; // Free tier: 1 check per day
   },
 
@@ -45,20 +38,26 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
         status: 'trial',
         trialEndsAt: trialEnd,
         expiresAt: trialEnd,
-        purchasedItems: [],
+        billingPeriod: 'yearly',
+        productId: 'cosmicself_premium_yearly',
       },
     });
   },
 
-  upgradeTo: (tier) => {
+  upgradeTo: (billingPeriod = 'monthly') => {
     const expiresAt = new Date();
-    expiresAt.setMonth(expiresAt.getMonth() + 1);
+    if (billingPeriod === 'yearly') {
+      expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+    } else {
+      expiresAt.setMonth(expiresAt.getMonth() + 1);
+    }
     set({
       subscription: {
-        tier,
+        tier: 'premium',
         status: 'active',
+        billingPeriod,
+        productId: billingPeriod === 'yearly' ? 'cosmicself_premium_yearly' : 'cosmicself_premium_monthly',
         expiresAt,
-        purchasedItems: [],
       },
     });
   },

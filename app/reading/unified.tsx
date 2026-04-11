@@ -9,6 +9,7 @@ import { GradientCard } from '../../src/components/ui/GradientCard';
 import { LifeRoadmapPanel } from '../../src/components/ui/LifeRoadmapPanel';
 import { PredictionFeedbackCard } from '../../src/components/ui/PredictionFeedbackCard';
 import { CosmicButton } from '../../src/components/ui/CosmicButton';
+import { useCosmicAlert } from '../../src/components/ui/CosmicAlert';
 import { ProgressRing } from '../../src/components/ui/ProgressRing';
 import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { SectionTabs } from '../../src/components/ui/SectionTabs';
@@ -18,22 +19,82 @@ import { generateLifeRoadmap } from '../../src/content/lifeRoadmap';
 import { getReadingExplainers } from '../../src/content/readingExplainers';
 import { generateDailyReading } from '../../src/content/dailyTemplates';
 import { buildForecastProfile } from '../../src/content/predictionSignals';
+import { useActiveProfile } from '../../src/hooks/useActiveProfile';
+import { showRewardedAd } from '../../src/services/rewardedAds';
+import { useAdUnlockStore } from '../../src/store/adUnlockStore';
 import { useUserStore } from '../../src/store/userStore';
 import { useReadingStore } from '../../src/store/readingStore';
 import { getCosmicDNASummary } from '../../src/engines/unified';
 import { getDateKey } from '../../src/utils/dateUtils';
+import { hasPremiumEntitlement } from '../../src/utils/subscription';
 
 const READING_VERSION = 3;
 
 export default function UnifiedReadingScreen() {
   const router = useRouter();
-  const user = useUserStore((s) => s.user);
+  const accountUser = useUserStore((s) => s.user);
+  const user = useActiveProfile();
   const getCachedReading = useReadingStore((s) => s.getCachedReading);
+  const tokens = useAdUnlockStore((s) => s.tokens);
+  const grantUnlock = useAdUnlockStore((s) => s.grantUnlock);
+  const consumeUnlock = useAdUnlockStore((s) => s.consumeUnlock);
   const [forecastWindow, setForecastWindow] = useState<ForecastWindow>('month');
   const [activeSection, setActiveSection] = useState('summary');
+  const [blendUnlocked, setBlendUnlocked] = useState(false);
+  const [adLoading, setAdLoading] = useState(false);
+  const { showAlert, alertModal } = useCosmicAlert();
   const forecastProfile = useMemo(() => (user ? buildForecastProfile(user) : null), [user]);
+  const hasBlendUnlock = tokens.some((token) => token.feature === 'full_blended_reading' && !token.consumedAt);
+  const canViewBlend = hasPremiumEntitlement(accountUser?.subscription) || blendUnlocked;
 
   if (!user || !forecastProfile?.western || !forecastProfile.vedic || !forecastProfile.chinese) return null;
+
+  const handleUseBlendUnlock = async () => {
+    const consumed = await consumeUnlock('full_blended_reading');
+    if (consumed) setBlendUnlocked(true);
+  };
+
+  const handleWatchAd = async () => {
+    if (adLoading) return;
+    setAdLoading(true);
+    try {
+      const earned = await showRewardedAd('full_blended_reading');
+      if (!earned) {
+        showAlert('Ad not completed', 'The full reading was not unlocked. Try again when a rewarded ad is available.');
+        return;
+      }
+      await grantUnlock('full_blended_reading');
+      await consumeUnlock('full_blended_reading');
+      setBlendUnlocked(true);
+    } finally {
+      setAdLoading(false);
+    }
+  };
+
+  if (!canViewBlend) {
+    return (
+      <StarField>
+        <ScreenHeader title="Daily Blend" accentColor={COLORS.starGold} />
+        <ResetScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+          <Text style={styles.headerEmoji}>{'\u{1F30C}'}</Text>
+          <Text style={styles.subtitle}>This deeper blended reading is Premium.</Text>
+          <GradientCard accentColor={COLORS.starGold}>
+            <Text style={styles.cardTitle}>Unlock one full reading</Text>
+            <Text style={styles.insightText}>
+              Use a rewarded-ad unlock for this reading, or go Premium for all blended readings, forecasts, profiles, and alerts without ads.
+            </Text>
+            {hasBlendUnlock ? (
+              <CosmicButton title="Use ad unlock" onPress={() => void handleUseBlendUnlock()} />
+            ) : (
+              <CosmicButton title={adLoading ? 'Loading ad' : 'Watch ad to unlock'} onPress={() => void handleWatchAd()} loading={adLoading} />
+            )}
+            <CosmicButton title="See Premium" onPress={() => router.push('/subscription')} variant="outline" />
+          </GradientCard>
+        </ResetScrollView>
+        {alertModal}
+      </StarField>
+    );
+  }
 
   const western = forecastProfile.western;
   const vedic = forecastProfile.vedic;
@@ -213,6 +274,7 @@ export default function UnifiedReadingScreen() {
 
         <View style={styles.bottomPad} />
       </ResetScrollView>
+      {alertModal}
     </StarField>
   );
 }

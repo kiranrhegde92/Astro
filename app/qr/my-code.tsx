@@ -9,7 +9,7 @@ import { CosmicButton } from '../../src/components/ui/CosmicButton';
 import { QRRevealAnimation } from '../../src/components/ui/QRRevealAnimation';
 import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../../src/constants/theme';
-import { useUserStore } from '../../src/store/userStore';
+import { useActiveProfile } from '../../src/hooks/useActiveProfile';
 import { getCosmicDNASummary } from '../../src/engines/unified';
 import { captureAndShare } from '../../src/utils/shareUtils';
 import { QR_THEMES, getQRThemeColors, generateProfileLink } from '../../src/utils/qrCodeUtils';
@@ -18,7 +18,7 @@ import type { SharedProfilePayload } from '../../src/types/appData';
 
 export default function MyQRCodeScreen() {
   const router = useRouter();
-  const user = useUserStore((s) => s.user);
+  const user = useActiveProfile();
   const viewShotRef = useRef<ViewShot>(null);
   const [selectedTheme, setSelectedTheme] = useState<QRThemeName>('Cosmic Night');
   const [revealVersion, setRevealVersion] = useState(0);

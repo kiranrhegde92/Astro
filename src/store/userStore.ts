@@ -26,7 +26,7 @@ interface UserState {
   incrementStreak: () => Promise<boolean>;
   resetStreak: () => void;
   startTrial: () => void;
-  upgradeSubscription: (tier: Subscription['tier']) => void;
+  upgradeSubscription: (billingPeriod?: Subscription['billingPeriod']) => void;
   syncSubscriptionStatus: () => void;
   clearUser: () => Promise<void>;
   loadUser: () => Promise<void>;
@@ -169,7 +169,8 @@ export const useUserStore = create<UserState>((set, get) => ({
         subscription: {
           tier: 'premium',
           status: 'trial',
-          purchasedItems: [],
+          billingPeriod: 'yearly',
+          productId: 'cosmicself_premium_yearly',
           trialEndsAt: trialEnd,
           expiresAt: trialEnd,
         },
@@ -178,19 +179,24 @@ export const useUserStore = create<UserState>((set, get) => ({
     get().saveUser();
   },
 
-  upgradeSubscription: (tier) => {
+  upgradeSubscription: (billingPeriod = 'monthly') => {
     const { user } = get();
     if (!user) return;
     const expiresAt = new Date();
-    expiresAt.setMonth(expiresAt.getMonth() + 1);
+    if (billingPeriod === 'yearly') {
+      expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+    } else {
+      expiresAt.setMonth(expiresAt.getMonth() + 1);
+    }
     set({
       user: {
         ...user,
         subscription: {
-          tier,
+          tier: 'premium',
           status: 'active',
+          billingPeriod,
+          productId: billingPeriod === 'yearly' ? 'cosmicself_premium_yearly' : 'cosmicself_premium_monthly',
           expiresAt,
-          purchasedItems: user.subscription.purchasedItems,
         },
       },
     });
@@ -211,7 +217,6 @@ export const useUserStore = create<UserState>((set, get) => ({
         subscription: {
           tier: 'free',
           status: 'expired',
-          purchasedItems: [],
         },
       },
     });

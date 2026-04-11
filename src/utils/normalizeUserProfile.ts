@@ -107,11 +107,25 @@ function normalizeKPProfile(profile?: Partial<KPProfile> | null): KPProfile | un
 
 function normalizeSubscription(subscription?: Partial<Subscription> | null): Subscription {
   const now = new Date();
+  const legacyTier = (subscription as { tier?: unknown } | null | undefined)?.tier;
+  const status: Subscription['status'] =
+    subscription?.status === 'trial' || subscription?.status === 'expired' ? subscription.status : 'active';
+  const tier: Subscription['tier'] =
+    status === 'expired'
+      ? 'free'
+      : legacyTier === 'premium' || legacyTier === 'family'
+        ? 'premium'
+        : 'free';
+  const billingPeriod =
+    subscription?.billingPeriod === 'monthly' || subscription?.billingPeriod === 'yearly'
+      ? subscription.billingPeriod
+      : undefined;
 
   return {
-    tier: subscription?.tier ?? 'free',
-    status: subscription?.status ?? 'active',
-    purchasedItems: Array.isArray(subscription?.purchasedItems) ? subscription.purchasedItems : [],
+    tier,
+    status,
+    billingPeriod,
+    productId: subscription?.productId,
     expiresAt: subscription?.expiresAt ? toDate(subscription.expiresAt, now) : undefined,
     trialEndsAt: subscription?.trialEndsAt ? toDate(subscription.trialEndsAt, now) : undefined,
   };

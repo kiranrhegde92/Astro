@@ -17,6 +17,18 @@ export interface SavedProfile {
   lastComparedAt?: string;
 }
 
+export interface ManagedProfile {
+  id: string;
+  name: string;
+  relation: SavedProfileRelation;
+  birthDetails: BirthDetails;
+  activeSystems: AstrologySystem[];
+  profile: CosmicProfile;
+  cosmicDNA: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface CompatibilityHistoryEntry {
   id: string;
   partnerId?: string;

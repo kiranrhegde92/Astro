@@ -8,7 +8,7 @@ import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { SectionTabs } from '../../src/components/ui/SectionTabs';
 import { KundliChart } from '../../src/components/chart/KundliChart';
 import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../../src/constants/theme';
-import { useUserStore } from '../../src/store/userStore';
+import { useActiveProfile } from '../../src/hooks/useActiveProfile';
 import { WESTERN_ZODIAC } from '../../src/constants/zodiacData';
 import { getRulingPlanet, getElement, getModality } from '../../src/engines/western';
 import { calculateAspects } from '../../src/engines/common/aspects';
@@ -17,7 +17,7 @@ import { findActiveTransits } from '../../src/engines/common/transits';
 export default function WesternReadingScreen() {
   const isAndroid = Platform.OS === 'android';
   const [activeSection, setActiveSection] = useState('core');
-  const user = useUserStore((s) => s.user);
+  const user = useActiveProfile();
 
   if (!user?.western) return null;
 

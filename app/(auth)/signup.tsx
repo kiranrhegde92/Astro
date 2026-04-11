@@ -78,7 +78,7 @@ export default function SignupScreen() {
         cosmicPoints: 0,
         onboardingComplete: false,
         language: 'en',
-        subscription: { tier: 'free', status: 'active', purchasedItems: [] },
+        subscription: { tier: 'free', status: 'active' },
       } as any);
       // onAuthChange in _layout.tsx handles routing to onboarding
     } catch (e: any) {

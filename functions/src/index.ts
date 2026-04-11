@@ -28,7 +28,7 @@ type TransitNotificationHit = {
 function isPremiumSubscriber(userData: FirebaseFirestore.DocumentData): boolean {
   const tier = userData.subscription?.tier;
   const status = userData.subscription?.status;
-  return (tier === 'premium' || tier === 'family') && (status === 'active' || status === 'trial');
+  return tier === 'premium' && (status === 'active' || status === 'trial');
 }
 
 function formatTransitPart(value: unknown): string {

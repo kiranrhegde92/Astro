@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StarField } from '../src/components/ui/StarField';
 import { GlowText } from '../src/components/ui/GlowText';
@@ -9,27 +9,42 @@ import { CosmicButton } from '../src/components/ui/CosmicButton';
 import { ResetScrollView } from '../src/components/ui/ResetScrollView';
 import { useCosmicAlert } from '../src/components/ui/CosmicAlert';
 import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../src/constants/theme';
+import { showRewardedAd } from '../src/services/rewardedAds';
+import { useAdUnlockStore } from '../src/store/adUnlockStore';
 import { useUserStore } from '../src/store/userStore';
-
-type PlanType = 'monthly' | 'yearly';
+import type { PremiumFeatureKey } from '../src/types/entitlements';
+import {
+  PREMIUM_MONTHLY_PRICE,
+  PREMIUM_YEARLY_PRICE,
+  hasPremiumEntitlement,
+} from '../src/utils/subscription';
+import type { SubscriptionPlanPeriod } from '../src/types/user';
 
 const PREMIUM_FEATURES = [
-  { emoji: '\u{1F496}', text: 'Unlimited compatibility checks' },
-  { emoji: '\u{1F52D}', text: 'Full natal chart with all planets & houses' },
-  { emoji: '\u{23F0}', text: 'Complete Dasha timeline with sub-periods' },
-  { emoji: '\u{1F48E}', text: 'Personalized gemstone & mantra remedies' },
-  { emoji: '\u{1F409}', text: 'Full Four Pillars (Ba Zi) deep analysis' },
-  { emoji: '\u{1F30C}', text: 'Monthly unified cosmic report' },
-  { emoji: '\u{1F4E4}', text: 'Premium shareable cards (no watermark)' },
-  { emoji: '\u{1F514}', text: 'Real-time transit alerts' },
+  { emoji: '\u{1F496}', text: 'Unlimited compatibility checks and deeper match readings' },
+  { emoji: '\u{1F30C}', text: 'Weekly and monthly forecasts across your active systems' },
+  { emoji: '\u{1F52D}', text: 'Full blended readings with source-backed system details' },
+  { emoji: '\u{1F4DA}', text: 'Full reading archive instead of the free recent-days view' },
+  { emoji: '\u{1F514}', text: 'Real-time high-impact transit alerts' },
+  { emoji: '\u{1F4E4}', text: 'Premium share cards with no watermark' },
+  { emoji: '\u{1F465}', text: '5 switchable profiles total: you plus 4 family profiles' },
   { emoji: '\u{1F6AB}', text: 'Ad-free experience' },
-  { emoji: '\u{1F465}', text: 'Save up to 5 profiles' },
 ];
 
-const FAMILY_EXTRAS = [
-  { emoji: '\u{1F46A}', text: 'Up to 5 family members get Premium' },
-  { emoji: '\u{1F4C5}', text: 'Shared family cosmic calendar' },
-  { emoji: '\u{1F496}', text: 'Family compatibility dashboard' },
+const FREE_FEATURES = [
+  'Daily spoken-style reading',
+  'Basic chart summary',
+  '1 compatibility check per day',
+  'Recent reading archive',
+  'Journal access',
+  'Rewarded ads for one-time premium unlocks',
+];
+
+const AD_UNLOCKS: Array<{ feature: PremiumFeatureKey; title: string; desc: string }> = [
+  { feature: 'extra_compatibility_check', title: 'Extra match check', desc: 'Run one more compatibility check today.' },
+  { feature: 'full_blended_reading', title: 'Full blended reading', desc: 'Open one premium Daily Blend reading.' },
+  { feature: 'period_forecast', title: 'Forecast view', desc: 'Unlock one weekly or monthly forecast view.' },
+  { feature: 'premium_share_card', title: 'No-watermark share card', desc: 'Export one cleaner premium card.' },
 ];
 
 export default function SubscriptionScreen() {
@@ -37,43 +52,51 @@ export default function SubscriptionScreen() {
   const user = useUserStore((state) => state.user);
   const startTrial = useUserStore((state) => state.startTrial);
   const upgradeSubscription = useUserStore((state) => state.upgradeSubscription);
-  const [selectedPlan, setSelectedPlan] = useState<PlanType>('yearly');
-  const [selectedTier, setSelectedTier] = useState<'premium' | 'family'>('premium');
+  const grantUnlock = useAdUnlockStore((state) => state.grantUnlock);
+  const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlanPeriod>('yearly');
+  const [loadingFeature, setLoadingFeature] = useState<PremiumFeatureKey | null>(null);
   const { showAlert, alertModal } = useCosmicAlert();
 
   if (!user) return null;
   const subscription = user.subscription;
+  const isAlreadyPremium = hasPremiumEntitlement(subscription) && subscription.status === 'active';
 
   const handleSubscribe = () => {
-    if (subscription.status === 'active' && subscription.tier !== 'free') {
+    if (isAlreadyPremium) {
       router.back();
       return;
     }
-    // TODO: Replace with RevenueCat / Expo IAP integration for real payment processing
+    // TODO: Replace with RevenueCat purchaseProduct() using monthly/yearly product IDs.
     if (subscription.status === 'trial') {
-      upgradeSubscription(selectedTier);
+      upgradeSubscription(selectedPlan);
     } else if (selectedPlan === 'yearly') {
       startTrial();
     } else {
-      upgradeSubscription(selectedTier);
+      upgradeSubscription(selectedPlan);
     }
     router.back();
   };
 
   const handleRestore = () => {
-    // TODO: In production, call RevenueCat.restorePurchases() here
-    showAlert('Restore purchases', 'No previous purchases found. If you believe this is an error, contact support.');
+    // TODO: In production, call RevenueCat.restorePurchases() here.
+    showAlert('Restore purchases', 'No previous premium subscription was found on this device.');
   };
 
-  const handlePassPurchase = (passName: string, price: string) => {
-    // TODO: Replace with real IAP transaction via RevenueCat or Expo IAP
-    showAlert(
-      'Purchase',
-      `${passName} (${price}) will be available when in-app purchases are enabled. This feature is coming soon.`
-    );
+  const handleAdUnlock = async (feature: PremiumFeatureKey) => {
+    if (loadingFeature) return;
+    setLoadingFeature(feature);
+    try {
+      const earned = await showRewardedAd(feature);
+      if (!earned) {
+        showAlert('Ad not completed', 'No unlock was added. Try again when a rewarded ad is available.');
+        return;
+      }
+      await grantUnlock(feature);
+      showAlert('Unlocked once', 'Your one-time premium unlock is ready to use.');
+    } finally {
+      setLoadingFeature(null);
+    }
   };
-
-  const isAlreadyPremium = subscription.tier !== 'free' && subscription.status === 'active';
 
   return (
     <StarField>
@@ -81,131 +104,95 @@ export default function SubscriptionScreen() {
       <ResetScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <Text style={styles.headerEmoji}>{'\u2728'}</Text>
         <GlowText size="lg" align="center" color={COLORS.starGold}>
-          Unlock Your Full Cosmos
+          Go Deeper Without Losing the Daily Ritual
         </GlowText>
         <Text style={styles.subtitle}>
-          Go deeper with all 4 astrology systems
+          Free stays useful. Premium removes limits and opens the richer forecasts, profiles, archive, alerts, and clean share cards.
         </Text>
 
         {isAlreadyPremium ? (
           <GradientCard colors={COLORS.gradientGold as unknown as readonly string[]}>
-            <Text style={styles.activeTitle}>{'\u2713'} You're a CosmicSelf+ Member!</Text>
-            <Text style={styles.activeDesc}>
-              {subscription.status === 'trial' ? 'Free trial active' : 'Premium active'}.
-              Enjoy unlimited cosmic insights.
-            </Text>
+            <Text style={styles.activeTitle}>{'\u2713'} Premium is active</Text>
+            <Text style={styles.activeDesc}>You have unlimited checks, forecasts, profiles, alerts, and no ads.</Text>
           </GradientCard>
         ) : (
           <>
-            {/* Tier Selector */}
-            <View style={styles.tierSelector}>
-              <TouchableOpacity
-                style={[styles.tierTab, selectedTier === 'premium' && styles.tierTabActive]}
-                onPress={() => setSelectedTier('premium')}
-              >
-                <Text style={[styles.tierTabText, selectedTier === 'premium' && styles.tierTabTextActive]}>
-                  Premium
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.tierTab, selectedTier === 'family' && styles.tierTabActive]}
-                onPress={() => setSelectedTier('family')}
-              >
-                <Text style={[styles.tierTabText, selectedTier === 'family' && styles.tierTabTextActive]}>
-                  Family
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Plan Cards */}
             <View style={styles.planRow}>
-              <TouchableOpacity
-                style={[styles.planCard, selectedPlan === 'yearly' && styles.planCardActive]}
+              <PlanCard
+                title="Yearly"
+                price={PREMIUM_YEARLY_PRICE}
+                period="per year"
+                detail="Best value"
+                active={selectedPlan === 'yearly'}
                 onPress={() => setSelectedPlan('yearly')}
-              >
-                <View style={styles.saveBadge}>
-                  <Text style={styles.saveText}>Save 48%</Text>
-                </View>
-                <Text style={styles.planPrice}>
-                  {selectedTier === 'premium' ? '$49.99' : '$99.99'}
-                </Text>
-                <Text style={styles.planPeriod}>per year</Text>
-                <Text style={styles.planMonthly}>
-                  {selectedTier === 'premium' ? '$4.17/mo' : '$8.33/mo'}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.planCard, selectedPlan === 'monthly' && styles.planCardActive]}
+              />
+              <PlanCard
+                title="Monthly"
+                price={PREMIUM_MONTHLY_PRICE}
+                period="per month"
+                detail="Flexible"
+                active={selectedPlan === 'monthly'}
                 onPress={() => setSelectedPlan('monthly')}
-              >
-                <Text style={styles.planPrice}>
-                  {selectedTier === 'premium' ? '$7.99' : '$12.99'}
-                </Text>
-                <Text style={styles.planPeriod}>per month</Text>
-                <Text style={styles.planMonthly}>Flexible</Text>
-              </TouchableOpacity>
+              />
             </View>
 
-            {/* CTA */}
             <CosmicButton
-              title="Start 7-Day Free Trial"
+              title={selectedPlan === 'yearly' ? 'Start 7-Day Free Trial' : 'Upgrade Monthly'}
               onPress={handleSubscribe}
               colors={[COLORS.starGold, COLORS.sunOrange]}
             />
             <Text style={styles.trialNote}>
-              No charge for 7 days. Cancel anytime.
+              Yearly starts with a 7-day trial. Monthly starts immediately until real store billing is wired.
             </Text>
           </>
         )}
 
-        {/* Features */}
         <GradientCard>
-          <Text style={styles.featuresTitle}>
-            {selectedTier === 'premium' ? 'CosmicSelf+ Premium' : 'Cosmic Circle Family'}
-          </Text>
-          {PREMIUM_FEATURES.map((f, i) => (
-            <View key={i} style={styles.featureRow}>
-              <Text style={styles.featureEmoji}>{f.emoji}</Text>
-              <Text style={styles.featureText}>{f.text}</Text>
+          <Text style={styles.featuresTitle}>Premium unlocks</Text>
+          {PREMIUM_FEATURES.map((feature) => (
+            <View key={feature.text} style={styles.featureRow}>
+              <Text style={styles.featureEmoji}>{feature.emoji}</Text>
+              <Text style={styles.featureText}>{feature.text}</Text>
             </View>
           ))}
-          {selectedTier === 'family' && (
-            <>
-              <View style={styles.familyDivider} />
-              <Text style={styles.familyTitle}>Family Extras</Text>
-              {FAMILY_EXTRAS.map((f, i) => (
-                <View key={i} style={styles.featureRow}>
-                  <Text style={styles.featureEmoji}>{f.emoji}</Text>
-                  <Text style={styles.featureText}>{f.text}</Text>
-                </View>
-              ))}
-            </>
-          )}
         </GradientCard>
 
-        {/* One-Time Purchases */}
-        <GradientCard>
-          <Text style={styles.featuresTitle}>{'\u{1F4B3}'} Cosmic Pass (One-Time)</Text>
-          <Text style={styles.passDesc}>
-            Don't want a subscription? Buy individual features:
-          </Text>
-          <PassItem name="Single Deep Reading" price="$2.99" desc="Full natal chart for one system" onBuy={() => handlePassPurchase('Single Deep Reading', '$2.99')} />
-          <PassItem name="Compatibility Deep Dive" price="$3.99" desc="Detailed cross-system report" onBuy={() => handlePassPurchase('Compatibility Deep Dive', '$3.99')} />
-          <PassItem name="Year-Ahead Forecast" price="$4.99" desc="Annual prediction all systems" onBuy={() => handlePassPurchase('Year-Ahead Forecast', '$4.99')} />
-          <PassItem name="Remedy Pack" price="$1.99" desc="Personalized Vedic remedies" onBuy={() => handlePassPurchase('Remedy Pack', '$1.99')} />
-          <PassItem name="Premium Card Pack" price="$0.99" desc="5 exclusive card designs" onBuy={() => handlePassPurchase('Premium Card Pack', '$0.99')} />
+        <GradientCard accentColor={COLORS.tide}>
+          <Text style={styles.featuresTitle}>Free includes</Text>
+          {FREE_FEATURES.map((feature) => (
+            <View key={feature} style={styles.freeRow}>
+              <Text style={styles.freeBullet}>{'\u2022'}</Text>
+              <Text style={styles.featureText}>{feature}</Text>
+            </View>
+          ))}
         </GradientCard>
 
-        {/* Restore + Legal */}
+        {!hasPremiumEntitlement(subscription) ? (
+          <GradientCard accentColor={COLORS.coral}>
+            <Text style={styles.featuresTitle}>Watch an ad, unlock once</Text>
+            <Text style={styles.passDesc}>
+              One completed rewarded ad gives one token for the selected action.
+            </Text>
+            {AD_UNLOCKS.map((item) => (
+              <AdUnlockRow
+                key={item.feature}
+                title={item.title}
+                desc={item.desc}
+                loading={loadingFeature === item.feature}
+                disabled={Boolean(loadingFeature)}
+                onPress={() => void handleAdUnlock(item.feature)}
+              />
+            ))}
+          </GradientCard>
+        ) : null}
+
         <TouchableOpacity onPress={handleRestore} style={styles.restoreBtn}>
           <Text style={styles.restoreText}>Restore Purchases</Text>
         </TouchableOpacity>
 
         <Text style={styles.legalText}>
-          Payment will be charged to your App Store/Play Store account. Subscription automatically
-          renews unless auto-renew is turned off at least 24 hours before the end of the current
-          period. Manage subscriptions in your device settings.
+          Payment will be charged to your App Store or Play Store account after real billing is connected.
+          Subscriptions renew automatically unless canceled in your device settings.
         </Text>
 
         <View style={styles.bottomPad} />
@@ -215,15 +202,62 @@ export default function SubscriptionScreen() {
   );
 }
 
-function PassItem({ name, price, desc, onBuy }: { name: string; price: string; desc: string; onBuy?: () => void }) {
+function PlanCard({
+  title,
+  price,
+  period,
+  detail,
+  active,
+  onPress,
+}: {
+  title: string;
+  price: string;
+  period: string;
+  detail: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity style={[styles.planCard, active && styles.planCardActive]} onPress={onPress} activeOpacity={0.84}>
+      {title === 'Yearly' ? (
+        <View style={styles.saveBadge}>
+          <Text style={styles.saveText}>Save $10</Text>
+        </View>
+      ) : null}
+      <Text style={styles.planTitle}>{title}</Text>
+      <Text style={styles.planPrice}>{price}</Text>
+      <Text style={styles.planPeriod}>{period}</Text>
+      <Text style={styles.planMonthly}>{detail}</Text>
+    </TouchableOpacity>
+  );
+}
+
+function AdUnlockRow({
+  title,
+  desc,
+  loading,
+  disabled,
+  onPress,
+}: {
+  title: string;
+  desc: string;
+  loading: boolean;
+  disabled: boolean;
+  onPress: () => void;
+}) {
   return (
     <View style={styles.passItem}>
       <View style={styles.passInfo}>
-        <Text style={styles.passName}>{name}</Text>
+        <Text style={styles.passName}>{title}</Text>
         <Text style={styles.passDesc2}>{desc}</Text>
       </View>
-      <TouchableOpacity style={styles.passBuyBtn} onPress={onBuy} activeOpacity={0.84}>
-        <Text style={styles.passBuyText}>{price}</Text>
+      <TouchableOpacity
+        style={[styles.passBuyBtn, disabled && !loading && styles.passBuyBtnDisabled]}
+        onPress={onPress}
+        activeOpacity={0.84}
+        disabled={disabled}
+      >
+        {loading ? <ActivityIndicator size="small" color={COLORS.tide} /> : <Text style={styles.passBuyText}>Watch ad</Text>}
       </TouchableOpacity>
     </View>
   );
@@ -232,37 +266,22 @@ function PassItem({ name, price, desc, onBuy }: { name: string; price: string; d
 const styles = StyleSheet.create({
   container: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.xxl, gap: SPACING.md },
   headerEmoji: { fontSize: 56, textAlign: 'center' },
-  subtitle: { color: COLORS.textSecondary, fontSize: 15, textAlign: 'center', marginBottom: SPACING.sm },
-  activeTitle: { color: COLORS.starGold, fontSize: 18, fontWeight: '700' },
+  subtitle: { color: COLORS.textSecondary, fontSize: 15, lineHeight: 22, textAlign: 'center', marginBottom: SPACING.sm },
+  activeTitle: { color: COLORS.textPrimary, fontSize: 18, fontWeight: '800' },
   activeDesc: { color: COLORS.textSecondary, fontSize: 14, marginTop: SPACING.xs },
-  tierSelector: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.68)',
-    borderRadius: BORDER_RADIUS.lg,
-    padding: 3,
-    borderWidth: 1,
-    borderColor: COLORS.glassBorder,
-  },
-  tierTab: {
-    flex: 1,
-    paddingVertical: SPACING.sm,
-    borderRadius: BORDER_RADIUS.md,
-    alignItems: 'center',
-  },
-  tierTabActive: { backgroundColor: COLORS.starGold },
-  tierTabText: { color: COLORS.textSecondary, fontSize: 14, fontWeight: '600' },
-  tierTabTextActive: { color: COLORS.textPrimary, fontWeight: '700' },
   planRow: { flexDirection: 'row', gap: SPACING.sm },
   planCard: {
     flex: 1,
+    minHeight: 148,
     backgroundColor: 'rgba(255,255,255,0.68)',
     borderWidth: 2,
     borderColor: COLORS.glassBorder,
     borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.lg,
+    padding: SPACING.md,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  planCardActive: { borderColor: COLORS.starGold, backgroundColor: 'rgba(255,255,255,0.82)' },
+  planCardActive: { borderColor: COLORS.starGold, backgroundColor: 'rgba(255,255,255,0.84)' },
   saveBadge: {
     backgroundColor: COLORS.starGold,
     borderRadius: BORDER_RADIUS.full,
@@ -271,10 +290,11 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
   },
   saveText: { color: COLORS.textPrimary, fontSize: 11, fontWeight: '800' },
-  planPrice: { color: COLORS.textPrimary, fontSize: 24, fontWeight: '800' },
+  planTitle: { color: COLORS.textMuted, fontSize: 12, fontFamily: FONTS.accent, letterSpacing: 0.8 },
+  planPrice: { color: COLORS.textPrimary, fontSize: 28, fontWeight: '800', marginTop: 2 },
   planPeriod: { color: COLORS.textSecondary, fontSize: 13, marginTop: 2 },
-  planMonthly: { color: COLORS.starGold, fontSize: 12, fontWeight: '600', marginTop: SPACING.xs },
-  trialNote: { color: COLORS.textMuted, fontSize: 12, textAlign: 'center' },
+  planMonthly: { color: COLORS.starGold, fontSize: 12, fontWeight: '700', marginTop: SPACING.xs },
+  trialNote: { color: COLORS.textMuted, fontSize: 12, lineHeight: 17, textAlign: 'center' },
   featuresTitle: { color: COLORS.textPrimary, fontSize: 16, fontFamily: FONTS.heading, marginBottom: SPACING.md },
   featureRow: {
     flexDirection: 'row',
@@ -283,14 +303,14 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   featureEmoji: { fontSize: 20 },
-  featureText: { color: COLORS.textSecondary, fontSize: 14, flex: 1 },
-  familyDivider: {
-    height: 1,
-    backgroundColor: COLORS.glassBorder,
-    marginVertical: SPACING.md,
+  featureText: { color: COLORS.textSecondary, fontSize: 14, lineHeight: 20, flex: 1 },
+  freeRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    paddingVertical: 4,
   },
-  familyTitle: { color: COLORS.starGold, fontSize: 14, fontWeight: '700', marginBottom: SPACING.xs },
-  passDesc: { color: COLORS.textMuted, fontSize: 13, marginBottom: SPACING.md },
+  freeBullet: { color: COLORS.tide, fontSize: 18, lineHeight: 20 },
+  passDesc: { color: COLORS.textMuted, fontSize: 13, lineHeight: 19, marginBottom: SPACING.md },
   passItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -298,16 +318,21 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.glassBorder,
   },
-  passInfo: { flex: 1 },
-  passName: { color: COLORS.textPrimary, fontSize: 14, fontWeight: '600' },
-  passDesc2: { color: COLORS.textMuted, fontSize: 12, marginTop: 1 },
+  passInfo: { flex: 1, paddingRight: SPACING.sm },
+  passName: { color: COLORS.textPrimary, fontSize: 14, fontWeight: '700' },
+  passDesc2: { color: COLORS.textMuted, fontSize: 12, lineHeight: 17, marginTop: 1 },
   passBuyBtn: {
+    minWidth: 86,
+    minHeight: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.74)',
     borderRadius: BORDER_RADIUS.full,
     paddingVertical: 6,
     paddingHorizontal: SPACING.md,
   },
-  passBuyText: { color: COLORS.starGold, fontSize: 13, fontWeight: '700' },
+  passBuyBtnDisabled: { opacity: 0.45 },
+  passBuyText: { color: COLORS.tide, fontSize: 12, fontWeight: '800' },
   restoreBtn: { alignItems: 'center', paddingVertical: SPACING.sm },
   restoreText: { color: COLORS.textMuted, fontSize: 13, textDecorationLine: 'underline' },
   legalText: { color: COLORS.textMuted, fontSize: 10, lineHeight: 16, textAlign: 'center' },

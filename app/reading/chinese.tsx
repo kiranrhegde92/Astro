@@ -7,7 +7,7 @@ import { GradientCard } from '../../src/components/ui/GradientCard';
 import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { SectionTabs } from '../../src/components/ui/SectionTabs';
 import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../../src/constants/theme';
-import { useUserStore } from '../../src/store/userStore';
+import { useActiveProfile } from '../../src/hooks/useActiveProfile';
 
 const ANIMAL_EMOJIS: Record<string, string> = {
   Rat: '\u{1F400}', Ox: '\u{1F402}', Tiger: '\u{1F405}', Rabbit: '\u{1F407}',
@@ -37,7 +37,7 @@ const ANIMAL_TRAITS: Record<string, string> = {
 export default function ChineseReadingScreen() {
   const isAndroid = Platform.OS === 'android';
   const [activeSection, setActiveSection] = useState('core');
-  const user = useUserStore((s) => s.user);
+  const user = useActiveProfile();
 
   if (!user?.chinese) return null;
 

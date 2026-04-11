@@ -7,7 +7,7 @@ import { GradientCard } from '../../src/components/ui/GradientCard';
 import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { SectionTabs } from '../../src/components/ui/SectionTabs';
 import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../../src/constants/theme';
-import { useUserStore } from '../../src/store/userStore';
+import { useActiveProfile } from '../../src/hooks/useActiveProfile';
 
 const AREA_EMOJIS: Record<string, string> = {
   career: '\u{1F4BC}', love: '\u{1F496}', health: '\u{1F49A}',
@@ -17,7 +17,7 @@ const AREA_EMOJIS: Record<string, string> = {
 export default function KPReadingScreen() {
   const isAndroid = Platform.OS === 'android';
   const [activeSection, setActiveSection] = useState('core');
-  const user = useUserStore((s) => s.user);
+  const user = useActiveProfile();
 
   if (!user?.kp) return null;
 
