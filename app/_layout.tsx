@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { ActivityIndicator, Platform, View } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { deactivateKeepAwake } from 'expo-keep-awake';
 import * as Linking from 'expo-linking';
 import {
   useFonts,
@@ -22,7 +23,7 @@ import { useReadingStore } from '../src/store/readingStore';
 import { useSettingsStore } from '../src/store/settingsStore';
 import { useUserStore } from '../src/store/userStore';
 import { parseDeepLink } from '../src/utils/qrCodeUtils';
-import '../src/i18n';
+import i18n from '../src/i18n';
 import '../src/services/firebase';
 
 function hasBirthDate(user: ReturnType<typeof useUserStore.getState>['user']) {
@@ -98,6 +99,8 @@ export default function RootLayout() {
   const fontReady = fontsLoaded || Boolean(fontError);
 
   useEffect(() => {
+    // Expo Go keeps the screen awake by default in dev — disable it
+    deactivateKeepAwake();
     loadUser().catch(() => {});
     const unsubscribe = initialize();
     return unsubscribe;
@@ -108,6 +111,14 @@ export default function RootLayout() {
     syncSubscriptionStatus();
     Promise.all([loadSettings(), loadReadings(), loadConnections(), loadJournal()]).catch(() => {});
   }, [authReady, loadConnections, loadJournal, loadReadings, loadSettings, syncSubscriptionStatus]);
+
+  // Restore user's saved language preference
+  useEffect(() => {
+    const savedLang = user?.language;
+    if (savedLang && savedLang !== i18n.language?.split('-')[0]) {
+      i18n.changeLanguage(savedLang);
+    }
+  }, [user?.language]);
 
   useEffect(() => {
     if (!authReady || profileLoading || (!fontReady && !onWebLanding)) return;

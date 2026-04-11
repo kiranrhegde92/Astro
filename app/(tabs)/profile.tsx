@@ -48,7 +48,8 @@ export default function ProfileScreen() {
   const setKPProfile = useUserStore((s) => s.setKPProfile);
 
   const { showAlert, alertModal } = useCosmicAlert();
-  const [currentLang, setCurrentLang] = useState(i18n.language?.split('-')[0] ?? 'en');
+  const setLanguage = useUserStore((s) => s.setLanguage);
+  const [currentLang, setCurrentLang] = useState(user?.language ?? i18n.language?.split('-')[0] ?? 'en');
   const [recalculating, setRecalculating] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [exportingDataset, setExportingDataset] = useState(false);
@@ -67,6 +68,7 @@ export default function ProfileScreen() {
   const handleLanguage = (code: string) => {
     setCurrentLang(code);
     i18n.changeLanguage(code);
+    setLanguage(code); // persist to user store + Firestore
   };
 
   const handleRecalculate = async () => {
@@ -254,33 +256,24 @@ export default function ProfileScreen() {
           </LinearGradient>
         </AnimatedCard>
 
-        {/* ── Quick links ───────────────────────────────────────────────── */}
+        {/* ── Settings link ──────────────────────────────────────────────── */}
         <AnimatedCard index={3}>
-          <GradientCard style={styles.card} colors={COLORS.gradientSilver}>
-            <Text style={styles.sectionLabel}>Navigate</Text>
-            {[
-              { label: 'Share card', icon: 'share-social-outline' as const, path: '/share/card' as const },
-              { label: 'My QR code', icon: 'qr-code-outline' as const, path: '/qr/my-code' as const },
-              { label: 'Notifications & more', icon: 'notifications-outline' as const, path: '/settings' as const },
-            ].map((item, i, arr) => (
-              <TouchableOpacity
-                key={item.label}
-                style={[styles.linkRow, i === arr.length - 1 && { borderBottomWidth: 0 }]}
-                onPress={() => router.push(item.path)}
-                activeOpacity={0.8}
-              >
-                <Ionicons name={item.icon} size={20} color={COLORS.textSecondary} />
-                <Text style={styles.linkLabel}>{item.label}</Text>
-                <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
-              </TouchableOpacity>
-            ))}
-          </GradientCard>
+          <TouchableOpacity
+            style={styles.settingsBtn}
+            onPress={() => router.push('/settings')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="settings-outline" size={20} color={COLORS.textSecondary} />
+            <Text style={styles.settingsLabel}>Settings</Text>
+            <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+          </TouchableOpacity>
         </AnimatedCard>
 
-        {/* ── Language ──────────────────────────────────────────────────── */}
+        {/* ── Language (tab labels only — readings are English) ──────── */}
         <AnimatedCard index={4}>
           <GradientCard style={styles.card} colors={COLORS.gradientSilver}>
             <Text style={styles.sectionLabel}>Language</Text>
+            <Text style={styles.langNote}>Changes tab labels and navigation. Daily readings are currently in English.</Text>
             <View style={styles.langGrid}>
               {LANGUAGES.map((lang) => {
                 const active = currentLang === lang.code;
@@ -434,19 +427,27 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.heading,
     textTransform: 'capitalize',
   },
-  linkRow: {
+  settingsBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
-    paddingVertical: 13,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.glassBorder,
+    paddingVertical: 14,
+    paddingHorizontal: SPACING.md,
+    borderRadius: BORDER_RADIUS.xl,
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
+    backgroundColor: COLORS.bgElevated,
   },
-  linkLabel: {
+  settingsLabel: {
     flex: 1,
     color: COLORS.textPrimary,
-    fontSize: 17,
+    fontSize: 16,
     fontFamily: FONTS.heading,
+  },
+  langNote: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    lineHeight: 17,
   },
   langGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
   langChip: {
