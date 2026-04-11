@@ -1,7 +1,6 @@
-import React, { useRef, useState } from 'react';
+import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import ViewShot from 'react-native-view-shot';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { AnimatedCard } from '../../src/components/ui/AnimatedScreen';
@@ -11,32 +10,17 @@ import { OrbIcon } from '../../src/components/ui/OrbIcon';
 import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { StarField } from '../../src/components/ui/StarField';
 import { BORDER_RADIUS, COLORS, FONTS, SHADOWS, SPACING } from '../../src/constants/theme';
-import { getCosmicDNASummary } from '../../src/engines/unified';
 import { useReadingStore } from '../../src/store/readingStore';
 import { useUserStore } from '../../src/store/userStore';
-import { captureAndShare } from '../../src/utils/shareUtils';
 import { formatDisplayDate } from '../../src/utils/dateUtils';
-import { generateProfileLink, getQRThemeColors } from '../../src/utils/qrCodeUtils';
-import type { SharedProfilePayload } from '../../src/types/appData';
 
 export default function ShareScreen() {
   const router = useRouter();
   const user = useUserStore((s) => s.user);
   const getRecentReadings = useReadingStore((s) => s.getRecentReadings);
-  const viewShotRef = useRef<ViewShot>(null);
   const archive = getRecentReadings(8);
 
   if (!user) return null;
-
-  const hasProfile = user.western && user.vedic && user.chinese;
-
-  const cosmicDNA = hasProfile
-    ? getCosmicDNASummary({ western: user.western!, vedic: user.vedic!, chinese: user.chinese!, kp: user.kp })
-    : '';
-
-  const handleShareReading = () => {
-    captureAndShare(viewShotRef, "Today's cosmic reading");
-  };
 
   return (
     <StarField>
@@ -88,19 +72,8 @@ export default function ShareScreen() {
           </TouchableOpacity>
         </AnimatedCard>
 
-        {/* ── Cosmic DNA Summary ───────────────────────────────────── */}
-        {hasProfile && (
-          <AnimatedCard index={2}>
-            <GradientCard accentColor={COLORS.iris}>
-              <Text style={styles.dnaLabel}>Your Cosmic DNA</Text>
-              <Text style={styles.dnaText}>{cosmicDNA}</Text>
-              <Text style={styles.dnaCopy}>This unique fingerprint encodes your Western, Vedic, and Chinese chart positions.</Text>
-            </GradientCard>
-          </AnimatedCard>
-        )}
-
         {/* ── Reading Archive ──────────────────────────────────────── */}
-        <AnimatedCard index={3}>
+        <AnimatedCard index={2}>
           <View style={styles.archiveHeader}>
             <Text style={styles.archiveTitle}>Recent readings</Text>
             <Text style={styles.archiveSubtitle}>Your last few days at a glance</Text>
@@ -202,25 +175,6 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontSize: 13,
     marginTop: 2,
-  },
-  // DNA
-  dnaLabel: {
-    color: COLORS.textMuted,
-    fontSize: 11,
-    fontFamily: FONTS.accent,
-    letterSpacing: 1.1,
-  },
-  dnaText: {
-    color: COLORS.textPrimary,
-    fontSize: 18,
-    fontFamily: FONTS.heading,
-    lineHeight: 24,
-  },
-  dnaCopy: {
-    color: COLORS.textSecondary,
-    fontSize: 13,
-    lineHeight: 19,
-    marginTop: SPACING.xs,
   },
   // Archive
   archiveHeader: {

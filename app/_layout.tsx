@@ -117,27 +117,32 @@ export default function RootLayout() {
     const onboardingScreen = segments.slice(1)[0];
     const entryRoute = getEntryRoute(user);
 
-    const inTabs = segments[0] === '(tabs)';
-
     if (onWebLanding) {
       return;
     }
 
+    // Defer navigation to next tick so the navigator is fully mounted
+    const navigate = (route: string) => {
+      setTimeout(() => {
+        try { router.replace(route as any); } catch { /* navigator not ready */ }
+      }, 0);
+    };
+
     if (!firebaseUser) {
       if (!inAuth) {
-        router.replace('/(auth)/login');
+        navigate('/(auth)/login');
       }
       return;
     }
 
     if (entryRoute === '/(tabs)/today') {
-      if (inAuth || inOnboarding || atRoot) router.replace(entryRoute);
+      if (inAuth || inOnboarding || atRoot) navigate(entryRoute);
       return;
     }
 
     if (entryRoute?.startsWith('/(onboarding)/')) {
       if (!inOnboarding || !isAllowedOnboardingScreen(user, onboardingScreen)) {
-        router.replace(entryRoute);
+        navigate(entryRoute);
       }
       return;
     }

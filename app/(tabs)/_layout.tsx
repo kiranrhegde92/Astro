@@ -88,9 +88,6 @@ export default function TabsLayout() {
       <Tabs.Screen name="profile" options={{ title: t('tabs.profile') }} />
       <Tabs.Screen name="compatibility" options={{ title: t('tabs.compatibility') }} />
       <Tabs.Screen name="share" options={{ title: 'Share' }} />
-      {/* Hidden from tab bar but still routable */}
-      <Tabs.Screen name="explore" options={{ href: null }} />
-      <Tabs.Screen name="cosmos" options={{ href: null }} />
     </Tabs>
   );
 }

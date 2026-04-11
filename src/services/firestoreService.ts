@@ -30,8 +30,10 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
 }
 
 export async function updateUserProfile(uid: string, updates: Partial<UserProfile>): Promise<void> {
+  // Strip undefined values — Firestore rejects them outright
+  const clean = JSON.parse(JSON.stringify(updates));
   await updateDoc(doc(db, 'users', uid), {
-    ...updates,
+    ...clean,
     updatedAt: serverTimestamp(),
   });
 }

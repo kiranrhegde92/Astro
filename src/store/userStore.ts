@@ -246,7 +246,11 @@ export const useUserStore = create<UserState>((set, get) => ({
     // Sync to Firestore if signed in
     const fbUser = currentUser();
     if (fbUser) {
-      updateUserProfile(fbUser.uid, user).catch(() => {});
+      // Firestore rejects `undefined` values — strip them before writing
+      const clean = JSON.parse(JSON.stringify(user));
+      updateUserProfile(fbUser.uid, clean).catch((e) => {
+        console.warn('[UserStore] Firestore sync failed:', e);
+      });
     }
   },
 }));

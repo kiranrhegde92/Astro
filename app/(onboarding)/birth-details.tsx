@@ -119,7 +119,11 @@ export default function BirthDetailsScreen() {
     setUser(profile);
 
     if (firebaseUser) {
-      updateUserProfile(firebaseUser.uid, { name: name.trim(), birthDetails } as any).catch(() => {});
+      // JSON round-trip strips undefined values which Firestore rejects
+      const clean = JSON.parse(JSON.stringify({ name: name.trim(), birthDetails }));
+      updateUserProfile(firebaseUser.uid, clean).catch((e) => {
+        console.warn('[BirthDetails] Firestore sync failed:', e);
+      });
     }
 
     setLoading(false);
