@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StarField } from '../../src/components/ui/StarField';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
 import { CosmicButton } from '../../src/components/ui/CosmicButton';
 import { GradientCard } from '../../src/components/ui/GradientCard';
 import { OrbIcon } from '../../src/components/ui/OrbIcon';
+import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { BORDER_RADIUS, COLORS, FONTS, SPACING } from '../../src/constants/theme';
 import { useUserStore } from '../../src/store/userStore';
 import type { AstrologySystem } from '../../src/types/user';
@@ -63,7 +64,7 @@ export default function SystemPickerScreen() {
   return (
     <StarField>
       <ScreenHeader title="Choose your blend" />
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <ResetScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <Text style={styles.step}>Step 2 of 3</Text>
         <Text style={styles.headline}>Blend the traditions you want in your daily ritual.</Text>
         <Text style={styles.copy}>Keep all four for the richest read, or narrow the voice if you prefer something quieter.</Text>
@@ -101,7 +102,7 @@ export default function SystemPickerScreen() {
             router.push('/(onboarding)/cosmic-reveal');
           }}
         />
-      </ScrollView>
+      </ResetScrollView>
     </StarField>
   );
 }

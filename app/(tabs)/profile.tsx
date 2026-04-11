@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,6 +7,7 @@ import { CosmicOrb } from '../../src/components/ui/CosmicOrb';
 import { GradientCard } from '../../src/components/ui/GradientCard';
 import { StarField } from '../../src/components/ui/StarField';
 import { AnimatedCard } from '../../src/components/ui/AnimatedScreen';
+import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { BORDER_RADIUS, COLORS, FONTS, SHADOWS, SPACING } from '../../src/constants/theme';
 import { calculateCosmicProfile, getCosmicDNASummary } from '../../src/engines/unified';
 import { useAuthStore } from '../../src/store/authStore';
@@ -176,7 +177,7 @@ export default function ProfileScreen() {
 
   return (
     <StarField>
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <ResetScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
 
         {/* ── Hero ──────────────────────────────────────────────────────── */}
         <AnimatedCard index={0}>
@@ -347,7 +348,7 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </AnimatedCard>
 
-      </ScrollView>
+      </ResetScrollView>
       {alertModal}
     </StarField>
   );

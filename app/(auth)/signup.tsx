@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
-  KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView,
+  KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import Animated, {
   FadeInDown,
@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { StarField } from '../../src/components/ui/StarField';
 import { AnimatedPressable } from '../../src/components/ui/AnimatedPressable';
+import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../../src/constants/theme';
 import { signUp } from '../../src/services/authService';
 import { createUserProfile } from '../../src/services/firestoreService';
@@ -98,7 +99,7 @@ export default function SignupScreen() {
   return (
     <StarField>
       <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <ResetScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
           <Animated.View entering={FadeInDown.delay(80).duration(420).springify().damping(20)} style={styles.header}>
             <Ionicons name="sparkles" size={48} color={COLORS.western} />
@@ -198,7 +199,7 @@ export default function SignupScreen() {
           </Animated.View>
 
           <View style={{ height: SPACING.xxl }} />
-        </ScrollView>
+        </ResetScrollView>
       </KeyboardAvoidingView>
       {alertModal}
     </StarField>

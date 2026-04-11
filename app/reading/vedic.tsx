@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import ReAnimated, { FadeInDown } from 'react-native-reanimated';
 import { StarField } from '../../src/components/ui/StarField';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
 import { GradientCard } from '../../src/components/ui/GradientCard';
+import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { SectionTabs } from '../../src/components/ui/SectionTabs';
 import { KundliChart } from '../../src/components/chart/KundliChart';
 import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../../src/constants/theme';
@@ -54,7 +55,7 @@ export default function VedicReadingScreen() {
   return (
     <StarField>
       <ScreenHeader title="Vedic Lens" accentColor={COLORS.vedic} />
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <ResetScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <ReAnimated.View entering={isAndroid ? FadeInDown.duration(280).damping(24) : FadeInDown.delay(100).duration(500).springify()}>
           <Text style={styles.headerEmoji}>{'\u{1F549}\uFE0F'}</Text>
         </ReAnimated.View>
@@ -258,7 +259,7 @@ export default function VedicReadingScreen() {
         )}
 
         <View style={styles.bottomPad} />
-      </ScrollView>
+      </ResetScrollView>
     </StarField>
   );
 }
@@ -345,4 +346,3 @@ const styles = StyleSheet.create({
   transitBadgeText: { color: COLORS.vedic, fontSize: 11, fontWeight: '700' },
   transitText: { color: COLORS.textSecondary, fontSize: 13, lineHeight: 19 },
 });
-

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -10,6 +10,7 @@ import { CosmicOrb } from '../../src/components/ui/CosmicOrb';
 import { GradientCard } from '../../src/components/ui/GradientCard';
 import { OrbIcon } from '../../src/components/ui/OrbIcon';
 import { AnimatedCard } from '../../src/components/ui/AnimatedScreen';
+import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { BORDER_RADIUS, COLORS, FONTS, SHADOWS, SPACING } from '../../src/constants/theme';
 import { useAuthStore } from '../../src/store/authStore';
 import { useUserStore } from '../../src/store/userStore';
@@ -132,7 +133,7 @@ export default function WelcomeScreen() {
         <Ionicons name="log-out-outline" size={22} color={COLORS.textMuted} />
       </TouchableOpacity>
 
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <ResetScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <AnimatedCard index={0}>
           <View style={styles.posterWrap}>
             <LinearGradient colors={COLORS.gradientInk} style={styles.poster}>
@@ -192,7 +193,7 @@ export default function WelcomeScreen() {
             <Text style={styles.promiseCopy}>{copy.promiseCopy}</Text>
           </GradientCard>
         </AnimatedCard>
-      </ScrollView>
+      </ResetScrollView>
       {alertModal}
     </StarField>
   );

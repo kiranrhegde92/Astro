@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import ViewShot from 'react-native-view-shot';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,6 +8,7 @@ import { AnimatedCard } from '../../src/components/ui/AnimatedScreen';
 import { CosmicButton } from '../../src/components/ui/CosmicButton';
 import { GradientCard } from '../../src/components/ui/GradientCard';
 import { OrbIcon } from '../../src/components/ui/OrbIcon';
+import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { StarField } from '../../src/components/ui/StarField';
 import { BORDER_RADIUS, COLORS, FONTS, SHADOWS, SPACING } from '../../src/constants/theme';
 import { getCosmicDNASummary } from '../../src/engines/unified';
@@ -39,7 +40,7 @@ export default function ShareScreen() {
 
   return (
     <StarField>
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <ResetScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <Text style={styles.kicker}>Share</Text>
         <Text style={styles.headline}>Spread your cosmic energy</Text>
 
@@ -122,7 +123,7 @@ export default function ShareScreen() {
         </AnimatedCard>
 
         <View style={styles.bottomPad} />
-      </ScrollView>
+      </ResetScrollView>
     </StarField>
   );
 }

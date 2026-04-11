@@ -1,8 +1,9 @@
 import React, { useRef, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import ViewShot from 'react-native-view-shot';
 import { StarField } from '../../src/components/ui/StarField';
 import { OrbIcon } from '../../src/components/ui/OrbIcon';
+import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
 import { CosmicButton } from '../../src/components/ui/CosmicButton';
 import { ShareableCard, DailyVibeCard } from '../../src/components/share/ShareableCard';
@@ -35,7 +36,7 @@ export default function ShareCardScreen() {
   return (
     <StarField>
       <ScreenHeader title="Share your stars" />
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <ResetScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <Text style={styles.subtitle}>
           Create beautiful shareable cards for social media
         </Text>
@@ -99,7 +100,7 @@ export default function ShareCardScreen() {
         </Text>
 
         <View style={styles.bottomPad} />
-      </ScrollView>
+      </ResetScrollView>
     </StarField>
   );
 }

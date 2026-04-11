@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StarField } from '../src/components/ui/StarField';
 import { GlowText } from '../src/components/ui/GlowText';
 import { ScreenHeader } from '../src/components/ui/ScreenHeader';
 import { GradientCard } from '../src/components/ui/GradientCard';
 import { CosmicButton } from '../src/components/ui/CosmicButton';
+import { ResetScrollView } from '../src/components/ui/ResetScrollView';
 import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../src/constants/theme';
 import { useUserStore } from '../src/store/userStore';
 
@@ -65,7 +66,7 @@ export default function SubscriptionScreen() {
   return (
     <StarField>
       <ScreenHeader title="CosmicSelf+" accentColor={COLORS.starGold} />
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <ResetScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <Text style={styles.headerEmoji}>{'\u2728'}</Text>
         <GlowText size="lg" align="center" color={COLORS.starGold}>
           Unlock Your Full Cosmos
@@ -196,7 +197,7 @@ export default function SubscriptionScreen() {
         </Text>
 
         <View style={styles.bottomPad} />
-      </ScrollView>
+      </ResetScrollView>
     </StarField>
   );
 }

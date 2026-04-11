@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, Platform, View } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as Linking from 'expo-linking';
@@ -93,6 +93,9 @@ export default function RootLayout() {
     Cinzel_700Bold,
     Cinzel_900Black,
   });
+  const atRoot = !segments[0]; // root index.tsx
+  const onWebLanding = Platform.OS === 'web' && atRoot;
+  const fontReady = fontsLoaded || Boolean(fontError);
 
   useEffect(() => {
     loadUser().catch(() => {});
@@ -107,7 +110,7 @@ export default function RootLayout() {
   }, [authReady, loadConnections, loadJournal, loadReadings, loadSettings, syncSubscriptionStatus]);
 
   useEffect(() => {
-    if (!authReady || !fontsLoaded || profileLoading) return;
+    if (!authReady || profileLoading || (!fontReady && !onWebLanding)) return;
 
     const inAuth = segments[0] === '(auth)';
     const inOnboarding = segments[0] === '(onboarding)';
@@ -115,7 +118,10 @@ export default function RootLayout() {
     const entryRoute = getEntryRoute(user);
 
     const inTabs = segments[0] === '(tabs)';
-    const atRoot = !segments[0]; // root index.tsx
+
+    if (onWebLanding) {
+      return;
+    }
 
     if (!firebaseUser) {
       if (!inAuth) {
@@ -135,7 +141,7 @@ export default function RootLayout() {
       }
       return;
     }
-  }, [authReady, firebaseUser, fontsLoaded, profileLoading, router, segments, user]);
+  }, [authReady, firebaseUser, fontReady, onWebLanding, profileLoading, router, segments, user]);
 
   useEffect(() => {
     const handleDeepLink = (event: { url: string }) => {
@@ -160,7 +166,7 @@ export default function RootLayout() {
   }, [importSharedProfile, router]);
 
 
-  if (!authReady) {
+  if ((!authReady || !fontReady) && !onWebLanding) {
     return (
       <View style={{ flex: 1, backgroundColor: COLORS.bgDeep, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator color={COLORS.western} />

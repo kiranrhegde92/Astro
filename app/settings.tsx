@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { GradientCard } from '../src/components/ui/GradientCard';
+import { ResetScrollView } from '../src/components/ui/ResetScrollView';
 import { ScreenHeader } from '../src/components/ui/ScreenHeader';
 import { StarField } from '../src/components/ui/StarField';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS } from '../src/constants/theme';
@@ -30,7 +31,7 @@ export default function SettingsScreen() {
   return (
     <StarField>
       <ScreenHeader title="Settings" />
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <ResetScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <Text style={styles.headline}>Shape the ritual around your routine.</Text>
 
         <GradientCard style={styles.section}>
@@ -70,7 +71,7 @@ export default function SettingsScreen() {
             </>
           ) : null}
         </GradientCard>
-      </ScrollView>
+      </ResetScrollView>
     </StarField>
   );
 }

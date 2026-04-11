@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StarField } from '../../src/components/ui/StarField';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
@@ -10,6 +10,7 @@ import { LifeRoadmapPanel } from '../../src/components/ui/LifeRoadmapPanel';
 import { PredictionFeedbackCard } from '../../src/components/ui/PredictionFeedbackCard';
 import { CosmicButton } from '../../src/components/ui/CosmicButton';
 import { ProgressRing } from '../../src/components/ui/ProgressRing';
+import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { SectionTabs } from '../../src/components/ui/SectionTabs';
 import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../../src/constants/theme';
 import { generatePeriodForecast, type ForecastWindow } from '../../src/content/forecastTemplates';
@@ -69,7 +70,7 @@ export default function UnifiedReadingScreen() {
   return (
     <StarField>
       <ScreenHeader title="Daily Blend" accentColor={COLORS.starGold} />
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <ResetScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <Text style={styles.headerEmoji}>{'\u{1F30C}'}</Text>
         <Text style={styles.subtitle}>
           All your active systems folded into one reading.
@@ -211,7 +212,7 @@ export default function UnifiedReadingScreen() {
         )}
 
         <View style={styles.bottomPad} />
-      </ScrollView>
+      </ResetScrollView>
     </StarField>
   );
 }

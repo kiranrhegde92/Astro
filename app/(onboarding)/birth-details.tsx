@@ -1,11 +1,12 @@
 import React, { useRef, useState } from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { StarField } from '../../src/components/ui/StarField';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
 import { CosmicButton } from '../../src/components/ui/CosmicButton';
+import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { BORDER_RADIUS, COLORS, FONTS, SPACING } from '../../src/constants/theme';
 import { useUserStore } from '../../src/store/userStore';
 import { useAuthStore } from '../../src/store/authStore';
@@ -161,7 +162,7 @@ export default function BirthDetailsScreen() {
     <StarField>
       <ScreenHeader title="Birth ritual" />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <ResetScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <Animated.Text entering={FadeInDown.delay(60).duration(380).springify().damping(20)} style={styles.step}>Step 1 of 3</Animated.Text>
           <Animated.View entering={FadeInDown.delay(140).duration(400).springify().damping(20)}>
             <Text style={styles.headline}>Tell the chart where{'\n'}your story began.</Text>
@@ -303,7 +304,7 @@ export default function BirthDetailsScreen() {
           </Animated.View>
 
           <View style={{ height: SPACING.xxl }} />
-        </ScrollView>
+        </ResetScrollView>
       </KeyboardAvoidingView>
     </StarField>
   );

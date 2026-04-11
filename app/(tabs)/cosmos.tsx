@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { GradientCard } from '../../src/components/ui/GradientCard';
+import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { SectionTabs } from '../../src/components/ui/SectionTabs';
 import { StarField } from '../../src/components/ui/StarField';
 import { CosmicButton } from '../../src/components/ui/CosmicButton';
@@ -69,7 +70,7 @@ export default function CosmosScreen() {
 
   return (
     <StarField>
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ResetScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <Text style={styles.kicker}>Notes</Text>
         <Text style={styles.headline}>Keep the parts of the reading that stayed with you.</Text>
         <Text style={styles.copy}>
@@ -177,7 +178,7 @@ export default function CosmosScreen() {
             )}
           </GradientCard>
         )}
-      </ScrollView>
+      </ResetScrollView>
     </StarField>
   );
 }

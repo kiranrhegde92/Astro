@@ -1,11 +1,12 @@
 import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { AnimatedPressable } from '../../src/components/ui/AnimatedPressable';
 import { AnimatedCard } from '../../src/components/ui/AnimatedScreen';
 import { GradientCard } from '../../src/components/ui/GradientCard';
 import { OrbIcon } from '../../src/components/ui/OrbIcon';
+import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { StarField } from '../../src/components/ui/StarField';
 import { BORDER_RADIUS, COLORS, FONTS, SHADOWS, SPACING } from '../../src/constants/theme';
 
@@ -57,7 +58,7 @@ export default function ExploreScreen() {
 
   return (
     <StarField>
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <ResetScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <Text style={styles.kicker}>Guide</Text>
 
         <AnimatedCard index={0}>
@@ -115,7 +116,7 @@ export default function ExploreScreen() {
             </Text>
           </GradientCard>
         </AnimatedCard>
-      </ScrollView>
+      </ResetScrollView>
     </StarField>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { StarField } from '../../src/components/ui/StarField';
@@ -8,6 +8,7 @@ import { CosmicButton } from '../../src/components/ui/CosmicButton';
 import { CosmicOrb } from '../../src/components/ui/CosmicOrb';
 import { GradientCard } from '../../src/components/ui/GradientCard';
 import { AnimatedPressable } from '../../src/components/ui/AnimatedPressable';
+import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS } from '../../src/constants/theme';
 import { useUserStore } from '../../src/store/userStore';
 import { useAuthStore } from '../../src/store/authStore';
@@ -273,7 +274,7 @@ export default function CosmicRevealScreen() {
   return (
     <StarField>
       <ScreenHeader title="Your reveal" />
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <ResetScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <Text style={styles.step}>Step 3 of 3</Text>
         <Text style={styles.headline}>This is the shape of your sky.</Text>
 
@@ -352,7 +353,7 @@ export default function CosmicRevealScreen() {
           }}
         />
         <View style={{ height: SPACING.xxl }} />
-      </ScrollView>
+      </ResetScrollView>
     </StarField>
   );
 }

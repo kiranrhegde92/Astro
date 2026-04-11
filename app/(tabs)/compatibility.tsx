@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import ViewShot from 'react-native-view-shot';
 import { CosmicButton } from '../../src/components/ui/CosmicButton';
 import { useCosmicAlert } from '../../src/components/ui/CosmicAlert';
 import { CosmicOrb } from '../../src/components/ui/CosmicOrb';
 import { GradientCard } from '../../src/components/ui/GradientCard';
+import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { SectionTabs } from '../../src/components/ui/SectionTabs';
 import { StarField } from '../../src/components/ui/StarField';
 import { BORDER_RADIUS, COLORS, FONTS, SPACING } from '../../src/constants/theme';
@@ -266,7 +267,7 @@ export default function CompatibilityScreen() {
 
   return (
     <StarField>
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <ResetScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <Text style={styles.kicker}>Match</Text>
         <Text style={styles.headline}>Compare charts without re-entering the same person every time.</Text>
         <Text style={styles.copy}>
@@ -276,21 +277,6 @@ export default function CompatibilityScreen() {
 
         {activeSection === 'setup' && (
           <>
-            {savedProfiles.length ? (
-              <GradientCard style={styles.savedCard} accentColor={COLORS.tide}>
-                <Text style={styles.sectionLabel}>Saved people — tap to compare</Text>
-                {savedProfiles.map((profile) => (
-                  <SavedProfileRow
-                    key={profile.id}
-                    profile={profile}
-                    active={profile.id === selectedProfileId}
-                    onPress={() => void handleCompareSaved(profile)}
-                    onRemove={() => void removeSavedProfile(profile.id)}
-                  />
-                ))}
-              </GradientCard>
-            ) : null}
-
             <GradientCard style={styles.modeCard} accentColor={COLORS.coral}>
               <Text style={styles.sectionLabel}>Relationship mode</Text>
               <View style={styles.modeRow}>
@@ -389,6 +375,21 @@ export default function CompatibilityScreen() {
               />
               <CosmicButton title="Scan or paste a shared profile" onPress={() => router.push('/qr/scan')} variant="outline" />
             </View>
+
+            {savedProfiles.length ? (
+              <GradientCard style={styles.savedCard} accentColor={COLORS.tide}>
+                <Text style={styles.sectionLabel}>Saved people - tap to compare</Text>
+                {savedProfiles.map((profile) => (
+                  <SavedProfileRow
+                    key={profile.id}
+                    profile={profile}
+                    active={profile.id === selectedProfileId}
+                    onPress={() => void handleCompareSaved(profile)}
+                    onRemove={() => void removeSavedProfile(profile.id)}
+                  />
+                ))}
+              </GradientCard>
+            ) : null}
           </>
         )}
 
@@ -454,7 +455,7 @@ export default function CompatibilityScreen() {
             )}
           </GradientCard>
         )}
-      </ScrollView>
+      </ResetScrollView>
       {alertModal}
     </StarField>
   );

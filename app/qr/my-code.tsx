@@ -7,6 +7,7 @@ import { StarField } from '../../src/components/ui/StarField';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
 import { CosmicButton } from '../../src/components/ui/CosmicButton';
 import { QRRevealAnimation } from '../../src/components/ui/QRRevealAnimation';
+import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../../src/constants/theme';
 import { useUserStore } from '../../src/store/userStore';
 import { getCosmicDNASummary } from '../../src/engines/unified';
@@ -102,7 +103,7 @@ export default function MyQRCodeScreen() {
   return (
     <StarField>
       <ScreenHeader title="My cosmic QR" />
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <ResetScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <Text style={styles.subtitle}>
           Your rashi rises as a living sigil, then settles into a scan-ready QR.
         </Text>
@@ -179,7 +180,7 @@ export default function MyQRCodeScreen() {
         </View>
 
         <View style={styles.bottomPad} />
-      </ScrollView>
+      </ResetScrollView>
     </StarField>
   );
 }

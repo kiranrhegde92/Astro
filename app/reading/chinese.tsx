@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import ReAnimated, { FadeInDown } from 'react-native-reanimated';
 import { StarField } from '../../src/components/ui/StarField';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
 import { GradientCard } from '../../src/components/ui/GradientCard';
+import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { SectionTabs } from '../../src/components/ui/SectionTabs';
 import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../../src/constants/theme';
 import { useUserStore } from '../../src/store/userStore';
@@ -50,7 +51,7 @@ export default function ChineseReadingScreen() {
   return (
     <StarField>
       <ScreenHeader title="Chinese Lens" accentColor={COLORS.chinese} />
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <ResetScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <ReAnimated.View entering={isAndroid ? FadeInDown.duration(280).damping(24) : FadeInDown.delay(100).duration(500).springify()}>
           <Text style={styles.headerEmoji}>{ANIMAL_EMOJIS[animal] ?? '\u{1F409}'}</Text>
         </ReAnimated.View>
@@ -153,7 +154,7 @@ export default function ChineseReadingScreen() {
         )}
 
         <View style={styles.bottomPad} />
-      </ScrollView>
+      </ResetScrollView>
     </StarField>
   );
 }
@@ -233,4 +234,3 @@ const styles = StyleSheet.create({
   bookDesc: { color: COLORS.textSecondary, fontSize: 13, marginTop: 2 },
   bottomPad: { height: 20 },
 });
-
