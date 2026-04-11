@@ -16,16 +16,16 @@ import { ZodiacThreeScene } from '../src/components/web/ZodiacThreeScene';
 import { COLORS, FONTS, SHADOWS } from '../src/constants/theme';
 
 const SYSTEMS = [
-  ['Western', 'Transit mood'],
-  ['Vedic', 'Rashi timing'],
-  ['Chinese', 'Element rhythm'],
-  ['KP', 'Signal detail'],
+  ['Western', 'Transit mood', 'What the sky is pressing on today.'],
+  ['Vedic', 'Rashi timing', 'Your lunar rhythm, nakshatra tone, and timing.'],
+  ['Chinese', 'Element rhythm', 'A second layer for pace, energy, and instinct.'],
+  ['KP', 'Signal detail', 'Sharper house-level hints for the day ahead.'],
 ] as const;
 
 const DAILY_FLOW = [
-  ['01', 'Today', 'A concise daily read instead of a generic horoscope.'],
-  ['02', 'Self', 'Birth-pattern insights across four astrology systems.'],
-  ['03', 'Match', 'Compatibility and cosmic QR sharing for people you save.'],
+  ['01', 'Today', 'A short daily bend with strengths, weak spots, and timing.'],
+  ['02', 'Self', 'Birth-pattern reading across Western, Vedic, Chinese, and KP.'],
+  ['03', 'Match', 'Compatibility and cosmic QR sharing for saved people.'],
 ] as const;
 
 const DOWNLOAD_OPTIONS = [
@@ -38,14 +38,14 @@ export default function LaunchScreen() {
   const reveal = useRef(new Animated.Value(0)).current;
   const isDesktop = width >= 980;
   const isWide = width >= 720;
-  const isCompact = width < 390;
+  const compactContentWidth = !isWide ? Math.max(280, Math.min(width, 390) - 52) : undefined;
 
   useEffect(() => {
     if (Platform.OS !== 'web') return;
 
     const intro = Animated.timing(reveal, {
       toValue: 1,
-      duration: 720,
+      duration: 760,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     });
@@ -61,114 +61,117 @@ export default function LaunchScreen() {
     );
   }
 
-  const heroLift = reveal.interpolate({ inputRange: [0, 1], outputRange: [18, 0] });
+  const heroLift = reveal.interpolate({ inputRange: [0, 1], outputRange: [22, 0] });
 
   return (
-    <>
+    <View style={styles.webShell}>
       <Head>
         <title>CosmicSelf - Daily Astrology App</title>
         <meta
           name="description"
           content="CosmicSelf is a mobile astrology app for daily guidance, self-knowledge, compatibility, and cosmic QR sharing across Western, Vedic, Chinese, and KP systems."
         />
+        <style>{'html, body, #root { background: #17182d; min-height: 100%; } body { margin: 0; }'}</style>
       </Head>
 
+      <ZodiacThreeScene variant="page" />
+      <LinearGradient pointerEvents="none" colors={['rgba(23,24,45,0.38)', 'rgba(23,24,45,0.76)']} style={styles.sceneVeil} />
+
       <ScrollView style={styles.page} contentContainerStyle={styles.pageContent} showsVerticalScrollIndicator={false}>
-        <LinearGradient colors={COLORS.gradientBg} style={styles.hero}>
-          <View style={styles.heroAura} />
-          <View style={styles.nav}>
-            <Text style={styles.navBrand}>CosmicSelf</Text>
-            <Text style={styles.navDomain}>cosmicself.app</Text>
+        <View style={styles.nav}>
+          <Text style={styles.navBrand}>CosmicSelf</Text>
+          {isWide ? <Text style={styles.navDomain}>cosmicself.app</Text> : null}
+        </View>
+
+        <Animated.View
+          style={[
+            styles.hero,
+            isDesktop && styles.heroDesktop,
+            { opacity: reveal, transform: [{ translateY: heroLift }] },
+          ]}
+        >
+          <View style={[styles.heroCopy, !isWide && { maxWidth: compactContentWidth }, isDesktop && styles.heroCopyDesktop]}>
+            <Text style={styles.eyebrow}>Mobile astrology ritual</Text>
+            <Text style={[styles.brandTitle, !isWide && styles.brandTitleCompact, isWide && styles.brandTitleWide]}>
+              CosmicSelf
+            </Text>
+            <Text style={[styles.heroTitle, !isWide && styles.heroTitleCompact, isWide && styles.heroTitleWide]}>
+              Your day, chart, matches, and cosmic identity in one living app.
+            </Text>
+            <Text style={styles.heroBody}>
+              CosmicSelf blends four astrology systems into a calm daily reading, deeper self insight, compatibility,
+              and QR profiles you can share from the mobile app.
+            </Text>
+
+            <View style={[styles.downloadRow, !isWide && styles.downloadRowCompact]}>
+              {DOWNLOAD_OPTIONS.map(([platform, store, status]) => (
+                <View key={platform} style={[styles.downloadButton, !isWide && styles.downloadButtonCompact]}>
+                  <Text style={styles.downloadPlatform}>{platform}</Text>
+                  <Text style={styles.downloadStore}>{store}</Text>
+                  <Text style={styles.downloadStatus}>{status}</Text>
+                </View>
+              ))}
+            </View>
           </View>
 
-          <Animated.View
+          <View
             style={[
-              styles.heroGrid,
-              isDesktop && styles.heroGridDesktop,
-              { opacity: reveal, transform: [{ translateY: heroLift }] },
+              styles.instrumentPanel,
+              !isWide && styles.instrumentPanelCompact,
+              !isWide && { maxWidth: compactContentWidth },
+              isDesktop && styles.instrumentPanelDesktop,
             ]}
           >
-            <View style={[styles.heroCopy, isDesktop && styles.heroCopyDesktop]}>
-              <Text style={[styles.brandTitle, isCompact && styles.brandTitleCompact, isWide && styles.brandTitleWide]}>
-                CosmicSelf
+            <View style={styles.instrumentHeader}>
+              <Text style={styles.instrumentKicker}>Live app preview</Text>
+              <Text style={[styles.instrumentScore, !isWide && styles.instrumentScoreCompact]}>72</Text>
+            </View>
+            <View>
+              <Text style={styles.instrumentTitle}>Today bends warm.</Text>
+              <Text style={styles.instrumentCopy}>
+                Best for direct words, low-friction decisions, and resetting the day before it gets noisy.
               </Text>
-              <Text style={[styles.heroTitle, isCompact && styles.heroTitleCompact, isWide && styles.heroTitleWide]}>
-                Daily astrology, translated into one clean mobile ritual.
-              </Text>
-              <Text style={styles.heroBody}>
-                CosmicSelf blends Western, Vedic, Chinese, and KP astrology into daily guidance, self-reading,
-                compatibility, and shareable cosmic QR profiles.
-              </Text>
-
-              <View style={styles.downloadRow}>
-                {DOWNLOAD_OPTIONS.map(([platform, store, status]) => (
-                  <View key={platform} style={styles.downloadButton}>
-                    <Text style={styles.downloadPlatform}>{platform}</Text>
-                    <Text style={styles.downloadStore}>{store}</Text>
-                    <Text style={styles.downloadStatus}>{status}</Text>
+            </View>
+            <View style={styles.signalStack}>
+              {SYSTEMS.map(([system, label], index) => (
+                <View key={system} style={styles.signalRow}>
+                  <Text style={styles.signalIndex}>0{index + 1}</Text>
+                  <View style={styles.signalText}>
+                    <Text style={styles.signalTitle}>{system}</Text>
+                    <Text style={styles.signalLabel}>{label}</Text>
                   </View>
-                ))}
-              </View>
+                </View>
+              ))}
             </View>
+          </View>
+        </Animated.View>
 
-            <View style={[styles.cosmicConsole, isDesktop && styles.cosmicConsoleDesktop]}>
-              <LinearGradient colors={COLORS.gradientInk} style={styles.consoleSurface}>
-                <ZodiacThreeScene />
-                <View style={styles.consoleHeader}>
-                  <Text style={styles.consoleKicker}>Daily Blend</Text>
-                  <Text style={styles.consoleScore}>72</Text>
-                </View>
-                <View style={styles.consoleReadout}>
-                  <Text style={styles.consoleTitle}>Opening window</Text>
-                  <Text style={styles.consoleText}>
-                    Good timing for small decisions, direct conversations, and resetting the day with intention.
-                  </Text>
-                </View>
-                <View style={styles.systemRail}>
-                  {SYSTEMS.map(([system, label], index) => (
-                    <View
-                      key={system}
-                      style={[
-                        styles.systemPill,
-                        index === 1 && styles.systemPillVedic,
-                        index === 2 && styles.systemPillChinese,
-                        index === 3 && styles.systemPillKp,
-                      ]}
-                    >
-                      <Text style={styles.systemPillTitle}>{system}</Text>
-                      <Text style={styles.systemPillLabel}>{label}</Text>
-                    </View>
-                  ))}
-                </View>
-              </LinearGradient>
-            </View>
-          </Animated.View>
-        </LinearGradient>
-
-        <View style={[styles.storyStrip, isWide && styles.storyStripWide]}>
+        <View style={[styles.ritualStrip, isWide && styles.ritualStripWide]}>
           {DAILY_FLOW.map(([number, title, body]) => (
-            <View key={title} style={styles.storyItem}>
-              <Text style={styles.storyNumber}>{number}</Text>
-              <Text style={styles.storyTitle}>{title}</Text>
-              <Text style={styles.storyBody}>{body}</Text>
+            <View key={title} style={styles.ritualItem}>
+              <Text style={styles.ritualNumber}>{number}</Text>
+              <Text style={styles.ritualTitle}>{title}</Text>
+              <Text style={styles.ritualBody}>{body}</Text>
             </View>
           ))}
         </View>
 
-        <View style={[styles.appSection, isWide && styles.appSectionWide]}>
-          <Text style={styles.sectionTitle}>Made to feel like opening your chart, not reading an article.</Text>
+        <View style={[styles.storySection, isWide && styles.storySectionWide]}>
+          <Text style={[styles.sectionTitle, !isWide && styles.sectionTitleCompact]}>
+            Built like a personal orrery, not a horoscope blog.
+          </Text>
           <View style={styles.sectionCopyBlock}>
             <Text style={styles.sectionCopy}>
-              The app keeps astrology practical: a daily read, your deeper pattern, match insights, and a QR identity
-              you can share. The website stays simple because the mobile app is the product.
+              The website stays simple because the mobile app is the product. Open the app for daily bends, profile
+              insight, match reading, and a shareable cosmic QR identity.
             </Text>
-            <View style={styles.featureList}>
-              {SYSTEMS.map(([system, label], index) => (
-                <View key={system} style={[styles.featureRow, index === SYSTEMS.length - 1 && styles.featureRowLast]}>
-                  <Text style={styles.featureAccent}>0{index + 1}</Text>
-                  <View style={styles.featureText}>
-                    <Text style={styles.featureTitle}>{system}</Text>
-                    <Text style={styles.featureBody}>{label}</Text>
+            <View style={styles.systemList}>
+              {SYSTEMS.map(([system, label, body], index) => (
+                <View key={system} style={[styles.systemRow, index === SYSTEMS.length - 1 && styles.systemRowLast]}>
+                  <Text style={styles.systemAccent}>{system}</Text>
+                  <View style={styles.systemText}>
+                    <Text style={styles.systemLabel}>{label}</Text>
+                    <Text style={styles.systemBody}>{body}</Text>
                   </View>
                 </View>
               ))}
@@ -176,12 +179,14 @@ export default function LaunchScreen() {
           </View>
         </View>
 
-        <LinearGradient colors={COLORS.gradientInkSoft} style={styles.downloadSection}>
-          <Text style={styles.downloadTitle}>Download options</Text>
-          <Text style={styles.downloadBody}>Android and iPhone builds are the only entry points. No web login. No web registration.</Text>
+        <LinearGradient colors={['rgba(255,248,242,0.18)', 'rgba(255,138,91,0.14)', 'rgba(18,200,178,0.10)']} style={styles.downloadSection}>
+          <Text style={[styles.downloadTitle, !isWide && styles.downloadTitleCompact]}>Download the mobile app</Text>
+          <Text style={styles.downloadBody}>
+            No web registration. No browser login. CosmicSelf is a mobile-first astrology experience for Android and iPhone.
+          </Text>
           <View style={styles.finalDownloadRow}>
             {DOWNLOAD_OPTIONS.map(([platform, store, status]) => (
-              <View key={platform} style={styles.finalDownloadButton}>
+              <View key={platform} style={[styles.finalDownloadButton, !isWide && styles.finalDownloadButtonCompact]}>
                 <Text style={styles.finalPlatform}>{platform}</Text>
                 <Text style={styles.finalStore}>{store}</Text>
                 <Text style={styles.finalStatus}>{status}</Text>
@@ -190,7 +195,7 @@ export default function LaunchScreen() {
           </View>
         </LinearGradient>
       </ScrollView>
-    </>
+    </View>
   );
 }
 
@@ -201,370 +206,423 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: COLORS.bgDeep,
   },
-  page: {
+  webShell: {
+    position: 'relative',
     flex: 1,
-    backgroundColor: COLORS.bgDeep,
+    minHeight: '100%',
+    backgroundColor: COLORS.ink,
+    overflow: 'hidden',
+  },
+  sceneVeil: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    zIndex: 1,
+  },
+  page: {
+    position: 'relative',
+    flex: 1,
+    backgroundColor: 'rgba(23,24,45,0.24)',
+    zIndex: 2,
   },
   pageContent: {
-    backgroundColor: COLORS.bgDeep,
-  },
-  hero: {
-    minHeight: 780,
-    overflow: 'hidden',
+    backgroundColor: 'rgba(23,24,45,0.04)',
     paddingHorizontal: 20,
-    paddingTop: 22,
-    paddingBottom: 72,
-  },
-  heroAura: {
-    position: 'absolute',
-    right: -160,
-    top: -170,
-    width: 520,
-    height: 520,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,138,91,0.20)',
+    paddingBottom: 28,
   },
   nav: {
     width: '100%',
-    maxWidth: 1180,
+    maxWidth: 1200,
     alignSelf: 'center',
-    minHeight: 56,
+    minHeight: 68,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 16,
+    paddingTop: 20,
   },
   navBrand: {
-    color: COLORS.textPrimary,
+    color: COLORS.white,
     fontFamily: FONTS.heading,
-    fontSize: 23,
+    fontSize: 24,
     letterSpacing: -0.2,
   },
   navDomain: {
-    color: COLORS.textSecondary,
-    fontSize: 14,
-    fontWeight: '800',
+    color: 'rgba(255,248,242,0.68)',
+    fontFamily: FONTS.accent,
+    fontSize: 12,
+    letterSpacing: 1.4,
   },
-  heroGrid: {
+  hero: {
     width: '100%',
-    maxWidth: 1180,
+    maxWidth: 1200,
     alignSelf: 'center',
-    paddingTop: 62,
-    gap: 42,
+    minHeight: 720,
+    justifyContent: 'center',
+    gap: 34,
+    paddingTop: 38,
+    paddingBottom: 72,
   },
-  heroGridDesktop: {
-    minHeight: 610,
+  heroDesktop: {
+    minHeight: 790,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   heroCopy: {
-    maxWidth: 650,
+    width: '100%',
+    maxWidth: 720,
   },
   heroCopyDesktop: {
     flex: 1,
+    paddingRight: 34,
+  },
+  eyebrow: {
+    color: COLORS.starGold,
+    fontFamily: FONTS.accent,
+    fontSize: 13,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+    marginBottom: 14,
   },
   brandTitle: {
-    color: COLORS.textPrimary,
+    maxWidth: '100%',
+    color: COLORS.white,
     fontFamily: FONTS.display,
-    fontSize: 68,
+    fontSize: 70,
     lineHeight: 74,
-    letterSpacing: -2,
+    letterSpacing: -2.5,
   },
   brandTitleCompact: {
-    fontSize: 55,
-    lineHeight: 61,
-    letterSpacing: -1.5,
+    fontSize: 52,
+    lineHeight: 57,
+    letterSpacing: -1.6,
   },
   brandTitleWide: {
-    fontSize: 118,
-    lineHeight: 116,
-    letterSpacing: -4.2,
+    fontSize: 126,
+    lineHeight: 118,
+    letterSpacing: -5,
   },
   heroTitle: {
-    color: COLORS.inkMid,
+    maxWidth: '100%',
+    color: 'rgba(255,248,242,0.92)',
     fontFamily: FONTS.heading,
-    fontSize: 30,
-    lineHeight: 37,
+    fontSize: 31,
+    lineHeight: 38,
     letterSpacing: -0.8,
-    marginTop: 18,
-    maxWidth: 700,
+    marginTop: 16,
   },
   heroTitleCompact: {
-    fontSize: 26,
-    lineHeight: 33,
+    fontSize: 25,
+    lineHeight: 32,
   },
   heroTitleWide: {
-    fontSize: 45,
-    lineHeight: 51,
-    letterSpacing: -1.2,
+    fontSize: 48,
+    lineHeight: 53,
+    letterSpacing: -1.4,
   },
   heroBody: {
-    color: COLORS.textSecondary,
+    maxWidth: '100%',
+    color: 'rgba(255,248,242,0.72)',
     fontSize: 17,
-    lineHeight: 28,
+    lineHeight: 29,
     marginTop: 22,
-    maxWidth: 620,
   },
   downloadRow: {
+    width: '100%',
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
     marginTop: 34,
   },
+  downloadRowCompact: {
+    flexDirection: 'column',
+  },
   downloadButton: {
-    minWidth: 204,
-    minHeight: 88,
+    minWidth: 208,
+    minHeight: 90,
     justifyContent: 'center',
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: COLORS.glassBorder,
-    backgroundColor: COLORS.glassBg,
+    borderColor: 'rgba(255,248,242,0.20)',
+    backgroundColor: 'rgba(23,24,45,0.62)',
     paddingHorizontal: 18,
-    paddingVertical: 13,
-    ...SHADOWS.glass,
+    paddingVertical: 14,
+    ...SHADOWS.deep,
+  },
+  downloadButtonCompact: {
+    width: '100%',
+    minWidth: 0,
   },
   downloadPlatform: {
-    color: COLORS.western,
+    color: COLORS.tide,
     fontFamily: FONTS.accent,
     fontSize: 12,
-    letterSpacing: 1.2,
+    letterSpacing: 1.4,
   },
   downloadStore: {
-    color: COLORS.textPrimary,
+    color: COLORS.white,
     fontFamily: FONTS.heading,
-    fontSize: 24,
-    lineHeight: 29,
+    fontSize: 25,
+    lineHeight: 31,
     marginTop: 2,
   },
   downloadStatus: {
-    color: COLORS.textSecondary,
+    color: 'rgba(255,248,242,0.62)',
     fontSize: 13,
     fontWeight: '800',
     marginTop: 4,
   },
-  cosmicConsole: {
-    alignSelf: 'center',
+  instrumentPanel: {
     width: '100%',
-    maxWidth: 470,
-    aspectRatio: 0.92,
-  },
-  cosmicConsoleDesktop: {
-    flex: 0.86,
-    maxWidth: 560,
-  },
-  consoleSurface: {
-    flex: 1,
-    overflow: 'hidden',
-    borderRadius: 30,
+    maxWidth: 480,
+    alignSelf: 'center',
+    borderRadius: 28,
     borderWidth: 1,
-    borderColor: 'rgba(255,248,242,0.18)',
+    borderColor: 'rgba(255,248,242,0.22)',
+    backgroundColor: 'rgba(23,24,45,0.62)',
     padding: 22,
-    justifyContent: 'space-between',
+    gap: 24,
     ...SHADOWS.deep,
   },
-  consoleHeader: {
-    zIndex: 2,
+  instrumentPanelCompact: {
+    padding: 18,
+    gap: 20,
+  },
+  instrumentPanelDesktop: {
+    flex: 0.86,
+    maxWidth: 500,
+    transform: [{ translateY: 42 }],
+  },
+  instrumentHeader: {
+    minHeight: 80,
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
+    gap: 16,
   },
-  consoleKicker: {
+  instrumentKicker: {
+    color: COLORS.starGold,
+    fontFamily: FONTS.accent,
+    fontSize: 12,
+    letterSpacing: 1.6,
+    textTransform: 'uppercase',
+    marginTop: 7,
+  },
+  instrumentScore: {
+    color: COLORS.white,
+    fontFamily: FONTS.display,
+    fontSize: 78,
+    lineHeight: 82,
+    letterSpacing: -2.4,
+  },
+  instrumentScoreCompact: {
+    fontSize: 60,
+    lineHeight: 64,
+    letterSpacing: -1.7,
+  },
+  instrumentTitle: {
+    color: COLORS.white,
+    fontFamily: FONTS.heading,
+    fontSize: 32,
+    lineHeight: 38,
+    letterSpacing: -0.6,
+  },
+  instrumentCopy: {
+    color: 'rgba(255,248,242,0.70)',
+    fontSize: 15,
+    lineHeight: 24,
+    marginTop: 8,
+  },
+  signalStack: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,248,242,0.16)',
+  },
+  signalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 13,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,248,242,0.12)',
+  },
+  signalIndex: {
+    width: 34,
+    color: COLORS.vedic,
+    fontFamily: FONTS.accent,
+    fontSize: 12,
+    letterSpacing: 1.2,
+  },
+  signalText: {
+    flex: 1,
+  },
+  signalTitle: {
+    color: COLORS.white,
+    fontFamily: FONTS.heading,
+    fontSize: 19,
+    lineHeight: 24,
+  },
+  signalLabel: {
+    color: 'rgba(255,248,242,0.58)',
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 2,
+  },
+  ritualStrip: {
+    width: '100%',
+    maxWidth: 1200,
+    alignSelf: 'center',
+    gap: 18,
+    paddingVertical: 62,
+  },
+  ritualStripWide: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  ritualItem: {
+    flex: 1,
+    minHeight: 180,
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,248,242,0.20)',
+    paddingTop: 18,
+  },
+  ritualNumber: {
     color: COLORS.starGold,
     fontFamily: FONTS.accent,
     fontSize: 12,
     letterSpacing: 1.4,
   },
-  consoleScore: {
-    color: COLORS.white,
-    fontFamily: FONTS.display,
-    fontSize: 64,
-    lineHeight: 68,
-    letterSpacing: -2,
-  },
-  consoleReadout: {
-    zIndex: 2,
-    maxWidth: 320,
-    marginTop: 'auto',
-  },
-  consoleTitle: {
+  ritualTitle: {
     color: COLORS.white,
     fontFamily: FONTS.heading,
-    fontSize: 28,
-    lineHeight: 34,
+    fontSize: 32,
+    lineHeight: 38,
+    marginTop: 10,
   },
-  consoleText: {
-    color: 'rgba(255,248,242,0.74)',
-    fontSize: 15,
-    lineHeight: 23,
-    marginTop: 8,
-  },
-  systemRail: {
-    zIndex: 2,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 24,
-  },
-  systemPill: {
-    minWidth: 112,
-    flex: 1,
-    borderLeftWidth: 2,
-    borderLeftColor: COLORS.western,
-    backgroundColor: 'rgba(255,248,242,0.08)',
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-  },
-  systemPillVedic: {
-    borderLeftColor: COLORS.vedic,
-  },
-  systemPillChinese: {
-    borderLeftColor: COLORS.chinese,
-  },
-  systemPillKp: {
-    borderLeftColor: COLORS.kp,
-  },
-  systemPillTitle: {
-    color: COLORS.white,
-    fontFamily: FONTS.heading,
-    fontSize: 15,
-  },
-  systemPillLabel: {
-    color: 'rgba(255,248,242,0.62)',
-    fontSize: 12,
-    lineHeight: 17,
-    marginTop: 2,
-  },
-  storyStrip: {
-    width: '100%',
-    maxWidth: 1180,
-    alignSelf: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 44,
-    gap: 18,
-  },
-  storyStripWide: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  storyItem: {
-    flex: 1,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.rule,
-    paddingTop: 18,
-  },
-  storyNumber: {
-    color: COLORS.western,
-    fontFamily: FONTS.accent,
-    fontSize: 12,
-    letterSpacing: 1.3,
-  },
-  storyTitle: {
-    color: COLORS.textPrimary,
-    fontFamily: FONTS.heading,
-    fontSize: 28,
-    lineHeight: 34,
-    marginTop: 6,
-  },
-  storyBody: {
-    color: COLORS.textSecondary,
+  ritualBody: {
+    color: 'rgba(255,248,242,0.67)',
     fontSize: 16,
-    lineHeight: 24,
-    marginTop: 5,
+    lineHeight: 25,
+    marginTop: 10,
     maxWidth: 330,
   },
-  appSection: {
+  storySection: {
     width: '100%',
-    maxWidth: 1180,
+    maxWidth: 1200,
     alignSelf: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 80,
-    gap: 30,
+    paddingVertical: 86,
+    gap: 34,
   },
-  appSectionWide: {
+  storySectionWide: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
   },
   sectionTitle: {
     flex: 0.95,
-    color: COLORS.textPrimary,
+    color: COLORS.white,
     fontFamily: FONTS.display,
-    fontSize: 54,
-    lineHeight: 59,
-    letterSpacing: -1.7,
-    maxWidth: 610,
+    fontSize: 58,
+    lineHeight: 62,
+    letterSpacing: -2,
+    maxWidth: 620,
+  },
+  sectionTitleCompact: {
+    fontSize: 40,
+    lineHeight: 44,
+    letterSpacing: -1.2,
   },
   sectionCopyBlock: {
     flex: 1,
-    maxWidth: 620,
+    maxWidth: 610,
+    borderLeftWidth: 1,
+    borderLeftColor: 'rgba(255,248,242,0.20)',
+    paddingLeft: 26,
   },
   sectionCopy: {
-    color: COLORS.textSecondary,
+    color: 'rgba(255,248,242,0.72)',
     fontSize: 19,
-    lineHeight: 31,
+    lineHeight: 32,
   },
-  featureList: {
-    marginTop: 30,
+  systemList: {
+    marginTop: 34,
     borderTopWidth: 1,
-    borderTopColor: COLORS.rule,
+    borderTopColor: 'rgba(255,248,242,0.16)',
   },
-  featureRow: {
+  systemRow: {
     flexDirection: 'row',
-    gap: 16,
-    paddingVertical: 18,
+    gap: 18,
+    paddingVertical: 20,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.rule,
+    borderBottomColor: 'rgba(255,248,242,0.14)',
   },
-  featureRowLast: {
+  systemRowLast: {
     borderBottomWidth: 0,
   },
-  featureAccent: {
-    width: 42,
-    color: COLORS.vedic,
+  systemAccent: {
+    width: 86,
+    color: COLORS.tide,
     fontFamily: FONTS.accent,
     fontSize: 12,
-    letterSpacing: 1.1,
+    letterSpacing: 1.2,
+    paddingTop: 3,
   },
-  featureText: {
+  systemText: {
     flex: 1,
   },
-  featureTitle: {
-    color: COLORS.textPrimary,
+  systemLabel: {
+    color: COLORS.white,
     fontFamily: FONTS.heading,
-    fontSize: 22,
-    lineHeight: 28,
+    fontSize: 23,
+    lineHeight: 29,
   },
-  featureBody: {
-    color: COLORS.textSecondary,
+  systemBody: {
+    color: 'rgba(255,248,242,0.62)',
     fontSize: 15,
-    lineHeight: 23,
-    marginTop: 3,
+    lineHeight: 24,
+    marginTop: 4,
   },
   downloadSection: {
-    paddingHorizontal: 20,
-    paddingVertical: 88,
+    width: '100%',
+    maxWidth: 1200,
+    alignSelf: 'center',
+    borderRadius: 34,
+    borderWidth: 1,
+    borderColor: 'rgba(255,248,242,0.18)',
+    paddingHorizontal: 22,
+    paddingVertical: 78,
     alignItems: 'center',
+    marginTop: 24,
+    marginBottom: 42,
+    overflow: 'hidden',
   },
   downloadTitle: {
     color: COLORS.white,
     fontFamily: FONTS.display,
-    fontSize: 56,
+    fontSize: 58,
     lineHeight: 62,
     textAlign: 'center',
-    letterSpacing: -1.8,
+    letterSpacing: -2,
+  },
+  downloadTitleCompact: {
+    fontSize: 40,
+    lineHeight: 44,
+    letterSpacing: -1.2,
   },
   downloadBody: {
-    color: 'rgba(255,248,242,0.74)',
+    color: 'rgba(255,248,242,0.72)',
     fontSize: 18,
     lineHeight: 29,
     textAlign: 'center',
-    maxWidth: 680,
+    maxWidth: 700,
     marginTop: 16,
   },
   finalDownloadRow: {
     width: '100%',
-    maxWidth: 720,
+    maxWidth: 760,
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
@@ -572,31 +630,35 @@ const styles = StyleSheet.create({
     marginTop: 36,
   },
   finalDownloadButton: {
-    minWidth: 240,
-    minHeight: 102,
+    minWidth: 250,
+    minHeight: 106,
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,248,242,0.20)',
-    backgroundColor: 'rgba(255,248,242,0.08)',
-    borderRadius: 16,
+    borderColor: 'rgba(255,248,242,0.22)',
+    backgroundColor: 'rgba(23,24,45,0.58)',
+    borderRadius: 18,
     paddingHorizontal: 20,
     paddingVertical: 16,
+  },
+  finalDownloadButtonCompact: {
+    width: '100%',
+    minWidth: 0,
   },
   finalPlatform: {
     color: COLORS.starGold,
     fontFamily: FONTS.accent,
     fontSize: 12,
-    letterSpacing: 1.2,
+    letterSpacing: 1.4,
   },
   finalStore: {
     color: COLORS.white,
     fontFamily: FONTS.heading,
-    fontSize: 26,
-    lineHeight: 32,
+    fontSize: 27,
+    lineHeight: 33,
     marginTop: 3,
   },
   finalStatus: {
-    color: 'rgba(255,248,242,0.62)',
+    color: 'rgba(255,248,242,0.64)',
     fontSize: 14,
     fontWeight: '800',
     marginTop: 4,
