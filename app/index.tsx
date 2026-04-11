@@ -15,87 +15,87 @@ import Head from 'expo-router/head';
 import { COLORS, FONTS } from '../src/constants/theme';
 
 const SYSTEMS = [
-  ['Western', 'Personality, transits, and emotional weather.'],
-  ['Vedic', 'Rashi, nakshatra, and timing patterns.'],
-  ['Chinese', 'Element cycles and long-form temperament.'],
-  ['KP', 'Precise sub-lord signals for practical timing.'],
+  ['Western', 'Daily transits and emotional weather'],
+  ['Vedic', 'Rashi, nakshatra, and timing signals'],
+  ['Chinese', 'Element rhythm and long-cycle temperament'],
+  ['KP', 'Sub-lord precision for practical direction'],
 ] as const;
 
-const PRODUCT_POINTS = [
-  ['Daily direction', 'A short read for the day, not a long generic horoscope.'],
-  ['Four-system blend', 'Western, Vedic, Chinese, and KP are interpreted together.'],
-  ['Match and share', 'Compare compatibility and share your cosmic identity with QR.'],
+const APP_STORY = [
+  ['Today', 'One clear read for the day ahead.'],
+  ['Self', 'Birth-chart patterns translated into plain language.'],
+  ['Match', 'Compatibility and shared cosmic QR profiles.'],
 ] as const;
 
 const DOWNLOAD_OPTIONS = [
-  ['Android', 'Google Play', 'Store link coming soon'],
-  ['iPhone', 'App Store', 'Store link coming soon'],
+  ['Android', 'Google Play', 'Store link pending'],
+  ['iPhone', 'App Store', 'Store link pending'],
 ] as const;
 
 export default function LaunchScreen() {
   const { width } = useWindowDimensions();
   const spin = useRef(new Animated.Value(0)).current;
   const float = useRef(new Animated.Value(0)).current;
-  const fade = useRef(new Animated.Value(0)).current;
-  const isDesktop = width >= 960;
+  const reveal = useRef(new Animated.Value(0)).current;
+  const isDesktop = width >= 980;
   const isWide = width >= 720;
   const isCompact = width < 390;
 
   useEffect(() => {
     if (Platform.OS !== 'web') return;
 
-    const fadeIn = Animated.timing(fade, {
+    const entrance = Animated.timing(reveal, {
       toValue: 1,
       duration: 760,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     });
-    const spinLoop = Animated.loop(
+    const orbit = Animated.loop(
       Animated.timing(spin, {
         toValue: 1,
-        duration: 22000,
+        duration: 26000,
         easing: Easing.linear,
         useNativeDriver: true,
       })
     );
-    const floatLoop = Animated.loop(
+    const breathing = Animated.loop(
       Animated.sequence([
         Animated.timing(float, {
           toValue: 1,
-          duration: 2800,
+          duration: 3200,
           easing: Easing.inOut(Easing.sin),
           useNativeDriver: true,
         }),
         Animated.timing(float, {
           toValue: 0,
-          duration: 2800,
+          duration: 3200,
           easing: Easing.inOut(Easing.sin),
           useNativeDriver: true,
         }),
       ])
     );
 
-    fadeIn.start();
-    spinLoop.start();
-    floatLoop.start();
+    entrance.start();
+    orbit.start();
+    breathing.start();
 
     return () => {
-      fadeIn.stop();
-      spinLoop.stop();
-      floatLoop.stop();
+      entrance.stop();
+      orbit.stop();
+      breathing.stop();
     };
-  }, [fade, float, spin]);
+  }, [float, reveal, spin]);
 
   const motion = useMemo(
     () => ({
-      heroLift: fade.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }),
-      floatY: float.interpolate({ inputRange: [0, 1], outputRange: [10, -16] }),
-      spinZ: spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }),
-      spinReverse: spin.interpolate({ inputRange: [0, 1], outputRange: ['360deg', '0deg'] }),
-      tiltY: spin.interpolate({ inputRange: [0, 0.5, 1], outputRange: ['-22deg', '22deg', '-22deg'] }),
-      tiltX: float.interpolate({ inputRange: [0, 1], outputRange: ['58deg', '46deg'] }),
+      introY: reveal.interpolate({ inputRange: [0, 1], outputRange: [22, 0] }),
+      floatY: float.interpolate({ inputRange: [0, 1], outputRange: [12, -14] }),
+      phoneY: float.interpolate({ inputRange: [0, 1], outputRange: [8, -10] }),
+      ringSpin: spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }),
+      ringCounter: spin.interpolate({ inputRange: [0, 1], outputRange: ['360deg', '0deg'] }),
+      phoneTurn: spin.interpolate({ inputRange: [0, 0.5, 1], outputRange: ['-16deg', '18deg', '-16deg'] }),
     }),
-    [fade, float, spin]
+    [float, reveal, spin]
   );
 
   if (Platform.OS !== 'web') {
@@ -109,26 +109,28 @@ export default function LaunchScreen() {
   return (
     <>
       <Head>
-        <title>CosmicSelf - Astrology App for Daily Self-Reading</title>
+        <title>CosmicSelf - Astrology App for Android and iPhone</title>
         <meta
           name="description"
-          content="CosmicSelf is an astrology app that blends Western, Vedic, Chinese and KP systems into daily guidance, compatibility and shareable cosmic identity."
+          content="CosmicSelf is a mobile astrology app for daily readings, life patterns, compatibility, and cosmic QR sharing across Western, Vedic, Chinese, and KP systems."
         />
       </Head>
 
       <ScrollView style={styles.page} contentContainerStyle={styles.pageContent} showsVerticalScrollIndicator={false}>
-        <LinearGradient colors={['#fff8f2', '#f1e7dc', '#d6b070']} style={styles.hero}>
-          <View style={styles.textureLayer} />
+        <LinearGradient colors={['#0d0907', '#18110d', '#2f1d13']} style={styles.hero}>
+          <View style={styles.glowAmber} />
+          <View style={styles.glowWine} />
+
           <View style={styles.nav}>
             <Text style={styles.navBrand}>CosmicSelf</Text>
-            <Text style={styles.navMeta}>cosmicself.app</Text>
+            <Text style={styles.navDomain}>cosmicself.app</Text>
           </View>
 
           <Animated.View
             style={[
               styles.heroInner,
               isDesktop && styles.heroInnerDesktop,
-              { opacity: fade, transform: [{ translateY: motion.heroLift }] },
+              { opacity: reveal, transform: [{ translateY: motion.introY }] },
             ]}
           >
             <View style={[styles.heroCopy, isDesktop && styles.heroCopyDesktop]}>
@@ -136,17 +138,17 @@ export default function LaunchScreen() {
                 CosmicSelf
               </Text>
               <Text style={[styles.heroTitle, isCompact && styles.heroTitleCompact, isWide && styles.heroTitleWide]}>
-                Astrology that helps you understand today, your nature, and your connections.
+                A mobile astrology app for daily clarity, self-knowledge, and compatibility.
               </Text>
               <Text style={styles.heroBody}>
-                CosmicSelf blends four astrology traditions into one readable app experience: daily direction, life pattern,
-                compatibility, and a shareable cosmic QR profile.
+                Western, Vedic, Chinese, and KP astrology are blended into short reads that help you understand what is
+                active today and how your cosmic pattern behaves over time.
               </Text>
 
               <View style={styles.downloadRow}>
                 {DOWNLOAD_OPTIONS.map(([platform, store, status]) => (
-                  <View key={platform} style={styles.storeButton}>
-                    <Text style={styles.storeDevice}>{platform}</Text>
+                  <View key={platform} style={styles.storeBadge}>
+                    <Text style={styles.storePlatform}>{platform}</Text>
                     <Text style={styles.storeName}>{store}</Text>
                     <Text style={styles.storeStatus}>{status}</Text>
                   </View>
@@ -154,35 +156,36 @@ export default function LaunchScreen() {
               </View>
             </View>
 
-            <View style={[styles.artifactStage, isDesktop && styles.artifactStageDesktop]}>
-              <Animated.View style={[styles.artifactShadow, { opacity: fade }]} />
+            <View style={[styles.visualStage, isDesktop && styles.visualStageDesktop]}>
+              <Animated.View style={[styles.deepShadow, { opacity: reveal }]} />
+
               <Animated.View
                 style={[
-                  styles.outerOrbit,
+                  styles.bigOrbit,
                   {
                     transform: [
-                      { perspective: 900 },
+                      { perspective: 1000 },
                       { translateY: motion.floatY },
-                      { rotateX: motion.tiltX },
-                      { rotateZ: motion.spinZ },
+                      { rotateX: '64deg' },
+                      { rotateZ: motion.ringSpin },
                     ],
                   },
                 ]}
               >
-                <View style={[styles.orbitNode, styles.orbitNodeDawn]} />
-                <View style={[styles.orbitNode, styles.orbitNodeTide]} />
-                <View style={[styles.orbitNode, styles.orbitNodeInk]} />
+                <View style={[styles.orbitPoint, styles.orbitPointGold]} />
+                <View style={[styles.orbitPoint, styles.orbitPointGreen]} />
+                <View style={[styles.orbitPoint, styles.orbitPointRust]} />
               </Animated.View>
 
               <Animated.View
                 style={[
-                  styles.innerOrbit,
+                  styles.secondaryOrbit,
                   {
                     transform: [
-                      { perspective: 900 },
+                      { perspective: 1000 },
                       { translateY: motion.floatY },
-                      { rotateX: '66deg' },
-                      { rotateZ: motion.spinReverse },
+                      { rotateX: '72deg' },
+                      { rotateZ: motion.ringCounter },
                     ],
                   },
                 ]}
@@ -190,91 +193,94 @@ export default function LaunchScreen() {
 
               <Animated.View
                 style={[
-                  styles.artifactBody,
+                  styles.phoneRig,
                   {
                     transform: [
-                      { perspective: 900 },
-                      { translateY: motion.floatY },
-                      { rotateX: '-10deg' },
-                      { rotateY: motion.tiltY },
+                      { perspective: 1000 },
+                      { translateY: motion.phoneY },
+                      { rotateX: '-9deg' },
+                      { rotateY: motion.phoneTurn },
+                      { rotateZ: '-2deg' },
                     ],
                   },
                 ]}
               >
-                <LinearGradient colors={['#17182d', '#2a2e5a', '#4b2d58']} style={styles.artifactFace}>
-                  <View style={styles.artifactTopLine} />
-                  <Text style={styles.artifactMark}>CS</Text>
-                  <View style={styles.artifactSignal}>
-                    <View style={[styles.signalLine, styles.signalLineLong]} />
-                    <View style={[styles.signalLine, styles.signalLineMid]} />
-                    <View style={styles.signalLine} />
+                <View style={styles.phoneDepthRight} />
+                <View style={styles.phoneDepthBottom} />
+                <LinearGradient colors={['#201814', '#11100f', '#342019']} style={styles.phoneFace}>
+                  <View style={styles.phoneSpeaker} />
+                  <Text style={styles.phoneAppName}>CosmicSelf</Text>
+                  <Text style={styles.phoneToday}>Today</Text>
+                  <View style={styles.phoneArc}>
+                    <View style={styles.phoneArcInner} />
+                    <Text style={styles.phoneArcText}>72</Text>
                   </View>
-                  <View style={styles.systemDots}>
-                    {SYSTEMS.map(([title], index) => (
-                      <View key={title} style={[styles.systemDot, index === 1 && styles.systemDotWarm, index === 2 && styles.systemDotRose, index === 3 && styles.systemDotMint]} />
+                  <View style={styles.phoneLines}>
+                    <View style={[styles.phoneLine, styles.phoneLineStrong]} />
+                    <View style={[styles.phoneLine, styles.phoneLineMid]} />
+                    <View style={styles.phoneLine} />
+                  </View>
+                  <View style={styles.phonePills}>
+                    {SYSTEMS.map(([system], index) => (
+                      <Text key={system} style={[styles.phonePill, index === 1 && styles.phonePillWarm, index === 2 && styles.phonePillRose, index === 3 && styles.phonePillMint]}>
+                        {system}
+                      </Text>
                     ))}
                   </View>
                 </LinearGradient>
-                <View style={styles.artifactEdgeRight} />
-                <View style={styles.artifactEdgeBottom} />
               </Animated.View>
             </View>
           </Animated.View>
         </LinearGradient>
 
-        <View style={[styles.section, isWide && styles.sectionWide]}>
-          <View style={styles.sectionIntro}>
-            <Text style={styles.sectionTitle}>What is CosmicSelf?</Text>
-            <Text style={styles.sectionCopy}>
-              It is a mobile astrology companion for people who want concise guidance instead of scattered readings across
-              different systems.
-            </Text>
-          </View>
-          <View style={styles.productList}>
-            {PRODUCT_POINTS.map(([title, body], index) => (
-              <View key={title} style={[styles.productRow, index === PRODUCT_POINTS.length - 1 && styles.productRowLast]}>
-                <Text style={styles.productIndex}>0{index + 1}</Text>
-                <View style={styles.productText}>
-                  <Text style={styles.productTitle}>{title}</Text>
-                  <Text style={styles.productBody}>{body}</Text>
-                </View>
-              </View>
-            ))}
-          </View>
+        <View style={[styles.strip, isWide && styles.stripWide]}>
+          {APP_STORY.map(([title, body]) => (
+            <View key={title} style={styles.stripItem}>
+              <Text style={styles.stripTitle}>{title}</Text>
+              <Text style={styles.stripBody}>{body}</Text>
+            </View>
+          ))}
         </View>
 
-        <LinearGradient colors={['#17182d', '#26294b', '#3b2a42']} style={styles.inkSection}>
-          <View style={styles.inkInner}>
-            <Text style={styles.inkTitle}>Four systems, one calmer answer.</Text>
-            <View style={styles.systemList}>
-              {SYSTEMS.map(([title, body]) => (
-                <View key={title} style={styles.systemItem}>
+        <View style={[styles.section, isWide && styles.sectionWide]}>
+          <Text style={styles.sectionTitle}>What is CosmicSelf?</Text>
+          <Text style={styles.sectionCopy}>
+            A mobile-first astrology companion. It keeps the reading short, combines four traditions, and gives you a
+            daily direction without forcing you to study multiple astrology systems.
+          </Text>
+        </View>
+
+        <View style={styles.systemSection}>
+          <Text style={styles.systemSectionTitle}>The blend behind each reading</Text>
+          <View style={styles.systemList}>
+            {SYSTEMS.map(([title, body], index) => (
+              <View key={title} style={[styles.systemRow, index === SYSTEMS.length - 1 && styles.systemRowLast]}>
+                <Text style={styles.systemIndex}>0{index + 1}</Text>
+                <View style={styles.systemText}>
                   <Text style={styles.systemTitle}>{title}</Text>
                   <Text style={styles.systemBody}>{body}</Text>
                 </View>
-              ))}
-            </View>
-          </View>
-        </LinearGradient>
-
-        <View style={[styles.finalSection, isWide && styles.finalSectionWide]}>
-          <View style={styles.finalCopy}>
-            <Text style={styles.finalTitle}>Download options</Text>
-            <Text style={styles.finalBody}>
-              CosmicSelf is built for Android and iPhone. The public page stays clean: no web registration, no web login,
-              only the product story and mobile download entry points.
-            </Text>
-          </View>
-          <View style={styles.finalDownloads}>
-            {DOWNLOAD_OPTIONS.map(([platform, store, status]) => (
-              <View key={platform} style={styles.finalStoreButton}>
-                <Text style={styles.finalStorePlatform}>{platform}</Text>
-                <Text style={styles.finalStoreName}>{store}</Text>
-                <Text style={styles.finalStoreStatus}>{status}</Text>
               </View>
             ))}
           </View>
         </View>
+
+        <LinearGradient colors={['#110d0b', '#23150f', '#3d2112']} style={styles.downloadSection}>
+          <Text style={styles.downloadTitle}>Download CosmicSelf</Text>
+          <Text style={styles.downloadBody}>
+            The website is only the doorway. The real experience is the Android and iPhone app: daily readings,
+            compatibility, sharing, and your personal cosmic profile.
+          </Text>
+          <View style={styles.finalDownloads}>
+            {DOWNLOAD_OPTIONS.map(([platform, store, status]) => (
+              <View key={platform} style={styles.finalBadge}>
+                <Text style={styles.finalPlatform}>{platform}</Text>
+                <Text style={styles.finalStore}>{store}</Text>
+                <Text style={styles.finalStatus}>{status}</Text>
+              </View>
+            ))}
+          </View>
+        </LinearGradient>
       </ScrollView>
     </>
   );
@@ -289,41 +295,56 @@ const styles = StyleSheet.create({
   },
   page: {
     flex: 1,
-    backgroundColor: '#fff8f2',
+    backgroundColor: '#f5e6cf',
   },
   pageContent: {
-    backgroundColor: '#fff8f2',
+    backgroundColor: '#f5e6cf',
   },
   hero: {
-    minHeight: 760,
+    minHeight: 790,
     overflow: 'hidden',
     paddingHorizontal: 20,
     paddingTop: 22,
-    paddingBottom: 76,
+    paddingBottom: 70,
   },
-  textureLayer: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    opacity: 0.52,
+  glowAmber: {
+    position: 'absolute',
+    right: -140,
+    top: -130,
+    width: 420,
+    height: 420,
+    borderRadius: 999,
+    backgroundColor: 'rgba(244,188,99,0.28)',
+  },
+  glowWine: {
+    position: 'absolute',
+    left: -180,
+    bottom: -170,
+    width: 520,
+    height: 520,
+    borderRadius: 999,
+    backgroundColor: 'rgba(162,65,44,0.25)',
   },
   nav: {
     width: '100%',
     maxWidth: 1180,
     alignSelf: 'center',
-    minHeight: 54,
+    minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,244,223,0.14)',
   },
   navBrand: {
-    color: '#17182d',
+    color: '#fff4df',
     fontFamily: FONTS.heading,
-    fontSize: 22,
+    fontSize: 23,
     letterSpacing: -0.2,
   },
-  navMeta: {
-    color: '#6f5e48',
+  navDomain: {
+    color: 'rgba(255,244,223,0.70)',
     fontSize: 14,
     fontWeight: '800',
   },
@@ -331,11 +352,11 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 1180,
     alignSelf: 'center',
-    paddingTop: 60,
-    gap: 48,
+    paddingTop: 70,
+    gap: 42,
   },
   heroInnerDesktop: {
-    minHeight: 610,
+    minHeight: 620,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -347,46 +368,46 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   brandTitle: {
-    color: '#17182d',
+    color: '#fff4df',
     fontFamily: FONTS.display,
-    fontSize: 70,
-    lineHeight: 76,
+    fontSize: 68,
+    lineHeight: 72,
     letterSpacing: -2,
   },
   brandTitleCompact: {
-    fontSize: 56,
-    lineHeight: 62,
-    letterSpacing: -1.6,
+    fontSize: 54,
+    lineHeight: 60,
+    letterSpacing: -1.5,
   },
   brandTitleWide: {
     fontSize: 118,
-    lineHeight: 118,
-    letterSpacing: -4.2,
+    lineHeight: 116,
+    letterSpacing: -4,
   },
   heroTitle: {
-    color: '#24284a',
+    color: '#f4bc63',
     fontFamily: FONTS.heading,
-    fontSize: 31,
-    lineHeight: 38,
+    fontSize: 30,
+    lineHeight: 37,
     letterSpacing: -0.8,
     marginTop: 18,
-    maxWidth: 720,
+    maxWidth: 710,
   },
   heroTitleCompact: {
-    fontSize: 27,
-    lineHeight: 34,
+    fontSize: 26,
+    lineHeight: 33,
   },
   heroTitleWide: {
-    fontSize: 46,
-    lineHeight: 52,
-    letterSpacing: -1.3,
+    fontSize: 44,
+    lineHeight: 50,
+    letterSpacing: -1.2,
   },
   heroBody: {
-    color: '#46507b',
+    color: 'rgba(255,244,223,0.78)',
     fontSize: 17,
     lineHeight: 28,
     marginTop: 22,
-    maxWidth: 610,
+    maxWidth: 620,
   },
   downloadRow: {
     flexDirection: 'row',
@@ -394,354 +415,385 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: 34,
   },
-  storeButton: {
-    minWidth: 190,
-    minHeight: 86,
+  storeBadge: {
+    minWidth: 206,
+    minHeight: 88,
     justifyContent: 'center',
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(23,24,45,0.22)',
-    backgroundColor: 'rgba(255,248,242,0.62)',
+    borderColor: 'rgba(255,244,223,0.20)',
+    backgroundColor: 'rgba(255,244,223,0.07)',
     paddingHorizontal: 18,
     paddingVertical: 13,
   },
-  storeDevice: {
-    color: '#6f5e48',
+  storePlatform: {
+    color: '#f4bc63',
     fontSize: 12,
     fontWeight: '900',
-    letterSpacing: 0.8,
+    letterSpacing: 0.9,
     textTransform: 'uppercase',
   },
   storeName: {
-    color: '#17182d',
+    color: '#fff4df',
     fontFamily: FONTS.heading,
-    fontSize: 22,
-    lineHeight: 27,
+    fontSize: 24,
+    lineHeight: 29,
     marginTop: 2,
   },
   storeStatus: {
-    color: '#46507b',
+    color: 'rgba(255,244,223,0.62)',
     fontSize: 13,
     fontWeight: '800',
     marginTop: 4,
   },
-  artifactStage: {
+  visualStage: {
     alignSelf: 'center',
     width: '100%',
-    maxWidth: 430,
+    maxWidth: 470,
     aspectRatio: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  artifactStageDesktop: {
-    flex: 0.82,
-    maxWidth: 500,
+  visualStageDesktop: {
+    flex: 0.88,
+    maxWidth: 560,
   },
-  artifactShadow: {
+  deepShadow: {
     position: 'absolute',
-    bottom: '12%',
-    width: '62%',
-    height: 42,
+    bottom: '10%',
+    width: '70%',
+    height: 44,
     borderRadius: 999,
-    backgroundColor: 'rgba(23,24,45,0.20)',
-    transform: [{ scaleX: 1.15 }],
+    backgroundColor: 'rgba(0,0,0,0.42)',
+    transform: [{ scaleX: 1.2 }],
   },
-  outerOrbit: {
+  bigOrbit: {
     position: 'absolute',
-    width: '94%',
-    height: '94%',
+    width: '96%',
+    height: '96%',
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(23,24,45,0.30)',
+    borderColor: 'rgba(244,188,99,0.46)',
   },
-  innerOrbit: {
+  secondaryOrbit: {
     position: 'absolute',
-    width: '70%',
-    height: '70%',
+    width: '72%',
+    height: '72%',
     borderRadius: 999,
     borderWidth: 2,
-    borderColor: 'rgba(255,138,91,0.34)',
+    borderColor: 'rgba(116,214,184,0.34)',
   },
-  orbitNode: {
+  orbitPoint: {
     position: 'absolute',
-    width: 16,
-    height: 16,
+    width: 17,
+    height: 17,
     borderRadius: 999,
-    backgroundColor: '#17182d',
   },
-  orbitNodeDawn: {
+  orbitPointGold: {
     top: -8,
     left: '50%',
-    backgroundColor: '#ff8a5b',
+    backgroundColor: '#f4bc63',
   },
-  orbitNodeTide: {
-    right: 28,
-    bottom: 32,
-    backgroundColor: '#12c8b2',
+  orbitPointGreen: {
+    right: 22,
+    bottom: 48,
+    backgroundColor: '#74d6b8',
   },
-  orbitNodeInk: {
+  orbitPointRust: {
     left: 20,
-    top: '40%',
-    backgroundColor: '#17182d',
+    top: '38%',
+    backgroundColor: '#f0784b',
   },
-  artifactBody: {
-    width: '54%',
-    aspectRatio: 0.72,
+  phoneRig: {
+    width: '50%',
+    minWidth: 210,
+    aspectRatio: 0.56,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  artifactFace: {
+  phoneFace: {
     width: '100%',
     height: '100%',
-    borderRadius: 22,
+    borderRadius: 30,
     borderWidth: 1,
-    borderColor: 'rgba(255,248,242,0.34)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderColor: 'rgba(255,244,223,0.28)',
     overflow: 'hidden',
+    paddingHorizontal: 18,
+    paddingTop: 24,
+    paddingBottom: 20,
   },
-  artifactTopLine: {
+  phoneDepthRight: {
     position: 'absolute',
+    right: -16,
     top: 24,
-    width: '58%',
+    width: 17,
+    height: '88%',
+    borderTopRightRadius: 18,
+    borderBottomRightRadius: 18,
+    backgroundColor: '#070606',
+  },
+  phoneDepthBottom: {
+    position: 'absolute',
+    bottom: -16,
+    left: 20,
+    width: '88%',
+    height: 17,
+    borderBottomLeftRadius: 18,
+    borderBottomRightRadius: 18,
+    backgroundColor: '#070606',
+  },
+  phoneSpeaker: {
+    alignSelf: 'center',
+    width: '34%',
     height: 4,
     borderRadius: 999,
-    backgroundColor: 'rgba(255,248,242,0.28)',
+    backgroundColor: 'rgba(255,244,223,0.30)',
   },
-  artifactMark: {
-    color: '#fff8f2',
+  phoneAppName: {
+    color: '#fff4df',
     fontFamily: FONTS.heading,
-    fontSize: 50,
-    letterSpacing: -1,
+    fontSize: 18,
+    lineHeight: 24,
+    marginTop: 22,
   },
-  artifactSignal: {
-    width: '58%',
-    gap: 9,
-    marginTop: 18,
+  phoneToday: {
+    color: '#f4bc63',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 0.9,
+    textTransform: 'uppercase',
+    marginTop: 4,
   },
-  signalLine: {
-    width: '46%',
+  phoneArc: {
+    alignSelf: 'center',
+    width: 132,
+    height: 132,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(244,188,99,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 24,
+  },
+  phoneArcInner: {
+    position: 'absolute',
+    width: 94,
+    height: 94,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(116,214,184,0.36)',
+  },
+  phoneArcText: {
+    color: '#fff4df',
+    fontFamily: FONTS.display,
+    fontSize: 42,
+    lineHeight: 48,
+  },
+  phoneLines: {
+    gap: 8,
+    marginTop: 24,
+  },
+  phoneLine: {
+    width: '52%',
     height: 5,
     borderRadius: 999,
-    backgroundColor: 'rgba(255,248,242,0.36)',
+    backgroundColor: 'rgba(255,244,223,0.22)',
   },
-  signalLineLong: {
-    width: '100%',
-    backgroundColor: '#f1b74f',
+  phoneLineStrong: {
+    width: '96%',
+    backgroundColor: '#f4bc63',
   },
-  signalLineMid: {
-    width: '72%',
-    backgroundColor: '#12c8b2',
+  phoneLineMid: {
+    width: '74%',
+    backgroundColor: '#74d6b8',
   },
-  systemDots: {
-    position: 'absolute',
-    bottom: 24,
+  phonePills: {
     flexDirection: 'row',
-    gap: 8,
+    flexWrap: 'wrap',
+    gap: 7,
+    marginTop: 24,
   },
-  systemDot: {
-    width: 9,
-    height: 9,
-    borderRadius: 999,
-    backgroundColor: '#7367ff',
+  phonePill: {
+    color: '#c8c0ff',
+    fontSize: 10,
+    fontWeight: '900',
   },
-  systemDotWarm: {
-    backgroundColor: '#ff8a5b',
+  phonePillWarm: {
+    color: '#f4bc63',
   },
-  systemDotRose: {
-    backgroundColor: '#ff5e7e',
+  phonePillRose: {
+    color: '#f0784b',
   },
-  systemDotMint: {
-    backgroundColor: '#12c8b2',
+  phonePillMint: {
+    color: '#74d6b8',
   },
-  artifactEdgeRight: {
-    position: 'absolute',
-    right: -13,
-    top: 18,
-    width: 14,
-    height: '88%',
-    borderTopRightRadius: 14,
-    borderBottomRightRadius: 14,
-    backgroundColor: '#111327',
+  strip: {
+    width: '100%',
+    maxWidth: 1180,
+    alignSelf: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 40,
+    gap: 18,
   },
-  artifactEdgeBottom: {
-    position: 'absolute',
-    bottom: -13,
-    left: 18,
-    width: '88%',
-    height: 14,
-    borderBottomLeftRadius: 14,
-    borderBottomRightRadius: 14,
-    backgroundColor: '#111327',
+  stripWide: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  stripItem: {
+    flex: 1,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(32,24,20,0.22)',
+    paddingTop: 18,
+  },
+  stripTitle: {
+    color: '#18110d',
+    fontFamily: FONTS.heading,
+    fontSize: 28,
+    lineHeight: 34,
+  },
+  stripBody: {
+    color: '#5f4938',
+    fontSize: 16,
+    lineHeight: 24,
+    marginTop: 5,
+    maxWidth: 310,
   },
   section: {
     width: '100%',
     maxWidth: 1180,
     alignSelf: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 88,
-    gap: 34,
+    paddingVertical: 78,
+    gap: 24,
   },
   sectionWide: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    gap: 64,
-  },
-  sectionIntro: {
-    flex: 0.92,
-    maxWidth: 620,
   },
   sectionTitle: {
-    color: '#17182d',
-    fontFamily: FONTS.heading,
-    fontSize: 40,
-    lineHeight: 46,
-    letterSpacing: -1,
+    flex: 0.9,
+    color: '#18110d',
+    fontFamily: FONTS.display,
+    fontSize: 58,
+    lineHeight: 62,
+    letterSpacing: -1.8,
+    maxWidth: 520,
   },
   sectionCopy: {
-    color: '#46507b',
-    fontSize: 17,
-    lineHeight: 27,
-    marginTop: 14,
-    maxWidth: 570,
-  },
-  productList: {
     flex: 1,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(23,24,45,0.16)',
-  },
-  productRow: {
-    flexDirection: 'row',
-    gap: 18,
-    paddingVertical: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(23,24,45,0.16)',
-  },
-  productRowLast: {
-    borderBottomWidth: 0,
-  },
-  productIndex: {
-    color: '#6f5e48',
-    fontSize: 14,
-    fontWeight: '900',
-    width: 42,
-  },
-  productText: {
-    flex: 1,
-  },
-  productTitle: {
-    color: '#17182d',
-    fontFamily: FONTS.heading,
-    fontSize: 24,
-    lineHeight: 30,
-  },
-  productBody: {
-    color: '#46507b',
-    fontSize: 16,
-    lineHeight: 24,
-    marginTop: 4,
-  },
-  inkSection: {
-    paddingHorizontal: 20,
-    paddingVertical: 88,
-  },
-  inkInner: {
-    width: '100%',
-    maxWidth: 1040,
-    alignSelf: 'center',
-  },
-  inkTitle: {
-    color: '#fff8f2',
-    fontFamily: FONTS.heading,
-    fontSize: 40,
-    lineHeight: 48,
-    letterSpacing: -1,
-  },
-  systemList: {
-    marginTop: 34,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,248,242,0.20)',
-  },
-  systemItem: {
-    paddingVertical: 23,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,248,242,0.20)',
-  },
-  systemTitle: {
-    color: '#f8c892',
-    fontFamily: FONTS.heading,
-    fontSize: 24,
-  },
-  systemBody: {
-    color: 'rgba(255,248,242,0.76)',
-    fontSize: 16,
-    lineHeight: 25,
-    marginTop: 7,
+    color: '#5f4938',
+    fontSize: 20,
+    lineHeight: 32,
     maxWidth: 620,
   },
-  finalSection: {
+  systemSection: {
     width: '100%',
     maxWidth: 1180,
     alignSelf: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 88,
-    gap: 34,
+    paddingBottom: 88,
   },
-  finalSectionWide: {
+  systemSectionTitle: {
+    color: '#18110d',
+    fontFamily: FONTS.heading,
+    fontSize: 34,
+    lineHeight: 40,
+    marginBottom: 22,
+  },
+  systemList: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(32,24,20,0.22)',
+  },
+  systemRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 56,
+    gap: 18,
+    paddingVertical: 22,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(32,24,20,0.18)',
   },
-  finalCopy: {
+  systemRowLast: {
+    borderBottomWidth: 0,
+  },
+  systemIndex: {
+    width: 46,
+    color: '#9b642e',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  systemText: {
     flex: 1,
+  },
+  systemTitle: {
+    color: '#18110d',
+    fontFamily: FONTS.heading,
+    fontSize: 24,
+    lineHeight: 30,
+  },
+  systemBody: {
+    color: '#5f4938',
+    fontSize: 16,
+    lineHeight: 25,
+    marginTop: 4,
     maxWidth: 620,
   },
-  finalTitle: {
-    color: '#17182d',
-    fontFamily: FONTS.display,
-    fontSize: 54,
-    lineHeight: 58,
-    letterSpacing: -1.6,
+  downloadSection: {
+    paddingHorizontal: 20,
+    paddingVertical: 88,
+    alignItems: 'center',
   },
-  finalBody: {
-    color: '#46507b',
-    fontSize: 17,
-    lineHeight: 27,
-    marginTop: 16,
-    maxWidth: 560,
+  downloadTitle: {
+    color: '#fff4df',
+    fontFamily: FONTS.display,
+    fontSize: 58,
+    lineHeight: 62,
+    textAlign: 'center',
+    letterSpacing: -1.8,
+  },
+  downloadBody: {
+    color: 'rgba(255,244,223,0.74)',
+    fontSize: 18,
+    lineHeight: 29,
+    textAlign: 'center',
+    maxWidth: 680,
+    marginTop: 18,
   },
   finalDownloads: {
-    flex: 1,
-    gap: 14,
-    maxWidth: 420,
-  },
-  finalStoreButton: {
-    minHeight: 98,
+    width: '100%',
+    maxWidth: 720,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'center',
-    borderLeftWidth: 3,
-    borderLeftColor: '#17182d',
-    backgroundColor: 'rgba(255,255,255,0.40)',
+    gap: 14,
+    marginTop: 36,
+  },
+  finalBadge: {
+    minWidth: 240,
+    minHeight: 102,
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,244,223,0.22)',
+    backgroundColor: 'rgba(255,244,223,0.08)',
+    borderRadius: 14,
     paddingHorizontal: 20,
     paddingVertical: 16,
   },
-  finalStorePlatform: {
-    color: '#6f5e48',
+  finalPlatform: {
+    color: '#f4bc63',
     fontSize: 12,
     fontWeight: '900',
-    letterSpacing: 0.8,
+    letterSpacing: 0.9,
     textTransform: 'uppercase',
   },
-  finalStoreName: {
-    color: '#17182d',
+  finalStore: {
+    color: '#fff4df',
     fontFamily: FONTS.heading,
-    fontSize: 25,
-    lineHeight: 31,
+    fontSize: 26,
+    lineHeight: 32,
     marginTop: 2,
   },
-  finalStoreStatus: {
-    color: '#46507b',
+  finalStatus: {
+    color: 'rgba(255,244,223,0.62)',
     fontSize: 14,
     fontWeight: '800',
     marginTop: 4,
