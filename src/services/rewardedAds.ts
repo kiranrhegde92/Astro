@@ -1,11 +1,23 @@
-import { Platform } from 'react-native';
+import { Platform, TurboModuleRegistry } from 'react-native';
 import type { PremiumFeatureKey } from '../types/entitlements';
 import { AdMobConfig } from '../config';
 
 let initialized = false;
 
+function hasRewardedAdsNativeModule(): boolean {
+  try {
+    return Boolean(
+      TurboModuleRegistry.get('RNGoogleMobileAdsModule') &&
+        TurboModuleRegistry.get('RNGoogleMobileAdsRewardedModule')
+    );
+  } catch {
+    return false;
+  }
+}
+
 export async function showRewardedAd(_feature: PremiumFeatureKey): Promise<boolean> {
   if (Platform.OS === 'web') return false;
+  if (!hasRewardedAdsNativeModule()) return false;
 
   try {
     const ads = await import('react-native-google-mobile-ads');
