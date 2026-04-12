@@ -269,11 +269,20 @@ In the Firebase Console:
 ### 4g. Bootstrap admin user (optional)
 
 To grant admin access to your own account after first sign-up:
+
+**Step 1 — Download a service account key** (required for local scripts):
+1. Go to [Firebase Console → Project Settings → Service Accounts](https://console.firebase.google.com/project/cosmicself-53568/settings/serviceaccounts/adminsdk)
+2. Click **"Generate new private key"** → download the JSON file
+3. Save it as `scripts/admin/serviceAccountKey.json` (already gitignored — never commit this file)
+
+**Step 2 — Run the script:**
 ```bash
 node scripts/admin/set-admin-claim.js <your-uid>
 ```
 
 Find your UID in: **Firebase Console → Authentication → Users → copy UID**
+
+> Alternatively, set `GOOGLE_APPLICATION_CREDENTIALS=<path-to-key.json>` as an env var instead of placing the file in `scripts/admin/`.
 
 ---
 
