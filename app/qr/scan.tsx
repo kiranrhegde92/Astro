@@ -6,6 +6,7 @@ import { StarField } from '../../src/components/ui/StarField';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
 import { CosmicButton } from '../../src/components/ui/CosmicButton';
 import { GradientCard } from '../../src/components/ui/GradientCard';
+import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../../src/constants/theme';
 import { useConnectionsStore } from '../../src/store/connectionsStore';
 import { parseDeepLink } from '../../src/utils/qrCodeUtils';
@@ -46,7 +47,11 @@ export default function QRScanScreen() {
   return (
     <StarField>
       <ScreenHeader title="Scan cosmic QR" />
-      <View style={styles.container}>
+      <ResetScrollView
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={styles.subtitle}>
           Scan a CosmicSelf QR code or paste a share link and the profile will be ready for comparison instantly.
         </Text>
@@ -138,6 +143,8 @@ export default function QRScanScreen() {
             autoCapitalize="none"
             autoCorrect={false}
             multiline
+            scrollEnabled
+            textAlignVertical="top"
           />
 
           {parsed.payload ? (
@@ -164,15 +171,15 @@ export default function QRScanScreen() {
             <Text style={styles.backText}>Back</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </ResetScrollView>
     </StarField>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     paddingHorizontal: SPACING.lg,
+    paddingBottom: 120,
     gap: SPACING.lg,
   },
   subtitle: {
@@ -261,6 +268,7 @@ const styles = StyleSheet.create({
   },
   input: {
     minHeight: 120,
+    maxHeight: 150,
     backgroundColor: 'rgba(255,255,255,0.74)',
     borderWidth: 1,
     borderColor: COLORS.glassBorder,
