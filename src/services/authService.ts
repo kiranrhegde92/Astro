@@ -12,13 +12,9 @@ import {
   User,
 } from 'firebase/auth';
 import Constants from 'expo-constants';
-import {
-  GoogleSignin,
-  isErrorWithCode,
-  isSuccessResponse,
-  statusCodes,
-} from '@react-native-google-signin/google-signin';
 import { auth } from './firebase';
+
+type GoogleSignInModule = typeof import('@react-native-google-signin/google-signin');
 
 const googleAuthConfig = Constants.expoConfig?.extra?.googleAuth as
   | {
@@ -28,6 +24,7 @@ const googleAuthConfig = Constants.expoConfig?.extra?.googleAuth as
   | undefined;
 
 let googleConfigured = false;
+let googleSignInModule: GoogleSignInModule | null = null;
 
 function getGoogleWebClientId() {
   return googleAuthConfig?.webClientId || process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '';
@@ -37,7 +34,21 @@ function getGoogleIosClientId() {
   return googleAuthConfig?.iosClientId || process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '';
 }
 
-function configureGoogleSignIn() {
+function loadGoogleSignInModule(): GoogleSignInModule {
+  if (googleSignInModule) return googleSignInModule;
+
+  try {
+    googleSignInModule = require('@react-native-google-signin/google-signin') as GoogleSignInModule;
+    return googleSignInModule;
+  } catch (cause) {
+    const error = new Error('Google Sign-In needs a dev build that includes the RNGoogleSignin native module.') as Error & { code?: string; cause?: unknown };
+    error.code = 'google/native-module-unavailable';
+    error.cause = cause;
+    throw error;
+  }
+}
+
+function configureGoogleSignIn(GoogleSignin: GoogleSignInModule['GoogleSignin']) {
   if (googleConfigured) return;
   GoogleSignin.configure({
     webClientId: getGoogleWebClientId(),
@@ -80,7 +91,9 @@ export async function signInWithGoogle(): Promise<User | null> {
     throw error;
   }
 
-  configureGoogleSignIn();
+  const { GoogleSignin, isSuccessResponse } = loadGoogleSignInModule();
+
+  configureGoogleSignIn(GoogleSignin);
   await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
   const response = await GoogleSignin.signIn();
   if (!isSuccessResponse(response)) return null;
@@ -102,19 +115,24 @@ export async function signInWithGoogle(): Promise<User | null> {
 }
 
 export function getGoogleAuthErrorMessage(error: unknown): string {
-  if (isErrorWithCode(error)) {
-    if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-      return '';
-    }
-    if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-      return 'Google Play Services is not available or needs an update.';
-    }
-    if (error.code === 'google/missing-client-id') {
-      return 'Google Sign-In is not configured yet. Add EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID and rebuild the app.';
-    }
-    if (error.code === 'google/missing-id-token') {
-      return 'Google did not return the ID token Firebase needs. Check the web client ID configuration.';
-    }
+  const code = error && typeof error === 'object' && 'code' in error
+    ? String((error as { code?: unknown }).code)
+    : '';
+
+  if (code === 'SIGN_IN_CANCELLED') {
+    return '';
+  }
+  if (code === 'PLAY_SERVICES_NOT_AVAILABLE') {
+    return 'Google Play Services is not available or needs an update.';
+  }
+  if (code === 'google/missing-client-id') {
+    return 'Google Sign-In is not configured yet. Add EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID and rebuild the app.';
+  }
+  if (code === 'google/missing-id-token') {
+    return 'Google did not return the ID token Firebase needs. Check the web client ID configuration.';
+  }
+  if (code === 'google/native-module-unavailable') {
+    return 'Google Sign-In is not available in Expo Go or this installed build. Rebuild the Android/iOS app after installing @react-native-google-signin/google-signin.';
   }
 
   if (error instanceof Error && error.message) return error.message;
