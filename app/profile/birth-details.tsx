@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import * as Linking from 'expo-linking';
 import { CosmicButton } from '../../src/components/ui/CosmicButton';
 import { GradientCard } from '../../src/components/ui/GradientCard';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
@@ -8,10 +8,16 @@ import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { StarField } from '../../src/components/ui/StarField';
 import { useCosmicAlert } from '../../src/components/ui/CosmicAlert';
 import { BORDER_RADIUS, COLORS, FONTS, SPACING } from '../../src/constants/theme';
-import { calculateCosmicProfile } from '../../src/engines/unified';
+import { useAuthStore } from '../../src/store/authStore';
 import { useUserStore } from '../../src/store/userStore';
 import type { BirthDetails } from '../../src/types/user';
-import { geocodePlace } from '../../src/utils/geocoding';
+
+const SUPPORT_EMAIL = 'admin@cosmicself.app';
+
+function coerceDate(value?: Date | string | number | null) {
+  const parsed = value instanceof Date ? value : new Date(value ?? Date.now());
+  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+}
 
 function getDateParts(value: Date) {
   return {
@@ -21,32 +27,40 @@ function getDateParts(value: Date) {
   };
 }
 
-export default function EditBirthDetailsScreen() {
-  const router = useRouter();
+function formatDate(value?: Date | string | number | null) {
+  const date = coerceDate(value);
+  return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function formatBirthDetails(details: BirthDetails) {
+  return [
+    `Date: ${formatDate(details.date)}`,
+    `Time: ${details.time || 'Not provided'}`,
+    `Place: ${details.place?.name || 'Not provided'}`,
+  ].join('\n');
+}
+
+export default function BirthDetailCorrectionScreen() {
   const user = useUserStore((s) => s.user);
-  const updateBirthDetails = useUserStore((s) => s.updateBirthDetails);
-  const setWesternProfile = useUserStore((s) => s.setWesternProfile);
-  const setVedicProfile = useUserStore((s) => s.setVedicProfile);
-  const setChineseProfile = useUserStore((s) => s.setChineseProfile);
-  const setKPProfile = useUserStore((s) => s.setKPProfile);
+  const firebaseUser = useAuthStore((s) => s.firebaseUser);
   const { showAlert, alertModal } = useCosmicAlert();
 
-  const initialDate = useMemo(() => {
-    const raw = user?.birthDetails.date;
-    const parsed = raw instanceof Date ? raw : new Date(raw ?? Date.now());
-    return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
-  }, [user?.birthDetails.date]);
+  const initialDate = useMemo(() => coerceDate(user?.birthDetails.date), [user?.birthDetails.date]);
   const initialParts = useMemo(() => getDateParts(initialDate), [initialDate]);
+  const initialHour = user?.birthDetails.time?.split(':')[0] ?? '';
+  const initialMinute = user?.birthDetails.time?.split(':')[1] ?? '';
+
   const [day, setDay] = useState(initialParts.day);
   const [month, setMonth] = useState(initialParts.month);
   const [year, setYear] = useState(initialParts.year);
-  const [hour, setHour] = useState(user?.birthDetails.time?.split(':')[0] ?? '');
-  const [minute, setMinute] = useState(user?.birthDetails.time?.split(':')[1] ?? '');
+  const [hour, setHour] = useState(initialHour);
+  const [minute, setMinute] = useState(initialMinute);
   const [place, setPlace] = useState(user?.birthDetails.place?.name ?? '');
-  const [saving, setSaving] = useState(false);
+  const [note, setNote] = useState('');
+  const [openingMail, setOpeningMail] = useState(false);
 
   const dateValidation = useMemo(() => {
-    if (!day || !month || !year) return { valid: false, error: 'Birth date is required' };
+    if (!day || !month || !year) return { valid: false, error: 'Corrected birth date is required' };
     const d = parseInt(day, 10);
     const m = parseInt(month, 10);
     const y = parseInt(year, 10);
@@ -72,69 +86,68 @@ export default function EditBirthDetailsScreen() {
     return { valid: true, error: '' };
   }, [hour, minute]);
 
-  const isValid = dateValidation.valid && timeValidation.valid;
+  const noteError = note.trim().length >= 10
+    ? ''
+    : 'Add a short note so support can review the correction.';
+  const isValid = dateValidation.valid && timeValidation.valid && !noteError;
 
-  const handleSave = useCallback(async () => {
-    if (!user || saving) return;
+  const handleOpenEmail = useCallback(async () => {
+    if (!user || openingMail) return;
     if (!isValid) {
-      showAlert('Check birth details', dateValidation.error || timeValidation.error);
+      showAlert('Check the request', dateValidation.error || timeValidation.error || noteError);
       return;
     }
 
-    setSaving(true);
+    setOpeningMail(true);
     try {
-      const birthDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1, parseInt(day, 10));
-      const birthTime = hour && minute ? `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}` : undefined;
-      const trimmedPlace = place.trim();
-      const existingPlace = user.birthDetails.place;
-      const resolvedPlace = trimmedPlace
-        ? existingPlace?.name === trimmedPlace
-          ? existingPlace
-          : await geocodePlace(trimmedPlace)
-        : undefined;
+      const requestedDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1, parseInt(day, 10));
+      const requestedTime = hour && minute ? `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}` : 'Not provided';
+      const requestedPlace = place.trim() || 'Not provided';
+      const subject = `Birth detail correction request - ${user.name}`;
+      const body = [
+        'Please review this birth detail correction request.',
+        '',
+        'Account',
+        `Name: ${user.name}`,
+        `User ID: ${user.id}`,
+        `Email: ${firebaseUser?.email ?? 'Not available'}`,
+        '',
+        'Current birth details',
+        formatBirthDetails(user.birthDetails),
+        '',
+        'Requested birth details',
+        `Date: ${formatDate(requestedDate)}`,
+        `Time: ${requestedTime}`,
+        `Place: ${requestedPlace}`,
+        '',
+        'Reason',
+        note.trim(),
+        '',
+        'I understand this request will be reviewed manually before my chart changes.',
+      ].join('\n');
+      const mailUrl = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
-      if (trimmedPlace && !resolvedPlace) {
-        showAlert('Place not found', 'Try a city and country, or leave place blank to save without location-specific rising details.');
-        return;
-      }
-
-      const details: BirthDetails = {
-        date: birthDate,
-        time: birthTime,
-        place: resolvedPlace ?? undefined,
-      };
-      const profile = calculateCosmicProfile(birthDate, birthTime, resolvedPlace?.lat, resolvedPlace?.lng);
-
-      updateBirthDetails(details);
-      setWesternProfile(profile.western);
-      setVedicProfile(profile.vedic);
-      setChineseProfile(profile.chinese);
-      if (profile.kp) setKPProfile(profile.kp);
-
-      showAlert('Birth details updated', 'Your chart has been recalculated with the new details.', [
-        { text: 'Stay' },
-        { text: 'Back to profile', onPress: () => router.back() },
-      ]);
+      await Linking.openURL(mailUrl);
+      showAlert('Email draft opened', 'Review the details and send the email. Your chart will stay locked until support reviews the request.');
+    } catch {
+      showAlert('Could not open email', `Please email ${SUPPORT_EMAIL} with your current birth details and the correction you need.`);
     } finally {
-      setSaving(false);
+      setOpeningMail(false);
     }
   }, [
     dateValidation.error,
     day,
+    firebaseUser?.email,
     hour,
     isValid,
     minute,
     month,
+    note,
+    noteError,
+    openingMail,
     place,
-    router,
-    saving,
-    setChineseProfile,
-    setKPProfile,
-    setVedicProfile,
-    setWesternProfile,
     showAlert,
     timeValidation.error,
-    updateBirthDetails,
     user,
     year,
   ]);
@@ -143,14 +156,32 @@ export default function EditBirthDetailsScreen() {
 
   return (
     <StarField>
-      <ScreenHeader title="Birth details" accentColor={COLORS.iris} />
+      <ScreenHeader title="Birth correction" accentColor={COLORS.iris} />
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ResetScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          <Text style={styles.headline}>Tune the chart at its source.</Text>
-          <Text style={styles.copy}>Birth time and place sharpen rising sign, house emphasis, and timing details.</Text>
+          <Text style={styles.headline}>Birth details stay locked after setup.</Text>
+          <Text style={styles.copy}>
+            Send a correction request if something was entered wrong. Support will review it before any chart data changes.
+          </Text>
 
           <GradientCard style={styles.card} accentColor={COLORS.iris}>
-            <Text style={styles.label}>Birth date</Text>
+            <Text style={styles.label}>Current details</Text>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Date</Text>
+              <Text style={styles.detailValue}>{formatDate(user.birthDetails.date)}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Time</Text>
+              <Text style={styles.detailValue}>{user.birthDetails.time || 'Not provided'}</Text>
+            </View>
+            <View style={styles.detailRowNoBorder}>
+              <Text style={styles.detailLabel}>Place</Text>
+              <Text style={styles.detailValue}>{user.birthDetails.place?.name || 'Not provided'}</Text>
+            </View>
+          </GradientCard>
+
+          <GradientCard style={styles.card} accentColor={COLORS.tide}>
+            <Text style={styles.label}>Correct details</Text>
             <View style={styles.dateRow}>
               <TextInput
                 style={[styles.input, styles.dateInput]}
@@ -182,7 +213,6 @@ export default function EditBirthDetailsScreen() {
             </View>
             {dateValidation.error ? <Text style={styles.errorText}>{dateValidation.error}</Text> : null}
 
-            <Text style={styles.label}>Birth time</Text>
             <View style={styles.dateRow}>
               <TextInput
                 style={[styles.input, styles.dateInput]}
@@ -208,16 +238,34 @@ export default function EditBirthDetailsScreen() {
                 onChangeText={setPlace}
                 placeholder="City, country"
                 placeholderTextColor={COLORS.textMuted}
+                autoCapitalize="words"
               />
             </View>
             {timeValidation.error ? <Text style={styles.errorText}>{timeValidation.error}</Text> : null}
+
+            <TextInput
+              style={[styles.input, styles.noteInput]}
+              value={note}
+              onChangeText={setNote}
+              placeholder="What needs to be corrected?"
+              placeholderTextColor={COLORS.textMuted}
+              multiline
+              textAlignVertical="top"
+              autoCapitalize="sentences"
+            />
+            {note.length > 0 && noteError ? <Text style={styles.errorText}>{noteError}</Text> : null}
+          </GradientCard>
+
+          <GradientCard style={styles.noticeCard} accentColor={COLORS.starGold}>
+            <Text style={styles.label}>Manual review</Text>
+            <Text style={styles.copy}>This opens an email draft to {SUPPORT_EMAIL}. It does not update your profile on this device.</Text>
           </GradientCard>
 
           <CosmicButton
-            title={saving ? 'Updating chart' : 'Save and recalculate'}
-            onPress={() => void handleSave()}
-            disabled={!isValid || saving}
-            loading={saving}
+            title={openingMail ? 'Opening email' : 'Open email draft'}
+            onPress={() => void handleOpenEmail()}
+            disabled={!isValid || openingMail}
+            loading={openingMail}
           />
         </ResetScrollView>
       </KeyboardAvoidingView>
@@ -250,11 +298,43 @@ const styles = StyleSheet.create({
   card: {
     gap: SPACING.sm,
   },
+  noticeCard: {
+    gap: SPACING.xs,
+  },
   label: {
     color: COLORS.textMuted,
     fontSize: 11,
     fontFamily: FONTS.accent,
     letterSpacing: 1.1,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: SPACING.md,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.glassBorder,
+  },
+  detailRowNoBorder: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: SPACING.md,
+    paddingVertical: 8,
+  },
+  detailLabel: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+    fontFamily: FONTS.accent,
+  },
+  detailValue: {
+    flex: 1,
+    color: COLORS.textPrimary,
+    fontSize: 15,
+    lineHeight: 21,
+    fontFamily: FONTS.heading,
+    textAlign: 'right',
   },
   dateRow: {
     flexDirection: 'row',
@@ -282,6 +362,10 @@ const styles = StyleSheet.create({
   },
   placeInput: {
     flex: 1.8,
+  },
+  noteInput: {
+    minHeight: 112,
+    lineHeight: 22,
   },
   errorText: {
     color: COLORS.coral,

@@ -291,10 +291,11 @@ export default function SettingsScreen() {
               </View>
             ) : null}
             <TouchableOpacity style={styles.linkRow} onPress={() => router.push('/profile/birth-details')} activeOpacity={0.84}>
-              <Ionicons name="create-outline" size={18} color={COLORS.iris} />
-              <Text style={styles.linkText}>Edit birth details</Text>
+              <Ionicons name="mail-outline" size={18} color={COLORS.iris} />
+              <Text style={styles.linkText}>Request a birth detail correction</Text>
               <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
             </TouchableOpacity>
+            <Text style={styles.sectionNote}>Birth details are locked after setup. Send a correction request if something is wrong.</Text>
           </GradientCard>
         ) : null}
 
@@ -333,11 +334,13 @@ export default function SettingsScreen() {
             <Text style={styles.linkText}>Privacy Policy</Text>
             <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.linkRow} onPress={() => void handleAdminAccess()} activeOpacity={0.84}>
-            <Ionicons name="settings-outline" size={18} color={isAdmin ? COLORS.starGold : COLORS.textMuted} />
-            <Text style={styles.linkText}>{isAdmin ? 'Admin console' : 'Check admin access'}</Text>
-            <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
-          </TouchableOpacity>
+          {isAdmin ? (
+            <TouchableOpacity style={styles.linkRow} onPress={() => void handleAdminAccess()} activeOpacity={0.84}>
+              <Ionicons name="settings-outline" size={18} color={COLORS.starGold} />
+              <Text style={styles.linkText}>Admin console</Text>
+              <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+            </TouchableOpacity>
+          ) : null}
           <TouchableOpacity style={styles.linkRowNoBorder} onPress={() => router.push('/legal/terms')} activeOpacity={0.84}>
             <Ionicons name="document-text-outline" size={18} color={COLORS.plum} />
             <Text style={styles.linkText}>Terms of Service</Text>

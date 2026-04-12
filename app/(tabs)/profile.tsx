@@ -458,18 +458,18 @@ export default function ProfileScreen() {
               <Text style={styles.recalcText}>{recalculating ? 'Recalculating...' : 'Recalculate my chart'}</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.editBirthBtn}
+              style={styles.requestBirthBtn}
               onPress={() => {
                 if (user.isManagedProfile) {
-                  showAlert('Main profile only', 'Birth-detail editing is available for the main profile. Add a new family profile if these details need to change.');
+                  showAlert('Birth details locked', 'Family profile birth details are locked after creation. Remove and add that profile again if those details were entered wrong.');
                 } else {
                   router.push('/profile/birth-details');
                 }
               }}
               activeOpacity={0.8}
             >
-              <Ionicons name="create-outline" size={20} color={COLORS.iris} />
-              <Text style={styles.editBirthText}>Edit birth details</Text>
+              <Ionicons name="mail-outline" size={20} color={COLORS.iris} />
+              <Text style={styles.requestBirthText}>Request birth detail correction</Text>
             </TouchableOpacity>
           </View>
         </AnimatedCard>
@@ -675,7 +675,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontFamily: FONTS.heading,
   },
-  editBirthBtn: {
+  requestBirthBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -686,7 +686,7 @@ const styles = StyleSheet.create({
     borderColor: `${COLORS.iris}44`,
     backgroundColor: `${COLORS.iris}10`,
   },
-  editBirthText: {
+  requestBirthText: {
     color: COLORS.iris,
     fontSize: 17,
     fontFamily: FONTS.heading,
