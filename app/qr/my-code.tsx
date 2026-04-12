@@ -69,7 +69,11 @@ export default function MyQRCodeScreen() {
         nakshatraPada: user.vedic.nakshatraPada,
         moonSign: user.vedic.moonSign,
         dashas: [],
-        currentDasha: user.vedic.currentDasha,
+        currentDasha: {
+            planet: user.vedic.currentDasha.planet,
+            startDate: user.vedic.currentDasha.startDate,
+            endDate: user.vedic.currentDasha.endDate,
+          },
         remedies: [],
       },
       chinese: {
