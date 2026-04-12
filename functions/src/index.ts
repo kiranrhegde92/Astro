@@ -16,6 +16,9 @@ const db = admin.firestore();
 const DAILY_READING_VERSION = 4;
 const HIGH_IMPACT_TRANSIT_ORB = 1.25;
 
+type JsonSafeValue = null | boolean | number | string | JsonSafeValue[] | { [key: string]: JsonSafeValue };
+type JsonSafeObject = { [key: string]: JsonSafeValue };
+
 type TransitNotificationHit = {
   transitPlanet?: unknown;
   natalPlanet?: unknown;
@@ -24,6 +27,56 @@ type TransitNotificationHit = {
   nature?: unknown;
   brief?: unknown;
 };
+
+function toJsonSafe(value: unknown): JsonSafeValue {
+  if (value === null || value === undefined) return null;
+
+  if (typeof value === 'string' || typeof value === 'boolean') return value;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (value instanceof Date) return value.toISOString();
+  if (value instanceof admin.firestore.Timestamp) return value.toDate().toISOString();
+  if (value instanceof admin.firestore.GeoPoint) {
+    return { latitude: value.latitude, longitude: value.longitude };
+  }
+  if (value instanceof admin.firestore.DocumentReference) {
+    return { path: value.path };
+  }
+  if (Array.isArray(value)) return value.map((item) => toJsonSafe(item));
+  if (typeof value === 'object') {
+    const maybeBytes = value as { toBase64?: () => string };
+    if (typeof maybeBytes.toBase64 === 'function') {
+      return { base64: maybeBytes.toBase64() };
+    }
+
+    const output: JsonSafeObject = {};
+    for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+      output[key] = toJsonSafe(nested);
+    }
+    return output;
+  }
+
+  return String(value);
+}
+
+function toJsonSafeObject(value: Record<string, unknown>): JsonSafeObject {
+  return toJsonSafe(value) as JsonSafeObject;
+}
+
+function sanitizeProfileForExport(value: FirebaseFirestore.DocumentData): JsonSafeObject {
+  const profile = { ...value };
+  delete profile.fcmToken;
+  return toJsonSafeObject(profile);
+}
+
+async function readCollectionForExport(path: string): Promise<JsonSafeObject[]> {
+  const snap = await db.collection(path).get();
+  return snap.docs
+    .map((doc) => ({
+      documentId: doc.id,
+      ...toJsonSafeObject(doc.data()),
+    }))
+    .sort((a, b) => String(a.documentId).localeCompare(String(b.documentId)));
+}
 
 function isPremiumSubscriber(userData: FirebaseFirestore.DocumentData): boolean {
   const tier = userData.subscription?.tier;
@@ -431,6 +484,46 @@ export const exportMyPredictionDataset = onCall({ region: 'us-central1' }, async
       labelRate: rows.length ? Number((labeledRows.length / rows.length).toFixed(3)) : 0,
     },
     rows,
+  };
+});
+
+export const exportMyData = onCall({ region: 'us-central1' }, async (request) => {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in required.');
+
+  const uid = request.auth.uid;
+  const [profileSnap, chartSnap, dailyReadings, partners, predictionRuns] = await Promise.all([
+    db.doc(`users/${uid}`).get(),
+    db.doc(`charts/${uid}`).get(),
+    readCollectionForExport(`dailyReadings/${uid}/dates`),
+    readCollectionForExport(`connections/${uid}/partners`),
+    readCollectionForExport(`predictionRuns/${uid}/runs`),
+  ]);
+
+  const sortedPredictionRuns = predictionRuns.sort((a, b) => {
+    const left = String(a.updatedAt ?? a.createdAt ?? a.dateKey ?? a.documentId ?? '');
+    const right = String(b.updatedAt ?? b.createdAt ?? b.dateKey ?? b.documentId ?? '');
+    return right.localeCompare(left);
+  });
+
+  return {
+    exportVersion: 1,
+    exportedAt: new Date().toISOString(),
+    uid,
+    profile: profileSnap.exists ? sanitizeProfileForExport(profileSnap.data()!) : null,
+    chart: chartSnap.exists ? toJsonSafeObject(chartSnap.data()!) : null,
+    dailyReadings,
+    connections: {
+      partners,
+    },
+    predictionRuns: sortedPredictionRuns,
+    counts: {
+      profile: profileSnap.exists ? 1 : 0,
+      chart: chartSnap.exists ? 1 : 0,
+      dailyReadings: dailyReadings.length,
+      partners: partners.length,
+      predictionRuns: sortedPredictionRuns.length,
+      predictionRunsWithFeedback: sortedPredictionRuns.filter((run) => run.feedback !== null && run.feedback !== undefined).length,
+    },
   };
 });
 

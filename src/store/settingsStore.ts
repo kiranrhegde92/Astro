@@ -9,10 +9,12 @@ interface SettingsState {
   language: string;
   notificationsEnabled: boolean;
   dailyNotificationTime: string; // HH:mm
+  transitAlertsEnabled: boolean;
   theme: 'aurora';
   setLanguage: (lang: string) => void;
   setNotifications: (enabled: boolean) => void;
   setNotificationTime: (time: string) => void;
+  setTransitAlerts: (enabled: boolean) => void;
   loadSettings: () => Promise<void>;
   saveSettings: () => Promise<void>;
   clearSettings: () => Promise<void>;
@@ -23,6 +25,7 @@ const DEFAULT_SETTINGS = {
   language: 'en',
   notificationsEnabled: true,
   dailyNotificationTime: '08:00',
+  transitAlertsEnabled: false,
   theme: 'aurora' as const,
 };
 
@@ -69,6 +72,17 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     get().saveSettings();
   },
 
+  setTransitAlerts: async (enabled) => {
+    if (!enabled) {
+      try {
+        const { cancelTransitAlerts } = await getNotifications();
+        await cancelTransitAlerts();
+      } catch {}
+    }
+    set({ transitAlertsEnabled: enabled });
+    get().saveSettings();
+  },
+
   loadSettings: async () => {
     try {
       const data = await AsyncStorage.getItem(STORAGE_KEY);
@@ -88,10 +102,10 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   },
 
   saveSettings: async () => {
-    const { language, notificationsEnabled, dailyNotificationTime } = get();
+    const { language, notificationsEnabled, dailyNotificationTime, transitAlertsEnabled } = get();
     await AsyncStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ language, notificationsEnabled, dailyNotificationTime })
+      JSON.stringify({ language, notificationsEnabled, dailyNotificationTime, transitAlertsEnabled })
     );
   },
 

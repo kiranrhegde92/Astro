@@ -25,6 +25,12 @@ import { useReadingStore } from '../src/store/readingStore';
 import { useSettingsStore } from '../src/store/settingsStore';
 import { useUserStore } from '../src/store/userStore';
 import { parseDeepLink } from '../src/utils/qrCodeUtils';
+import {
+  initializeNotificationHandler,
+  setupNotificationResponseListener,
+  getLastNotificationResponse,
+  resolveNotificationRoute,
+} from '../src/utils/notifications';
 import i18n from '../src/i18n';
 import { normalizeLanguage } from '../src/i18n/language';
 import '../src/services/firebase';
@@ -187,6 +193,54 @@ export default function RootLayout() {
     return () => subscription.remove();
   }, [importSharedProfile, router]);
 
+  // --- Push notification response handling (A2) ---
+  const pendingNotificationRoute = React.useRef<string | null>(null);
+
+  useEffect(() => {
+    // Register the foreground display handler early (idempotent, Expo Go safe)
+    initializeNotificationHandler();
+
+    const navigateOrDefer = (screen?: string) => {
+      const route = resolveNotificationRoute(screen);
+      if (!route) return;
+
+      // If auth is already settled we can navigate immediately (warm start)
+      const { authReady: ready, profileLoading: loading, firebaseUser: fbUser } =
+        useAuthStore.getState();
+      if (ready && !loading && fbUser) {
+        setTimeout(() => {
+          try { router.push(route as any); } catch { /* navigator not ready */ }
+        }, 100);
+      } else {
+        pendingNotificationRoute.current = route;
+      }
+    };
+
+    // Listen for notification taps while app is running
+    const cleanupListener = setupNotificationResponseListener((screen) =>
+      navigateOrDefer(screen),
+    );
+
+    // Cold-start: check if app was launched by tapping a notification
+    getLastNotificationResponse()
+      .then((resp) => { if (resp?.screen) navigateOrDefer(resp.screen); })
+      .catch(() => {});
+
+    return cleanupListener;
+  }, [router]);
+
+  // Consume deferred notification route once auth settles
+  useEffect(() => {
+    if (!authReady || profileLoading || !firebaseUser) return;
+
+    const route = pendingNotificationRoute.current;
+    if (route) {
+      pendingNotificationRoute.current = null;
+      setTimeout(() => {
+        try { router.push(route as any); } catch { /* navigator not ready */ }
+      }, 300);
+    }
+  }, [authReady, profileLoading, firebaseUser, router]);
 
   if ((!authReady || !fontReady) && !onWebLanding) {
     return (

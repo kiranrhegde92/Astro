@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { CosmicOrb } from '../../src/components/ui/CosmicOrb';
 import { GradientCard } from '../../src/components/ui/GradientCard';
 import { ProgressRing } from '../../src/components/ui/ProgressRing';
+import { NatalWheel } from '../../src/components/chart/NatalWheel';
 import { StarField } from '../../src/components/ui/StarField';
 import { AnimatedCard } from '../../src/components/ui/AnimatedScreen';
 import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
@@ -297,7 +298,11 @@ export default function ProfileScreen() {
               ) : null}
             </LinearGradient>
             <View style={styles.posterOrb}>
-              <CosmicOrb size={152} />
+              {user.western?.planets?.length ? (
+                <NatalWheel planets={user.western.planets} size={152} showAspects={false} />
+              ) : (
+                <CosmicOrb size={152} />
+              )}
             </View>
           </View>
         </AnimatedCard>

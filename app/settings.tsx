@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
@@ -8,9 +8,12 @@ import { ResetScrollView } from '../src/components/ui/ResetScrollView';
 import { ScreenHeader } from '../src/components/ui/ScreenHeader';
 import { StarField } from '../src/components/ui/StarField';
 import { useCosmicAlert } from '../src/components/ui/CosmicAlert';
-import { COLORS, FONTS, SPACING, BORDER_RADIUS } from '../src/constants/theme';
+import { BORDER_RADIUS, COLORS, FONTS, SPACING } from '../src/constants/theme';
+import { exportMyData } from '../src/services/functionsService';
+import { useAuthStore } from '../src/store/authStore';
 import { useSettingsStore } from '../src/store/settingsStore';
 import { useUserStore } from '../src/store/userStore';
+import { shareDataExport } from '../src/utils/exportData';
 import { hasPremiumEntitlement } from '../src/utils/subscription';
 import type { AstrologySystem } from '../src/types/user';
 
@@ -42,12 +45,23 @@ function PickerRow({ label, value, onPress }: { label: string; value: string; on
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { notificationsEnabled, dailyNotificationTime, setNotifications, setNotificationTime } = useSettingsStore();
+  const {
+    notificationsEnabled,
+    dailyNotificationTime,
+    transitAlertsEnabled,
+    setNotifications,
+    setNotificationTime,
+    setTransitAlerts,
+  } = useSettingsStore();
   const user = useUserStore((s) => s.user);
   const setActiveSystems = useUserStore((s) => s.setActiveSystems);
   const setSubscription = useUserStore((s) => s.setSubscription);
+  const logout = useAuthStore((s) => s.logout);
+  const deleteAccount = useAuthStore((s) => s.deleteAccount);
   const { showAlert, alertModal } = useCosmicAlert();
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [accountAction, setAccountAction] = useState<'logout' | 'delete' | null>(null);
+  const [exportingData, setExportingData] = useState(false);
   const isPremium = hasPremiumEntitlement(user?.subscription);
 
   const toggleTestPremium = () => {
@@ -72,6 +86,72 @@ export default function SettingsScreen() {
       setActiveSystems(current.filter((s) => s !== system));
     } else {
       setActiveSystems([...current, system]);
+    }
+  };
+
+  const handleSignOut = () => {
+    showAlert('Sign out?', 'You will return to the login screen, but your saved account data will remain available when you sign back in.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out',
+        onPress: async () => {
+          try {
+            setAccountAction('logout');
+            await logout();
+          } catch {
+            showAlert('Unable to sign out', 'Please try again in a moment.');
+          } finally {
+            setAccountAction(null);
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleDeleteAccount = () => {
+    showAlert(
+      'Delete account?',
+      'This permanently removes your CosmicSelf account, chart data, readings, journal, connections, and saved settings. This cannot be undone.',
+      [
+        { text: 'Keep account', style: 'cancel' },
+        {
+          text: 'Delete forever',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setAccountAction('delete');
+              await deleteAccount();
+            } catch {
+              showAlert('Unable to delete account', 'Your account was not removed. Please try again after signing in again.');
+            } finally {
+              setAccountAction(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleExportMyData = async () => {
+    if (exportingData) return;
+
+    setExportingData(true);
+    try {
+      const data = await exportMyData();
+      const delivery = await shareDataExport(data);
+      if (delivery === 'dismissed') return;
+
+      const deliveryText = delivery === 'downloaded'
+        ? 'Your JSON export was downloaded.'
+        : 'Your JSON export was opened in the share sheet.';
+      showAlert(
+        'Export ready',
+        `${deliveryText}\n\nProfile: ${data.counts.profile}\nChart: ${data.counts.chart}\nReadings: ${data.counts.dailyReadings}\nPartners: ${data.counts.partners}\nPrediction runs: ${data.counts.predictionRuns}`
+      );
+    } catch {
+      showAlert('Export failed', 'Could not export your data right now. Please try again after signing in again.');
+    } finally {
+      setExportingData(false);
     }
   };
 
@@ -117,7 +197,33 @@ export default function SettingsScreen() {
                 </View>
               ) : null}
             </>
-          ) : null}
+          ) : (
+            <Text style={styles.sectionNote}>Turn this on to receive your saved daily reading reminder.</Text>
+          )}
+        </GradientCard>
+
+        <GradientCard style={styles.section} accentColor={COLORS.starGold}>
+          <Text style={styles.sectionLabel}>Transit center</Text>
+          <Text style={styles.sectionNote}>
+            Track the strongest live aspects touching your chart today. Premium transit alerts use this preference for future push delivery.
+          </Text>
+          <View style={styles.switchRow}>
+            <View style={styles.systemLabelRow}>
+              <Ionicons name="notifications-outline" size={18} color={COLORS.starGold} />
+              <Text style={styles.rowText}>Premium transit alerts</Text>
+            </View>
+            <Switch
+              value={transitAlertsEnabled}
+              onValueChange={setTransitAlerts}
+              trackColor={{ false: 'rgba(40,49,73,0.16)', true: COLORS.starGold }}
+              thumbColor="#fffaf1"
+            />
+          </View>
+          <TouchableOpacity style={styles.linkRow} onPress={() => router.push('/reading/transits')} activeOpacity={0.84}>
+            <Ionicons name="planet-outline" size={18} color={COLORS.kp} />
+            <Text style={styles.linkText}>Open transit center</Text>
+            <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+          </TouchableOpacity>
         </GradientCard>
 
         {/* ── Active Systems ─────────────────────────────────────────── */}
@@ -188,7 +294,55 @@ export default function SettingsScreen() {
             <Text style={styles.linkText}>Subscription</Text>
             <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
           </TouchableOpacity>
+          <TouchableOpacity style={styles.linkRow} onPress={() => router.push('/legal/privacy')} activeOpacity={0.84}>
+            <Ionicons name="shield-checkmark-outline" size={18} color={COLORS.tide} />
+            <Text style={styles.linkText}>Privacy Policy</Text>
+            <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.linkRowNoBorder} onPress={() => router.push('/legal/terms')} activeOpacity={0.84}>
+            <Ionicons name="document-text-outline" size={18} color={COLORS.plum} />
+            <Text style={styles.linkText}>Terms of Service</Text>
+            <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+          </TouchableOpacity>
         </GradientCard>
+
+        {/* ── Account ─────────────────────────────────────────────────── */}
+        {user ? (
+          <GradientCard style={styles.section} accentColor={COLORS.coral}>
+            <Text style={styles.sectionLabel}>Account</Text>
+            <Text style={styles.sectionNote}>Control access to this device and remove your account if you ever need a clean reset.</Text>
+            <TouchableOpacity
+              style={styles.linkRow}
+              onPress={handleExportMyData}
+              activeOpacity={0.84}
+              disabled={exportingData || accountAction !== null}
+            >
+              <Ionicons name="download-outline" size={18} color={COLORS.tide} />
+              <Text style={styles.linkText}>{exportingData ? 'Exporting data...' : 'Export my data'}</Text>
+              {exportingData ? <ActivityIndicator size="small" color={COLORS.tide} /> : <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.linkRow}
+              onPress={handleSignOut}
+              activeOpacity={0.84}
+              disabled={accountAction !== null || exportingData}
+            >
+              <Ionicons name="log-out-outline" size={18} color={COLORS.iris} />
+              <Text style={styles.linkText}>Sign out</Text>
+              {accountAction === 'logout' ? <ActivityIndicator size="small" color={COLORS.iris} /> : <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.linkRowNoBorder}
+              onPress={handleDeleteAccount}
+              activeOpacity={0.84}
+              disabled={accountAction !== null || exportingData}
+            >
+              <Ionicons name="trash-outline" size={18} color={COLORS.coral} />
+              <Text style={[styles.linkText, styles.destructiveText]}>Delete account</Text>
+              {accountAction === 'delete' ? <ActivityIndicator size="small" color={COLORS.coral} /> : <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />}
+            </TouchableOpacity>
+          </GradientCard>
+        ) : null}
 
         {/* ── Dev Testing ──────────────────────────────────────────────── */}
         {user ? (
@@ -335,11 +489,20 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.glassBorder,
   },
+  linkRowNoBorder: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    paddingVertical: 12,
+  },
   linkText: {
     flex: 1,
     color: COLORS.textPrimary,
     fontSize: 16,
     fontFamily: FONTS.heading,
+  },
+  destructiveText: {
+    color: COLORS.coral,
   },
   appInfo: {
     alignItems: 'center',

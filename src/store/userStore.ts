@@ -6,6 +6,13 @@ import { getDateKey, getDayDifference } from '../utils/dateUtils';
 import { normalizeUserProfile } from '../utils/normalizeUserProfile';
 import { updateUserProfile } from '../services/firestoreService';
 import { currentUser } from '../services/authService';
+import {
+  configure as configureRevenueCat,
+  fetchSubscriptionStatus as fetchRevenueCatSubscriptionStatus,
+  getSetupIssue as getRevenueCatSetupIssue,
+  isConfigured as isRevenueCatConfigured,
+} from '../services/revenueCat';
+import { getPremiumProductId } from '../utils/subscription';
 
 interface UserState {
   user: UserProfile | null;
@@ -27,13 +34,31 @@ interface UserState {
   resetStreak: () => void;
   startTrial: () => void;
   upgradeSubscription: (billingPeriod?: Subscription['billingPeriod']) => void;
-  syncSubscriptionStatus: () => void;
+  syncSubscriptionStatus: () => Promise<void>;
   clearUser: () => Promise<void>;
   loadUser: () => Promise<void>;
   saveUser: () => Promise<void>;
 }
 
 const STORAGE_KEY = '@cosmicself_user';
+
+function getDateTime(value?: Date | string | number | null): number | undefined {
+  if (!value) return undefined;
+  if (value instanceof Date) return value.getTime();
+  const parsed = new Date(value).getTime();
+  return Number.isNaN(parsed) ? undefined : parsed;
+}
+
+function isSameSubscription(a: Subscription, b: Subscription): boolean {
+  return (
+    a.tier === b.tier &&
+    a.status === b.status &&
+    a.billingPeriod === b.billingPeriod &&
+    a.productId === b.productId &&
+    getDateTime(a.expiresAt) === getDateTime(b.expiresAt) &&
+    getDateTime(a.trialEndsAt) === getDateTime(b.trialEndsAt)
+  );
+}
 
 export const useUserStore = create<UserState>((set, get) => ({
   user: null,
@@ -42,6 +67,7 @@ export const useUserStore = create<UserState>((set, get) => ({
   setUser: (user) => {
     set({ user: normalizeUserProfile(user) });
     get().saveUser();
+    void get().syncSubscriptionStatus();
   },
 
   updateBirthDetails: (details) => {
@@ -170,7 +196,7 @@ export const useUserStore = create<UserState>((set, get) => ({
           tier: 'premium',
           status: 'trial',
           billingPeriod: 'yearly',
-          productId: 'cosmicself_premium_yearly',
+          productId: getPremiumProductId('yearly'),
           trialEndsAt: trialEnd,
           expiresAt: trialEnd,
         },
@@ -195,7 +221,7 @@ export const useUserStore = create<UserState>((set, get) => ({
           tier: 'premium',
           status: 'active',
           billingPeriod,
-          productId: billingPeriod === 'yearly' ? 'cosmicself_premium_yearly' : 'cosmicself_premium_monthly',
+          productId: getPremiumProductId(billingPeriod),
           expiresAt,
         },
       },
@@ -203,24 +229,40 @@ export const useUserStore = create<UserState>((set, get) => ({
     get().saveUser();
   },
 
-  syncSubscriptionStatus: () => {
+  syncSubscriptionStatus: async () => {
+    const applySubscription = async (subscription: Subscription) => {
+      const latestUser = get().user;
+      if (!latestUser || isSameSubscription(latestUser.subscription, subscription)) return;
+      set({ user: { ...latestUser, subscription } });
+      await get().saveUser();
+    };
+
     const { user } = get();
     if (!user) return;
 
-    const now = Date.now();
-    const expiresAt = user.subscription.expiresAt?.getTime();
-    if (!expiresAt || expiresAt > now) return;
+    const fbUser = currentUser();
+    if (fbUser?.uid && !getRevenueCatSetupIssue()) {
+      try {
+        await configureRevenueCat(fbUser.uid);
+        if (isRevenueCatConfigured()) {
+          await applySubscription(await fetchRevenueCatSubscriptionStatus());
+          return;
+        }
+      } catch (e) {
+        console.warn('[UserStore] RevenueCat subscription sync failed:', e);
+      }
+    }
 
-    set({
-      user: {
-        ...user,
-        subscription: {
-          tier: 'free',
-          status: 'expired',
-        },
-      },
+    const latestUser = get().user;
+    if (!latestUser) return;
+
+    const expiresAt = getDateTime(latestUser.subscription.expiresAt);
+    if (!expiresAt || expiresAt > Date.now()) return;
+
+    await applySubscription({
+      tier: 'free',
+      status: 'expired',
     });
-    get().saveUser();
   },
 
   clearUser: async () => {
@@ -234,7 +276,7 @@ export const useUserStore = create<UserState>((set, get) => ({
       if (data) {
         const user = normalizeUserProfile(JSON.parse(data) as UserProfile);
         set({ user, isLoading: false });
-        get().syncSubscriptionStatus();
+        void get().syncSubscriptionStatus();
       } else {
         set({ isLoading: false });
       }

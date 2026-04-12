@@ -27,6 +27,27 @@ export interface ChartResult {
   };
 }
 
+export interface MyDataExport {
+  exportVersion: 1;
+  exportedAt: string;
+  uid: string;
+  profile: Record<string, unknown> | null;
+  chart: Record<string, unknown> | null;
+  dailyReadings: Array<Record<string, unknown>>;
+  connections: {
+    partners: Array<Record<string, unknown>>;
+  };
+  predictionRuns: Array<Record<string, unknown>>;
+  counts: {
+    profile: number;
+    chart: number;
+    dailyReadings: number;
+    partners: number;
+    predictionRuns: number;
+    predictionRunsWithFeedback: number;
+  };
+}
+
 export async function calculateUserChart(input: ChartInput): Promise<ChartResult> {
   const fn = httpsCallable<ChartInput, ChartResult>(functions, 'calculateChart');
   const result = await fn(input);
@@ -56,6 +77,12 @@ export async function registerPushToken(token: string): Promise<void> {
 export async function deleteMyAccount(): Promise<void> {
   const fn = httpsCallable(functions, 'deleteMyAccount');
   await fn({});
+}
+
+export async function exportMyData(): Promise<MyDataExport> {
+  const fn = httpsCallable<Record<string, never>, MyDataExport>(functions, 'exportMyData');
+  const result = await fn({});
+  return result.data;
 }
 
 export async function fetchPredictionModelSnapshot(

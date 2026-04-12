@@ -7,6 +7,7 @@ import { GradientCard } from '../../src/components/ui/GradientCard';
 import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { SectionTabs } from '../../src/components/ui/SectionTabs';
 import { KundliChart } from '../../src/components/chart/KundliChart';
+import { NatalWheel } from '../../src/components/chart/NatalWheel';
 import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../../src/constants/theme';
 import { useActiveProfile } from '../../src/hooks/useActiveProfile';
 import { WESTERN_ZODIAC } from '../../src/constants/zodiacData';
@@ -108,6 +109,7 @@ export default function WesternReadingScreen() {
               <Text style={styles.detailSubtext}>
                 Your tropical zodiac birth chart — planets placed in their birth signs
               </Text>
+              <NatalWheel planets={planets} size={280} title="Western natal wheel" />
               <KundliChart planets={planets} ascendantSign={rising} style="western" size={280} />
               <SourceRef text="Natal chart positions from orbital mechanics (Meeus formula)" />
             </GradientCard>

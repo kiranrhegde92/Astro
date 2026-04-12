@@ -18,16 +18,20 @@ import { BORDER_RADIUS, COLORS, FONTS, SHADOWS, SPACING } from '../../src/consta
 import { generateDailyReading } from '../../src/content/dailyTemplates';
 import { generatePeriodForecast, type ForecastWindow } from '../../src/content/forecastTemplates';
 import { ForecastPanel } from '../../src/components/ui/ForecastPanel';
+import { PredictionFeedbackCard } from '../../src/components/ui/PredictionFeedbackCard';
 import { buildForecastProfile } from '../../src/content/predictionSignals';
 import { fetchDailyReading } from '../../src/services/functionsService';
 import { showRewardedAd } from '../../src/services/rewardedAds';
+import { scheduleHighImpactTransitAlert, cancelTransitAlerts } from '../../src/utils/notifications';
 import { useActiveProfile } from '../../src/hooks/useActiveProfile';
 import { useAdUnlockStore } from '../../src/store/adUnlockStore';
 import { useReadingStore } from '../../src/store/readingStore';
+import { useSettingsStore } from '../../src/store/settingsStore';
 import { useUserStore } from '../../src/store/userStore';
 import { getDateKey } from '../../src/utils/dateUtils';
 import { normalizeUserProfile } from '../../src/utils/normalizeUserProfile';
 import { normalizeLanguage } from '../../src/i18n/language';
+import { getMoonPhase } from '../../src/utils/moonPhase';
 import {
   formatSignature,
   formatSkyChip,
@@ -141,6 +145,7 @@ export default function TodayScreen() {
   const { i18n, t } = useTranslation();
   const accountUser = useUserStore((state) => state.user);
   const user = useActiveProfile();
+  const transitAlertsEnabled = useSettingsStore((state) => state.transitAlertsEnabled);
   const incrementStreak = useUserStore((state) => state.incrementStreak);
   const tokens = useAdUnlockStore((state) => state.tokens);
   const grantUnlock = useAdUnlockStore((state) => state.grantUnlock);
@@ -279,6 +284,28 @@ export default function TodayScreen() {
     refreshing,
   ]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!reading || !accountUser || !isPremium || !transitAlertsEnabled) {
+      cancelTransitAlerts().catch(() => {});
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    scheduleHighImpactTransitAlert(reading, accountUser)
+      .catch(() => {
+        if (!cancelled) {
+          // ignore scheduling errors to avoid blocking the reading UI
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accountUser, isPremium, reading, transitAlertsEnabled]);
+
   const periodForecast = useMemo(() => {
     if (!profile) return null;
     return generatePeriodForecast(today, profile, forecastWindow);
@@ -307,6 +334,7 @@ export default function TodayScreen() {
   }, [consumeUnlock, forecastAdLoading, grantUnlock, showAlert]);
 
   const greeting = useMemo(() => getGreetingLabel(today, language), [language, today]);
+  const moonPhase = useMemo(() => getMoonPhase(today), [today]);
   const firstName = safeUser?.name?.split(' ')[0] ?? user?.name?.split(' ')[0] ?? 'you';
   const transits = reading?.activeTransits ?? [];
   const positions = reading?.transitPositions ?? [];
@@ -491,6 +519,46 @@ export default function TodayScreen() {
             </AnimatedCard>
 
             <AnimatedCard index={3}>
+              <GradientCard accentColor={COLORS.gold}>
+                <Text style={styles.cardEyebrow}>MOON PHASE</Text>
+                <Text style={styles.cardTitle}>{moonPhase.emoji} {moonPhase.label}</Text>
+                <Text style={styles.cardBody}>
+                  {moonPhase.ritual}
+                </Text>
+                <Text style={styles.cardSupport}>Illumination {Math.round(moonPhase.illumination * 100)}% · Moon age {moonPhase.ageDays} days</Text>
+                <View style={styles.actions}>
+                  <CosmicButton title="Open moon calendar" onPress={() => router.push('/moon-calendar')} />
+                </View>
+              </GradientCard>
+            </AnimatedCard>
+
+            <AnimatedCard index={4}>
+              <GradientCard accentColor={COLORS.coral}>
+                <Text style={styles.cardEyebrow}>RETROGRADE WATCH</Text>
+                <Text style={styles.cardTitle}>Check which planets are currently retrograde.</Text>
+                <Text style={styles.cardBody}>
+                  Use the tracker to see which live transit positions may feel slower, more reflective, or more revision-heavy today.
+                </Text>
+                <View style={styles.actions}>
+                  <CosmicButton title="Open retrogrades" onPress={() => router.push('/retrograde')} />
+                </View>
+              </GradientCard>
+            </AnimatedCard>
+
+            <AnimatedCard index={5}>
+              <GradientCard accentColor={COLORS.kp}>
+                <Text style={styles.cardEyebrow}>TRANSIT CENTER</Text>
+                <Text style={styles.cardTitle}>See the live aspects behind today’s reading.</Text>
+                <Text style={styles.cardBody}>
+                  Open the transit center for the exact support lines, pressure points, and current planetary positions touching your chart.
+                </Text>
+                <View style={styles.actions}>
+                  <CosmicButton title="Open transits" onPress={() => router.push('/reading/transits')} />
+                </View>
+              </GradientCard>
+            </AnimatedCard>
+
+            <AnimatedCard index={6}>
               <View style={styles.actions}>
                 {user.activeSystems.length >= 2 ? (
                   <CosmicButton title={todayCopy.openFull} onPress={() => router.push('/reading/unified')} />
@@ -547,36 +615,42 @@ export default function TodayScreen() {
         )}
 
         {activeSection === 'forecast' && periodForecast && (
-          <AnimatedCard index={0}>
-            {canViewForecast ? (
-              <ForecastPanel
-                forecast={periodForecast}
-                window={forecastWindow}
-                onChange={setForecastWindow}
-                language={language}
-              />
-            ) : (
-              <GradientCard accentColor={COLORS.starGold}>
-                <Text style={styles.cardEyebrow}>PREMIUM FORECAST</Text>
-                <Text style={styles.cardTitle}>The longer view is a premium reading.</Text>
-                <Text style={styles.cardBody}>
-                  Watch one rewarded ad for this forecast, or go Premium for weekly and monthly forecasts without ads.
-                </Text>
-                <View style={styles.actions}>
-                  {hasForecastUnlock ? (
-                    <CosmicButton title="Use ad unlock" onPress={() => void handleUseForecastUnlock()} />
-                  ) : (
-                    <CosmicButton
-                      title={forecastAdLoading ? 'Loading ad' : 'Watch ad to unlock'}
-                      onPress={() => void handleWatchForecastAd()}
-                      loading={forecastAdLoading}
-                    />
-                  )}
-                  <CosmicButton title="See Premium" onPress={() => router.push('/subscription')} variant="outline" />
-                </View>
-              </GradientCard>
-            )}
-          </AnimatedCard>
+          <>
+            <AnimatedCard index={0}>
+              {canViewForecast ? (
+                <ForecastPanel
+                  forecast={periodForecast}
+                  window={forecastWindow}
+                  onChange={setForecastWindow}
+                  language={language}
+                />
+              ) : (
+                <GradientCard accentColor={COLORS.starGold}>
+                  <Text style={styles.cardEyebrow}>PREMIUM FORECAST</Text>
+                  <Text style={styles.cardTitle}>The longer view is a premium reading.</Text>
+                  <Text style={styles.cardBody}>
+                    Watch one rewarded ad for this forecast, or go Premium for weekly and monthly forecasts without ads.
+                  </Text>
+                  <View style={styles.actions}>
+                    {hasForecastUnlock ? (
+                      <CosmicButton title="Use ad unlock" onPress={() => void handleUseForecastUnlock()} />
+                    ) : (
+                      <CosmicButton
+                        title={forecastAdLoading ? 'Loading ad' : 'Watch ad to unlock'}
+                        onPress={() => void handleWatchForecastAd()}
+                        loading={forecastAdLoading}
+                      />
+                    )}
+                    <CosmicButton title="See Premium" onPress={() => router.push('/subscription')} variant="outline" />
+                  </View>
+                </GradientCard>
+              )}
+            </AnimatedCard>
+
+            <AnimatedCard index={1}>
+              <PredictionFeedbackCard window="week" title="Did the short-term model resonate?" />
+            </AnimatedCard>
+          </>
         )}
 
         {activeSection === 'systems' && (
@@ -823,6 +897,11 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontSize: 14,
     lineHeight: 21,
+  },
+  cardSupport: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    lineHeight: 18,
   },
   timingText: {
     color: COLORS.textPrimary,

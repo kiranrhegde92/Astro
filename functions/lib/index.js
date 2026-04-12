@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.scheduledDailyReadings = exports.deleteMyAccount = exports.exportMyPredictionDataset = exports.savePredictionFeedback = exports.getPredictionModelSnapshot = exports.registerFCMToken = exports.calculateCompatibility = exports.getDailyReading = exports.calculateChart = void 0;
+exports.scheduledDailyReadings = exports.deleteMyAccount = exports.exportMyData = exports.exportMyPredictionDataset = exports.savePredictionFeedback = exports.getPredictionModelSnapshot = exports.registerFCMToken = exports.calculateCompatibility = exports.getDailyReading = exports.calculateChart = void 0;
 exports.generateReadingFromTransits = generateReadingFromTransits;
 const admin = __importStar(require("firebase-admin"));
 const https_1 = require("firebase-functions/v2/https");
@@ -50,6 +50,52 @@ admin.initializeApp();
 const db = admin.firestore();
 const DAILY_READING_VERSION = 4;
 const HIGH_IMPACT_TRANSIT_ORB = 1.25;
+function toJsonSafe(value) {
+    if (value === null || value === undefined)
+        return null;
+    if (typeof value === 'string' || typeof value === 'boolean')
+        return value;
+    if (typeof value === 'number')
+        return Number.isFinite(value) ? value : null;
+    if (value instanceof Date)
+        return value.toISOString();
+    if (value instanceof admin.firestore.Timestamp)
+        return value.toDate().toISOString();
+    if (value instanceof admin.firestore.GeoPoint) {
+        return { latitude: value.latitude, longitude: value.longitude };
+    }
+    if (value instanceof admin.firestore.DocumentReference) {
+        return { path: value.path };
+    }
+    if (Array.isArray(value))
+        return value.map((item) => toJsonSafe(item));
+    if (typeof value === 'object') {
+        const maybeBytes = value;
+        if (typeof maybeBytes.toBase64 === 'function') {
+            return { base64: maybeBytes.toBase64() };
+        }
+        const output = {};
+        for (const [key, nested] of Object.entries(value)) {
+            output[key] = toJsonSafe(nested);
+        }
+        return output;
+    }
+    return String(value);
+}
+function toJsonSafeObject(value) {
+    return toJsonSafe(value);
+}
+function sanitizeProfileForExport(value) {
+    const profile = Object.assign({}, value);
+    delete profile.fcmToken;
+    return toJsonSafeObject(profile);
+}
+async function readCollectionForExport(path) {
+    const snap = await db.collection(path).get();
+    return snap.docs
+        .map((doc) => (Object.assign({ documentId: doc.id }, toJsonSafeObject(doc.data()))))
+        .sort((a, b) => String(a.documentId).localeCompare(String(b.documentId)));
+}
 function isPremiumSubscriber(userData) {
     var _a, _b;
     const tier = (_a = userData.subscription) === null || _a === void 0 ? void 0 : _a.tier;
@@ -397,6 +443,44 @@ exports.exportMyPredictionDataset = (0, https_1.onCall)({ region: 'us-central1' 
             labelRate: rows.length ? Number((labeledRows.length / rows.length).toFixed(3)) : 0,
         },
         rows,
+    };
+});
+exports.exportMyData = (0, https_1.onCall)({ region: 'us-central1' }, async (request) => {
+    if (!request.auth)
+        throw new https_1.HttpsError('unauthenticated', 'Sign in required.');
+    const uid = request.auth.uid;
+    const [profileSnap, chartSnap, dailyReadings, partners, predictionRuns] = await Promise.all([
+        db.doc(`users/${uid}`).get(),
+        db.doc(`charts/${uid}`).get(),
+        readCollectionForExport(`dailyReadings/${uid}/dates`),
+        readCollectionForExport(`connections/${uid}/partners`),
+        readCollectionForExport(`predictionRuns/${uid}/runs`),
+    ]);
+    const sortedPredictionRuns = predictionRuns.sort((a, b) => {
+        var _a, _b, _c, _d, _e, _f, _g, _h;
+        const left = String((_d = (_c = (_b = (_a = a.updatedAt) !== null && _a !== void 0 ? _a : a.createdAt) !== null && _b !== void 0 ? _b : a.dateKey) !== null && _c !== void 0 ? _c : a.documentId) !== null && _d !== void 0 ? _d : '');
+        const right = String((_h = (_g = (_f = (_e = b.updatedAt) !== null && _e !== void 0 ? _e : b.createdAt) !== null && _f !== void 0 ? _f : b.dateKey) !== null && _g !== void 0 ? _g : b.documentId) !== null && _h !== void 0 ? _h : '');
+        return right.localeCompare(left);
+    });
+    return {
+        exportVersion: 1,
+        exportedAt: new Date().toISOString(),
+        uid,
+        profile: profileSnap.exists ? sanitizeProfileForExport(profileSnap.data()) : null,
+        chart: chartSnap.exists ? toJsonSafeObject(chartSnap.data()) : null,
+        dailyReadings,
+        connections: {
+            partners,
+        },
+        predictionRuns: sortedPredictionRuns,
+        counts: {
+            profile: profileSnap.exists ? 1 : 0,
+            chart: chartSnap.exists ? 1 : 0,
+            dailyReadings: dailyReadings.length,
+            partners: partners.length,
+            predictionRuns: sortedPredictionRuns.length,
+            predictionRunsWithFeedback: sortedPredictionRuns.filter((run) => run.feedback !== null && run.feedback !== undefined).length,
+        },
     };
 });
 // Deletes all server-side account data for the signed-in user, then removes auth.

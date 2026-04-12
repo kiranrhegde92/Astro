@@ -39,6 +39,7 @@
         }
       ],
       "expo-sharing",
+      "react-native-purchases",
       [
         "react-native-google-mobile-ads",
         {
@@ -48,6 +49,10 @@
       ]
     ],
     "extra": {
+      "revenueCat": {
+        "iosApiKey": "",
+        "androidApiKey": ""
+      },
       "adMob": {
         "useProductionAds": false,
         "rewardedAndroidUnitId": "",

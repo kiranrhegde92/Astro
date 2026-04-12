@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StarField } from '../src/components/ui/StarField';
@@ -10,12 +10,24 @@ import { ResetScrollView } from '../src/components/ui/ResetScrollView';
 import { useCosmicAlert } from '../src/components/ui/CosmicAlert';
 import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../src/constants/theme';
 import { showRewardedAd } from '../src/services/rewardedAds';
+import {
+  configure as configureRevenueCat,
+  fetchOfferings,
+  getSetupIssue as getRevenueCatSetupIssue,
+  isAvailable as isRevenueCatAvailable,
+  isConfigured as isRevenueCatConfigured,
+  purchasePackage,
+  restorePurchases,
+  type PremiumOfferings,
+  type RCPackage,
+} from '../src/services/revenueCat';
 import { useAdUnlockStore } from '../src/store/adUnlockStore';
 import { useUserStore } from '../src/store/userStore';
 import type { PremiumFeatureKey } from '../src/types/entitlements';
 import {
   PREMIUM_MONTHLY_PRICE,
   PREMIUM_YEARLY_PRICE,
+  getPremiumProductId,
   hasPremiumEntitlement,
 } from '../src/utils/subscription';
 import type { SubscriptionPlanPeriod } from '../src/types/user';
@@ -47,39 +59,158 @@ const AD_UNLOCKS: Array<{ feature: PremiumFeatureKey; title: string; desc: strin
   { feature: 'premium_share_card', title: 'No-watermark share card', desc: 'Export one cleaner premium card.' },
 ];
 
+function getRevenueCatFallbackMessage(action: 'subscribe' | 'restore'): string {
+  const actionText =
+    action === 'restore' ? 'Restoring purchases' : 'Starting a subscription';
+  const issue = getRevenueCatSetupIssue();
+  if (issue === 'web') {
+    return `${actionText} is only available in the iOS or Android app. Web builds cannot open App Store or Play Store billing.`;
+  }
+  if (issue === 'expo-go') {
+    return `${actionText} requires a development or production build. Expo Go does not include the RevenueCat native module.`;
+  }
+  if (issue === 'missing-api-key') {
+    return `${actionText} is disabled because the RevenueCat API key for this platform is not configured in app.json.`;
+  }
+  return `${actionText} is not ready yet. Check the RevenueCat native build setup and try again.`;
+}
+
+function getRevenueCatErrorMessage(error: unknown): string {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'message' in error &&
+    typeof (error as { message?: unknown }).message === 'string'
+  ) {
+    return (error as { message: string }).message;
+  }
+  return 'Store billing could not complete. Please try again.';
+}
+
 export default function SubscriptionScreen() {
   const router = useRouter();
   const user = useUserStore((state) => state.user);
-  const startTrial = useUserStore((state) => state.startTrial);
-  const upgradeSubscription = useUserStore((state) => state.upgradeSubscription);
+  const setSubscription = useUserStore((state) => state.setSubscription);
   const grantUnlock = useAdUnlockStore((state) => state.grantUnlock);
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlanPeriod>('yearly');
+  const [offerings, setOfferings] = useState<PremiumOfferings | null>(null);
+  const [purchaseLoading, setPurchaseLoading] = useState(false);
+  const [restoreLoading, setRestoreLoading] = useState(false);
   const [loadingFeature, setLoadingFeature] = useState<PremiumFeatureKey | null>(null);
   const { showAlert, alertModal } = useCosmicAlert();
 
+  useEffect(() => {
+    let mounted = true;
+    async function loadOfferings() {
+      if (!user?.id || getRevenueCatSetupIssue() || !isRevenueCatAvailable()) return;
+      await configureRevenueCat(user.id);
+      if (!mounted || !isRevenueCatConfigured()) return;
+      const nextOfferings = await fetchOfferings();
+      if (mounted) setOfferings(nextOfferings);
+    }
+
+    loadOfferings().catch((error) => {
+      console.warn('[Subscription] RevenueCat offerings failed:', error);
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, [user?.id]);
+
   if (!user) return null;
   const subscription = user.subscription;
-  const isAlreadyPremium = hasPremiumEntitlement(subscription) && subscription.status === 'active';
+  const isAlreadyPremium = hasPremiumEntitlement(subscription);
+  const monthlyPrice = offerings?.monthlyPrice ?? PREMIUM_MONTHLY_PRICE;
+  const yearlyPrice = offerings?.yearlyPrice ?? PREMIUM_YEARLY_PRICE;
+  const selectedProductId = getPremiumProductId(selectedPlan);
 
-  const handleSubscribe = () => {
+  const ensureRevenueCatReady = async () => {
+    if (!isRevenueCatAvailable()) return false;
+    await configureRevenueCat(user.id);
+    return isRevenueCatConfigured();
+  };
+
+  const getSelectedPackage = async (): Promise<RCPackage | null> => {
+    const ready = await ensureRevenueCatReady();
+    if (!ready) return null;
+
+    const nextOfferings = offerings ?? (await fetchOfferings());
+    if (nextOfferings) setOfferings(nextOfferings);
+    return selectedPlan === 'yearly'
+      ? nextOfferings?.yearlyPkg ?? null
+      : nextOfferings?.monthlyPkg ?? null;
+  };
+
+  const handleSubscribe = async () => {
+    if (purchaseLoading || restoreLoading) return;
     if (isAlreadyPremium) {
       router.back();
       return;
     }
-    // TODO: Replace with RevenueCat purchaseProduct() using monthly/yearly product IDs.
-    if (subscription.status === 'trial') {
-      upgradeSubscription(selectedPlan);
-    } else if (selectedPlan === 'yearly') {
-      startTrial();
-    } else {
-      upgradeSubscription(selectedPlan);
+
+    setPurchaseLoading(true);
+    try {
+      const pkg = await getSelectedPackage();
+      if (!pkg) {
+        const setupIssue = getRevenueCatSetupIssue();
+        showAlert(
+          setupIssue ? 'Purchases unavailable' : 'Plan unavailable',
+          setupIssue
+            ? getRevenueCatFallbackMessage('subscribe')
+            : `RevenueCat is configured, but ${selectedProductId} is not in the current offering. Check the RevenueCat product and offering setup.`,
+        );
+        return;
+      }
+
+      const nextSubscription = await purchasePackage(pkg);
+      if (!nextSubscription) {
+        showAlert('Purchase canceled', 'No subscription changes were made.');
+        return;
+      }
+
+      setSubscription(nextSubscription);
+      if (!hasPremiumEntitlement(nextSubscription)) {
+        showAlert(
+          'Purchase incomplete',
+          'The store purchase finished, but RevenueCat did not return the premium entitlement. Check the premium entitlement setup.',
+        );
+        return;
+      }
+
+      showAlert('Premium active', 'Your CosmicSelf+ access is active.', [
+        { text: 'Continue', onPress: () => router.back() },
+      ]);
+    } catch (error) {
+      showAlert('Purchase failed', getRevenueCatErrorMessage(error));
+    } finally {
+      setPurchaseLoading(false);
     }
-    router.back();
   };
 
-  const handleRestore = () => {
-    // TODO: In production, call RevenueCat.restorePurchases() here.
-    showAlert('Restore purchases', 'No previous premium subscription was found on this device.');
+  const handleRestore = async () => {
+    if (purchaseLoading || restoreLoading) return;
+
+    setRestoreLoading(true);
+    try {
+      const ready = await ensureRevenueCatReady();
+      if (!ready) {
+        showAlert('Restore unavailable', getRevenueCatFallbackMessage('restore'));
+        return;
+      }
+
+      const restoredSubscription = await restorePurchases();
+      setSubscription(restoredSubscription);
+      if (hasPremiumEntitlement(restoredSubscription)) {
+        showAlert('Purchases restored', 'Your CosmicSelf+ access is active.');
+      } else {
+        showAlert('Restore purchases', 'No previous premium subscription was found for this App Store or Play Store account.');
+      }
+    } catch (error) {
+      showAlert('Restore failed', getRevenueCatErrorMessage(error));
+    } finally {
+      setRestoreLoading(false);
+    }
   };
 
   const handleAdUnlock = async (feature: PremiumFeatureKey) => {
@@ -120,7 +251,7 @@ export default function SubscriptionScreen() {
             <View style={styles.planRow}>
               <PlanCard
                 title="Yearly"
-                price={PREMIUM_YEARLY_PRICE}
+                price={yearlyPrice}
                 period="per year"
                 detail="Best value"
                 active={selectedPlan === 'yearly'}
@@ -128,7 +259,7 @@ export default function SubscriptionScreen() {
               />
               <PlanCard
                 title="Monthly"
-                price={PREMIUM_MONTHLY_PRICE}
+                price={monthlyPrice}
                 period="per month"
                 detail="Flexible"
                 active={selectedPlan === 'monthly'}
@@ -137,13 +268,18 @@ export default function SubscriptionScreen() {
             </View>
 
             <CosmicButton
-              title={selectedPlan === 'yearly' ? 'Start 7-Day Free Trial' : 'Upgrade Monthly'}
-              onPress={handleSubscribe}
+              title={selectedPlan === 'yearly' ? 'Continue Yearly' : 'Continue Monthly'}
+              onPress={() => void handleSubscribe()}
               colors={[COLORS.starGold, COLORS.sunOrange]}
+              loading={purchaseLoading}
+              disabled={restoreLoading}
             />
             <Text style={styles.trialNote}>
-              Yearly starts with a 7-day trial. Monthly starts immediately until real store billing is wired.
+              Store billing is handled by App Store or Play Store via RevenueCat. Trial availability follows the store product setup.
             </Text>
+            {getRevenueCatSetupIssue() ? (
+              <Text style={styles.billingNote}>{getRevenueCatFallbackMessage('subscribe')}</Text>
+            ) : null}
           </>
         )}
 
@@ -186,14 +322,31 @@ export default function SubscriptionScreen() {
           </GradientCard>
         ) : null}
 
-        <TouchableOpacity onPress={handleRestore} style={styles.restoreBtn}>
-          <Text style={styles.restoreText}>Restore Purchases</Text>
+        <TouchableOpacity
+          onPress={() => void handleRestore()}
+          style={[styles.restoreBtn, (purchaseLoading || restoreLoading) && styles.restoreBtnDisabled]}
+          disabled={purchaseLoading || restoreLoading}
+        >
+          {restoreLoading ? (
+            <ActivityIndicator size="small" color={COLORS.textMuted} />
+          ) : (
+            <Text style={styles.restoreText}>Restore Purchases</Text>
+          )}
         </TouchableOpacity>
 
         <Text style={styles.legalText}>
-          Payment will be charged to your App Store or Play Store account after real billing is connected.
+          Payment will be charged to your App Store or Play Store account.
           Subscriptions renew automatically unless canceled in your device settings.
         </Text>
+        <View style={styles.legalLinksRow}>
+          <TouchableOpacity onPress={() => router.push('/legal/privacy')} activeOpacity={0.84}>
+            <Text style={styles.legalLink}>Privacy Policy</Text>
+          </TouchableOpacity>
+          <Text style={styles.legalDivider}>•</Text>
+          <TouchableOpacity onPress={() => router.push('/legal/terms')} activeOpacity={0.84}>
+            <Text style={styles.legalLink}>Terms of Service</Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.bottomPad} />
       </ResetScrollView>
@@ -295,6 +448,7 @@ const styles = StyleSheet.create({
   planPeriod: { color: COLORS.textSecondary, fontSize: 13, marginTop: 2 },
   planMonthly: { color: COLORS.starGold, fontSize: 12, fontWeight: '700', marginTop: SPACING.xs },
   trialNote: { color: COLORS.textMuted, fontSize: 12, lineHeight: 17, textAlign: 'center' },
+  billingNote: { color: COLORS.coral, fontSize: 12, lineHeight: 17, textAlign: 'center' },
   featuresTitle: { color: COLORS.textPrimary, fontSize: 16, fontFamily: FONTS.heading, marginBottom: SPACING.md },
   featureRow: {
     flexDirection: 'row',
@@ -334,7 +488,23 @@ const styles = StyleSheet.create({
   passBuyBtnDisabled: { opacity: 0.45 },
   passBuyText: { color: COLORS.tide, fontSize: 12, fontWeight: '800' },
   restoreBtn: { alignItems: 'center', paddingVertical: SPACING.sm },
+  restoreBtnDisabled: { opacity: 0.45 },
   restoreText: { color: COLORS.textMuted, fontSize: 13, textDecorationLine: 'underline' },
   legalText: { color: COLORS.textMuted, fontSize: 10, lineHeight: 16, textAlign: 'center' },
+  legalLinksRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+  },
+  legalLink: {
+    color: COLORS.iris,
+    fontSize: 12,
+    fontFamily: FONTS.heading,
+  },
+  legalDivider: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+  },
   bottomPad: { height: 20 },
 });
