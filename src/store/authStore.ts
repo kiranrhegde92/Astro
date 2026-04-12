@@ -1,7 +1,12 @@
 import { create } from 'zustand';
 import type { User } from 'firebase/auth';
 import Constants from 'expo-constants';
-import { onAuthChange, signOut } from '../services/authService';
+import {
+  isUserEmailVerified,
+  onAuthChange,
+  reloadCurrentUser,
+  signOut,
+} from '../services/authService';
 import { deleteMyAccount } from '../services/functionsService';
 import { useConnectionsStore } from './connectionsStore';
 import { useJournalStore } from './journalStore';
@@ -53,10 +58,55 @@ interface AuthState {
   /** True while we are fetching the Firestore profile after sign-in. */
   profileLoading: boolean;
   isAdmin: boolean;
+  isEmailVerified: boolean;
   initialize: () => () => void;
   refreshClaims: () => Promise<void>;
+  refreshEmailVerification: () => Promise<boolean>;
   logout: () => Promise<void>;
   deleteAccount: () => Promise<void>;
+}
+
+async function hydrateVerifiedUser(user: User, set: (state: Partial<AuthState>) => void) {
+  const currentLocalUser = useUserStore.getState().user;
+  const hasMatchingLocalUser = currentLocalUser?.id === user.uid;
+
+  if (currentLocalUser?.id && currentLocalUser.id !== user.uid) {
+    await Promise.all([
+      useUserStore.getState().clearUser(),
+      useAdUnlockStore.getState().clearAdUnlocks(),
+      useManagedProfilesStore.getState().clearManagedProfiles(),
+    ]);
+  }
+
+  const adminClaimPromise = resolveAdminClaim(user, true);
+
+  try {
+    const [profile, chart, isAdmin] = await Promise.all([
+      getUserProfile(user.uid),
+      getChart(user.uid).catch(() => null),
+      adminClaimPromise,
+    ]);
+
+    if (profile) {
+      useUserStore.getState().setUser({
+        ...profile,
+        ...buildProfilesFromServerChart(chart),
+        id: user.uid,
+      } as any);
+    } else if (!hasMatchingLocalUser) {
+      useUserStore.getState().setUser(buildPendingProfile(user) as any);
+    }
+
+    set({ isAdmin });
+  } catch (e) {
+    console.warn('Failed to load Firestore profile:', e);
+    if (!hasMatchingLocalUser) {
+      useUserStore.getState().setUser(buildPendingProfile(user) as any);
+    }
+    set({ isAdmin: await adminClaimPromise.catch(() => false) });
+  } finally {
+    set({ profileLoading: false });
+  }
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -64,71 +114,53 @@ export const useAuthStore = create<AuthState>((set) => ({
   authReady: false,
   profileLoading: false,
   isAdmin: false,
+  isEmailVerified: false,
 
   initialize: () => {
-    // Safety net: if Firebase auth never fires (offline / emulator network),
-    // unblock the loading screen after 4 seconds so the app isn't stuck forever.
     const timeout = setTimeout(() => {
-      set((s) => (s.authReady ? s : { ...s, authReady: true, profileLoading: false, isAdmin: false }));
+      set((s) => (s.authReady ? s : {
+        ...s,
+        authReady: true,
+        profileLoading: false,
+        isAdmin: false,
+        isEmailVerified: false,
+      }));
     }, 3000);
 
     const unsubscribe = onAuthChange(async (user) => {
       clearTimeout(timeout);
-      // Mark profileLoading=true BEFORE authReady so routing waits.
-      set({ firebaseUser: user, authReady: true, profileLoading: !!user, isAdmin: false });
+      const emailVerified = isUserEmailVerified(user);
+      set({
+        firebaseUser: user,
+        authReady: true,
+        profileLoading: !!user && emailVerified,
+        isAdmin: false,
+        isEmailVerified: emailVerified,
+      });
 
       if (user) {
-        const currentLocalUser = useUserStore.getState().user;
-        const hasMatchingLocalUser = currentLocalUser?.id === user.uid;
-
-        if (currentLocalUser?.id && currentLocalUser.id !== user.uid) {
+        if (!emailVerified) {
+          if (useUserStore.getState().user?.id !== user.uid) {
+            await useUserStore.getState().clearUser();
+          }
           await Promise.all([
-            useUserStore.getState().clearUser(),
             useAdUnlockStore.getState().clearAdUnlocks(),
             useManagedProfilesStore.getState().clearManagedProfiles(),
           ]);
+          set({ profileLoading: false, isAdmin: false });
+          return;
         }
 
-        const adminClaimPromise = resolveAdminClaim(user, true);
-
-        // Load Firestore profile
-        try {
-          const [profile, chart, isAdmin] = await Promise.all([
-            getUserProfile(user.uid),
-            getChart(user.uid).catch(() => null),
-            adminClaimPromise,
-          ]);
-
-          if (profile) {
-            useUserStore.getState().setUser({
-              ...profile,
-              ...buildProfilesFromServerChart(chart),
-              id: user.uid,
-            } as any);
-          } else if (!hasMatchingLocalUser) {
-            useUserStore.getState().setUser(buildPendingProfile(user) as any);
-          }
-
-          set({ isAdmin });
-        } catch (e) {
-          console.warn('Failed to load Firestore profile:', e);
-          if (!hasMatchingLocalUser) {
-            useUserStore.getState().setUser(buildPendingProfile(user) as any);
-          }
-          set({ isAdmin: await adminClaimPromise.catch(() => false) });
-        } finally {
-          set({ profileLoading: false });
-        }
-        // Request push permissions — skip entirely in Expo Go (SDK 53+ removed push support)
+        await hydrateVerifiedUser(user, set);
         if (!IS_EXPO_GO) {
           setTimeout(() => {
             import('../utils/notifications')
-              .then(m => m.requestNotificationPermissions())
+              .then((m) => m.requestNotificationPermissions())
               .catch(() => {});
           }, 3000);
         }
       } else {
-        set({ profileLoading: false, isAdmin: false });
+        set({ profileLoading: false, isAdmin: false, isEmailVerified: false });
         useUserStore.getState().clearUser();
       }
     });
@@ -141,9 +173,23 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isAdmin });
   },
 
+  refreshEmailVerification: async () => {
+    const user = await reloadCurrentUser();
+    const emailVerified = isUserEmailVerified(user);
+    set({ firebaseUser: user, isEmailVerified: emailVerified, profileLoading: !!user && emailVerified });
+
+    if (user && emailVerified) {
+      await hydrateVerifiedUser(user, set);
+    } else {
+      set({ profileLoading: false });
+    }
+
+    return emailVerified;
+  },
+
   logout: async () => {
     await signOut();
-    set({ firebaseUser: null, isAdmin: false });
+    set({ firebaseUser: null, isAdmin: false, isEmailVerified: false });
   },
 
   deleteAccount: async () => {
@@ -165,6 +211,6 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
 
     await clearLocalData();
-    set({ firebaseUser: null, profileLoading: false, authReady: true, isAdmin: false });
+    set({ firebaseUser: null, profileLoading: false, authReady: true, isAdmin: false, isEmailVerified: false });
   },
 }));

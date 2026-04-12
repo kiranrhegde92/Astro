@@ -81,6 +81,7 @@ export default function RootLayout() {
   const authReady = useAuthStore((s) => s.authReady);
   const profileLoading = useAuthStore((s) => s.profileLoading);
   const firebaseUser = useAuthStore((s) => s.firebaseUser);
+  const isEmailVerified = useAuthStore((s) => s.isEmailVerified);
 
   const loadUser = useUserStore((s) => s.loadUser);
   const user = useUserStore((s) => s.user);
@@ -143,6 +144,8 @@ export default function RootLayout() {
     const inAuth = segments[0] === '(auth)';
     const inOnboarding = segments[0] === '(onboarding)';
     const inAdmin = segments[0] === 'admin';
+    const routeSegments = segments as string[];
+    const inVerifyEmail = inAuth && routeSegments[1] === 'verify-email';
     const onboardingScreen = segments.slice(1)[0];
     const entryRoute = getEntryRoute(user);
 
@@ -164,6 +167,13 @@ export default function RootLayout() {
       return;
     }
 
+    if (!isEmailVerified) {
+      if (!inVerifyEmail) {
+        navigate('/(auth)/verify-email');
+      }
+      return;
+    }
+
     if (inAdmin) {
       return;
     }
@@ -179,7 +189,7 @@ export default function RootLayout() {
       }
       return;
     }
-  }, [authReady, firebaseUser, fontReady, onWebLanding, profileLoading, router, segments, user]);
+  }, [authReady, firebaseUser, fontReady, isEmailVerified, onWebLanding, profileLoading, router, segments, user]);
 
   useEffect(() => {
     const handleDeepLink = (event: { url: string }) => {

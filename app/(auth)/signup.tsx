@@ -16,7 +16,12 @@ import { StarField } from '../../src/components/ui/StarField';
 import { AnimatedPressable } from '../../src/components/ui/AnimatedPressable';
 import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../../src/constants/theme';
-import { signUp } from '../../src/services/authService';
+import {
+  getGoogleAuthErrorMessage,
+  isUserEmailVerified,
+  signInWithGoogle,
+  signUp,
+} from '../../src/services/authService';
 import { createUserProfile } from '../../src/services/firestoreService';
 import { useCosmicAlert } from '../../src/components/ui/CosmicAlert';
 
@@ -53,6 +58,7 @@ export default function SignupScreen() {
   const [showPass, setShowPass] = useState(false);
   const { showAlert, alertModal } = useCosmicAlert();
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string }>({});
 
   const validate = () => {
@@ -80,6 +86,9 @@ export default function SignupScreen() {
         language: 'en',
         subscription: { tier: 'free', status: 'active' },
       } as any);
+      if (!isUserEmailVerified(user)) {
+        showAlert('Verify your email', 'We sent a verification link. You can continue after confirming your email.');
+      }
       // onAuthChange in _layout.tsx handles routing to onboarding
     } catch (e: any) {
       const msg =
@@ -93,6 +102,19 @@ export default function SignupScreen() {
       showAlert('Sign up failed', msg);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    if (googleLoading) return;
+    setGoogleLoading(true);
+    try {
+      await signInWithGoogle();
+    } catch (error) {
+      const message = getGoogleAuthErrorMessage(error);
+      if (message) showAlert('Google sign-in failed', message);
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -176,7 +198,7 @@ export default function SignupScreen() {
           </Animated.View>
 
           <Animated.View entering={FadeInDown.delay(320).duration(400).springify().damping(20)}>
-            <AnimatedPressable onPress={handleSignup} disabled={loading} haptic>
+            <AnimatedPressable onPress={handleSignup} disabled={loading || googleLoading} haptic>
               <View style={styles.btn}>
                 {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Create Account</Text>}
               </View>
@@ -184,6 +206,22 @@ export default function SignupScreen() {
           </Animated.View>
 
           <Animated.View entering={FadeInDown.delay(420).duration(380).springify().damping(20)}>
+            <TouchableOpacity
+              onPress={() => void handleGoogleSignIn()}
+              style={styles.googleBtn}
+              activeOpacity={0.78}
+              disabled={googleLoading || loading}
+            >
+              {googleLoading ? (
+                <ActivityIndicator color={COLORS.textPrimary} />
+              ) : (
+                <>
+                  <Ionicons name="logo-google" size={18} color={COLORS.textPrimary} />
+                  <Text style={styles.googleText}>Continue with Google</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
               <Text style={styles.dividerText}>or</Text>
@@ -252,6 +290,23 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   btnText: { color: '#fff', fontSize: 15, fontFamily: FONTS.heading, letterSpacing: 1 },
+  googleBtn: {
+    minHeight: 54,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
+    borderColor: COLORS.glassBorderBright,
+    backgroundColor: 'rgba(255,255,255,0.82)',
+    marginBottom: SPACING.md,
+  },
+  googleText: {
+    color: COLORS.textPrimary,
+    fontSize: 15,
+    fontFamily: FONTS.heading,
+  },
   divider: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
   dividerLine: { flex: 1, height: 1, backgroundColor: 'rgba(36,40,74,0.12)' },
   dividerText: { color: COLORS.textMuted, fontSize: 13 },

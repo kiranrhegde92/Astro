@@ -70,13 +70,17 @@ export default function BirthDetailsScreen() {
       }
     }
 
-    if (hour) {
-      const h = parseInt(hour, 10);
-      if (isNaN(h) || h < 0 || h > 23) e.hour = t('onboarding.birthDetails.errors.invalidHour');
-    }
-    if (minute) {
-      const min = parseInt(minute, 10);
-      if (isNaN(min) || min < 0 || min > 59) e.minute = t('onboarding.birthDetails.errors.invalidMinute');
+    if ((hour && !minute) || (!hour && minute)) {
+      e.minute = t('onboarding.birthDetails.errors.timePair', { defaultValue: 'Enter both hour and minute, or leave both blank' });
+    } else {
+      if (hour) {
+        const h = parseInt(hour, 10);
+        if (isNaN(h) || h < 0 || h > 23) e.hour = t('onboarding.birthDetails.errors.invalidHour');
+      }
+      if (minute) {
+        const min = parseInt(minute, 10);
+        if (isNaN(min) || min < 0 || min > 59) e.minute = t('onboarding.birthDetails.errors.invalidMinute');
+      }
     }
 
     setErrors(e);
@@ -212,6 +216,7 @@ export default function BirthDetailsScreen() {
                   keyboardType="number-pad"
                   maxLength={2}
                   textAlign="center"
+                  selectTextOnFocus
                 />
                 {errors.day && <Text style={styles.errorText}>{errors.day}</Text>}
               </View>
@@ -227,6 +232,7 @@ export default function BirthDetailsScreen() {
                   keyboardType="number-pad"
                   maxLength={2}
                   textAlign="center"
+                  selectTextOnFocus
                 />
                 {errors.month && <Text style={styles.errorText}>{errors.month}</Text>}
               </View>
@@ -242,6 +248,7 @@ export default function BirthDetailsScreen() {
                   keyboardType="number-pad"
                   maxLength={4}
                   textAlign="center"
+                  selectTextOnFocus
                 />
                 {errors.year && <Text style={styles.errorText}>{errors.year}</Text>}
               </View>
@@ -263,6 +270,7 @@ export default function BirthDetailsScreen() {
                   keyboardType="number-pad"
                   maxLength={2}
                   textAlign="center"
+                  selectTextOnFocus
                 />
                 {errors.hour && <Text style={styles.errorText}>{errors.hour}</Text>}
               </View>
@@ -278,6 +286,7 @@ export default function BirthDetailsScreen() {
                   keyboardType="number-pad"
                   maxLength={2}
                   textAlign="center"
+                  selectTextOnFocus
                 />
                 {errors.minute && <Text style={styles.errorText}>{errors.minute}</Text>}
               </View>

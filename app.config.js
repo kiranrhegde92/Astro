@@ -19,7 +19,14 @@ const {
   EXPO_PUBLIC_ADMOB_REWARDED_ANDROID = '',
   EXPO_PUBLIC_ADMOB_REWARDED_IOS = '',
   EXPO_PUBLIC_ADMOB_USE_PRODUCTION = 'false',
+  EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID = '',
+  EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID = '',
+  EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME = '',
 } = process.env;
+
+const googleSignInPlugin = EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME
+  ? ['@react-native-google-signin/google-signin', { iosUrlScheme: EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME }]
+  : '@react-native-google-signin/google-signin';
 
 /** @type {import('expo/config').ExpoConfig} */
 module.exports = {
@@ -69,6 +76,7 @@ module.exports = {
         iosAppId: EXPO_PUBLIC_ADMOB_IOS_APP_ID,
       },
     ],
+    googleSignInPlugin,
   ],
   extra: {
     firebase: {
@@ -88,6 +96,11 @@ module.exports = {
       useProductionAds: EXPO_PUBLIC_ADMOB_USE_PRODUCTION === 'true',
       rewardedAndroidUnitId: EXPO_PUBLIC_ADMOB_REWARDED_ANDROID,
       rewardedIosUnitId: EXPO_PUBLIC_ADMOB_REWARDED_IOS,
+    },
+    googleAuth: {
+      webClientId: EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+      iosClientId: EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+      iosUrlScheme: EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME,
     },
   },
 };

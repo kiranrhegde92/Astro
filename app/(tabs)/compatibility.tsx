@@ -139,15 +139,22 @@ export default function CompatibilityScreen() {
   const [adLoading, setAdLoading] = useState(false);
   const [activePartnerProfile, setActivePartnerProfile] = useState<CosmicProfile | null>(null);
   const compatCardRef = useRef<ViewShot>(null);
+  const nameRef = useRef<TextInput>(null);
+  const dayRef = useRef<TextInput>(null);
+  const monthRef = useRef<TextInput>(null);
+  const yearRef = useRef<TextInput>(null);
+  const hourRef = useRef<TextInput>(null);
+  const minuteRef = useRef<TextInput>(null);
+  const placeRef = useRef<TextInput>(null);
 
   const dateValidation = useMemo(() => {
     if (!day || !month || !year) return { valid: false, error: '' };
     const d = parseInt(day, 10);
     const m = parseInt(month, 10);
     const y = parseInt(year, 10);
-    if (m < 1 || m > 12) return { valid: false, error: 'Month must be 1-12' };
-    if (d < 1 || d > 31) return { valid: false, error: 'Day must be 1-31' };
-    if (y < 1900 || y > new Date().getFullYear()) return { valid: false, error: `Year must be 1900-${new Date().getFullYear()}` };
+    if (Number.isNaN(d) || d < 1 || d > 31) return { valid: false, error: 'Day must be 1-31' };
+    if (Number.isNaN(m) || m < 1 || m > 12) return { valid: false, error: 'Month must be 1-12' };
+    if (Number.isNaN(y) || y < 1900 || y > new Date().getFullYear()) return { valid: false, error: `Year must be 1900-${new Date().getFullYear()}` };
     const daysInMonth = new Date(y, m, 0).getDate();
     if (d > daysInMonth) return { valid: false, error: `${month}/${year} only has ${daysInMonth} days` };
     const birthDate = new Date(y, m - 1, d);
@@ -180,6 +187,36 @@ export default function CompatibilityScreen() {
     { key: 'result', label: 'Result' },
     { key: 'history', label: 'History' },
   ];
+
+  const handleDay = (value: string) => {
+    const clean = value.replace(/\D/g, '').slice(0, 2);
+    setDay(clean);
+    if (clean.length === 2) monthRef.current?.focus();
+  };
+
+  const handleMonth = (value: string) => {
+    const clean = value.replace(/\D/g, '').slice(0, 2);
+    setMonth(clean);
+    if (clean.length === 2) yearRef.current?.focus();
+  };
+
+  const handleYear = (value: string) => {
+    const clean = value.replace(/\D/g, '').slice(0, 4);
+    setYear(clean);
+    if (clean.length === 4) hourRef.current?.focus();
+  };
+
+  const handleHour = (value: string) => {
+    const clean = value.replace(/\D/g, '').slice(0, 2);
+    setHour(clean);
+    if (clean.length === 2) minuteRef.current?.focus();
+  };
+
+  const handleMinute = (value: string) => {
+    const clean = value.replace(/\D/g, '').slice(0, 2);
+    setMinute(clean);
+    if (clean.length === 2) placeRef.current?.focus();
+  };
 
   useEffect(() => {
     setSelectedProfileId(params.profileId ?? null);
@@ -395,39 +432,48 @@ export default function CompatibilityScreen() {
             <GradientCard style={styles.formCard} accentColor={COLORS.iris}>
               <Text style={styles.sectionLabel}>Enter details manually</Text>
               <TextInput
+                ref={nameRef}
                 style={styles.input}
                 value={name}
                 onChangeText={setName}
                 placeholder="Their name"
                 placeholderTextColor={COLORS.textMuted}
+                returnKeyType="next"
+                onSubmitEditing={() => dayRef.current?.focus()}
               />
               <View style={styles.dateRow}>
                 <TextInput
+                  ref={dayRef}
                   style={[styles.input, styles.small]}
                   value={day}
-                  onChangeText={(value) => setDay(value.replace(/\D/g, '').slice(0, 2))}
+                  onChangeText={handleDay}
                   placeholder="DD"
                   placeholderTextColor={COLORS.textMuted}
                   keyboardType="number-pad"
                   maxLength={2}
+                  selectTextOnFocus
                 />
                 <TextInput
+                  ref={monthRef}
                   style={[styles.input, styles.small]}
                   value={month}
-                  onChangeText={(value) => setMonth(value.replace(/\D/g, '').slice(0, 2))}
+                  onChangeText={handleMonth}
                   placeholder="MM"
                   placeholderTextColor={COLORS.textMuted}
                   keyboardType="number-pad"
                   maxLength={2}
+                  selectTextOnFocus
                 />
                 <TextInput
+                  ref={yearRef}
                   style={[styles.input, styles.year]}
                   value={year}
-                  onChangeText={(value) => setYear(value.replace(/\D/g, '').slice(0, 4))}
+                  onChangeText={handleYear}
                   placeholder="YYYY"
                   placeholderTextColor={COLORS.textMuted}
                   keyboardType="number-pad"
                   maxLength={4}
+                  selectTextOnFocus
                 />
               </View>
               {dateValidation.error ? (
@@ -435,29 +481,36 @@ export default function CompatibilityScreen() {
               ) : null}
               <View style={styles.dateRow}>
                 <TextInput
+                  ref={hourRef}
                   style={[styles.input, styles.small]}
                   value={hour}
-                  onChangeText={(value) => setHour(value.replace(/\D/g, '').slice(0, 2))}
+                  onChangeText={handleHour}
                   placeholder="HH"
                   placeholderTextColor={COLORS.textMuted}
                   keyboardType="number-pad"
                   maxLength={2}
+                  selectTextOnFocus
                 />
                 <TextInput
+                  ref={minuteRef}
                   style={[styles.input, styles.small]}
                   value={minute}
-                  onChangeText={(value) => setMinute(value.replace(/\D/g, '').slice(0, 2))}
+                  onChangeText={handleMinute}
                   placeholder="MM"
                   placeholderTextColor={COLORS.textMuted}
                   keyboardType="number-pad"
                   maxLength={2}
+                  selectTextOnFocus
                 />
                 <TextInput
+                  ref={placeRef}
                   style={[styles.input, styles.place]}
                   value={place}
                   onChangeText={setPlace}
                   placeholder="Place"
                   placeholderTextColor={COLORS.textMuted}
+                  returnKeyType="done"
+                  onSubmitEditing={() => void handleCheck()}
                 />
               </View>
               {timeValidation.error ? (
