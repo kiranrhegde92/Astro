@@ -12,6 +12,7 @@ import {
   User,
 } from 'firebase/auth';
 import Constants from 'expo-constants';
+import { Platform, TurboModuleRegistry } from 'react-native';
 import { auth } from './firebase';
 
 type GoogleSignInModule = typeof import('@react-native-google-signin/google-signin');
@@ -26,6 +27,15 @@ const googleAuthConfig = Constants.expoConfig?.extra?.googleAuth as
 let googleConfigured = false;
 let googleSignInModule: GoogleSignInModule | null = null;
 
+function hasGoogleSignInNativeModule(): boolean {
+  if (Platform.OS === 'web') return false;
+  try {
+    return Boolean(TurboModuleRegistry.get('RNGoogleSignin'));
+  } catch {
+    return false;
+  }
+}
+
 function getGoogleWebClientId() {
   return googleAuthConfig?.webClientId || process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '';
 }
@@ -36,6 +46,12 @@ function getGoogleIosClientId() {
 
 function loadGoogleSignInModule(): GoogleSignInModule {
   if (googleSignInModule) return googleSignInModule;
+
+  if (!hasGoogleSignInNativeModule()) {
+    const error = new Error('Google Sign-In needs a dev build that includes the RNGoogleSignin native module.') as Error & { code?: string };
+    error.code = 'google/native-module-unavailable';
+    throw error;
+  }
 
   try {
     googleSignInModule = require('@react-native-google-signin/google-signin') as GoogleSignInModule;
