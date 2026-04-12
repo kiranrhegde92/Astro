@@ -7,27 +7,16 @@ import {
   PREMIUM_YEARLY_PRICE,
   PREMIUM_YEARLY_PRODUCT_ID,
 } from '../utils/subscription';
+import { RevenueCatConfig } from '../config';
 
 const ENTITLEMENT_ID = 'premium';
 const IS_EXPO_GO = Constants.appOwnership === 'expo';
 
-type RevenueCatExtra = {
-  iosApiKey?: string;
-  androidApiKey?: string;
-};
-
 export type RevenueCatSetupIssue = 'web' | 'expo-go' | 'missing-api-key';
 
-function getRevenueCatExtra(): RevenueCatExtra {
-  return (
-    (Constants.expoConfig?.extra as { revenueCat?: RevenueCatExtra } | undefined)
-      ?.revenueCat ?? {}
-  );
-}
-
 function getApiKey(): string | undefined {
-  const extra = getRevenueCatExtra();
-  return Platform.OS === 'ios' ? extra.iosApiKey : extra.androidApiKey;
+  const key = Platform.OS === 'ios' ? RevenueCatConfig.iosApiKey : RevenueCatConfig.androidApiKey;
+  return key || undefined;
 }
 
 /** Opaque handle — pass back to purchasePackage(). */

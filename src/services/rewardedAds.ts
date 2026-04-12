@@ -1,18 +1,8 @@
 import { Platform } from 'react-native';
-import Constants from 'expo-constants';
 import type { PremiumFeatureKey } from '../types/entitlements';
+import { AdMobConfig } from '../config';
 
 let initialized = false;
-
-type AdMobExtra = {
-  useProductionAds?: boolean;
-  rewardedAndroidUnitId?: string;
-  rewardedIosUnitId?: string;
-};
-
-function getAdMobExtra(): AdMobExtra {
-  return ((Constants.expoConfig?.extra as { adMob?: AdMobExtra } | undefined)?.adMob) ?? {};
-}
 
 export async function showRewardedAd(_feature: PremiumFeatureKey): Promise<boolean> {
   if (Platform.OS === 'web') return false;
@@ -20,11 +10,10 @@ export async function showRewardedAd(_feature: PremiumFeatureKey): Promise<boole
   try {
     const ads = await import('react-native-google-mobile-ads');
     const { RewardedAd, RewardedAdEventType, AdEventType, TestIds } = ads;
-    const extra = getAdMobExtra();
     const productionUnit =
-      Platform.OS === 'ios' ? extra.rewardedIosUnitId : extra.rewardedAndroidUnitId;
+      Platform.OS === 'ios' ? AdMobConfig.rewardedIosUnitId : AdMobConfig.rewardedAndroidUnitId;
     const adUnitId =
-      extra.useProductionAds && productionUnit ? productionUnit : TestIds.REWARDED;
+      AdMobConfig.useProductionAds && productionUnit ? productionUnit : TestIds.REWARDED;
 
     if (!initialized) {
       await ads.default().initialize();
