@@ -53,3 +53,7 @@ yarn-error.*
 /*.png
 /cloudflare-domdump*.txt
 /cloudflare-domdump-server.py
+
+# Firebase service account keys (never commit)
+serviceAccountKey.json
+**/serviceAccountKey.json
