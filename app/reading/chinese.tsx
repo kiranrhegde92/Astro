@@ -6,6 +6,7 @@ import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
 import { GradientCard } from '../../src/components/ui/GradientCard';
 import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { SectionTabs } from '../../src/components/ui/SectionTabs';
+import { BaZiPillars } from '../../src/components/chart/BaZiPillars';
 import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../../src/constants/theme';
 import { useActiveProfile } from '../../src/hooks/useActiveProfile';
 
@@ -133,6 +134,7 @@ export default function ChineseReadingScreen() {
                 <Text style={styles.subtitleText}>
                   Your complete Chinese astrological blueprint based on year, month, day, and hour
                 </Text>
+                <BaZiPillars pillars={pillars} />
                 <View style={styles.pillarsGrid}>
                   <PillarCard label="Year" stem={pillars.year.stem} animal={pillars.year.branch} element={pillars.year.element} />
                   <PillarCard label="Month" stem={pillars.month.stem} animal={pillars.month.branch} element={pillars.month.element} />

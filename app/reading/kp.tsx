@@ -8,6 +8,7 @@ import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { SectionTabs } from '../../src/components/ui/SectionTabs';
 import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../../src/constants/theme';
 import { useActiveProfile } from '../../src/hooks/useActiveProfile';
+import { calculateKPRulingPlanets } from '../../src/engines/kp/rulingPlanets';
 
 const AREA_EMOJIS: Record<string, string> = {
   career: '\u{1F4BC}', love: '\u{1F496}', health: '\u{1F49A}',
@@ -22,6 +23,7 @@ export default function KPReadingScreen() {
   if (!user?.kp) return null;
 
   const { cusps, significators, predictions } = user.kp;
+  const rulingPlanets = user.western ? calculateKPRulingPlanets({ western: user.western, vedic: user.vedic, kp: user.kp }) : null;
   const tabs = [
     { key: 'core', label: 'Core' },
     { key: 'insights', label: 'Insights' },
@@ -86,6 +88,34 @@ export default function KPReadingScreen() {
                 </View>
               ))}
             </GradientCard>
+
+            {rulingPlanets ? (
+              <GradientCard accentColor={COLORS.starGold}>
+                <Text style={styles.cardTitle}>Current Ruling Planets</Text>
+                <Text style={styles.subtitleText}>
+                  KP uses the ruling planets of the present moment as a precision timing layer for practical questions and horary-style judgement.
+                </Text>
+                <View style={styles.rulingGrid}>
+                  <View style={styles.rulingCard}>
+                    <Text style={styles.rulingLabel}>Day Lord</Text>
+                    <Text style={styles.rulingValue}>{rulingPlanets.dayLord}</Text>
+                  </View>
+                  <View style={styles.rulingCard}>
+                    <Text style={styles.rulingLabel}>Moon Star Lord</Text>
+                    <Text style={styles.rulingValue}>{rulingPlanets.moonStarLord}</Text>
+                  </View>
+                  <View style={styles.rulingCard}>
+                    <Text style={styles.rulingLabel}>Moon Sub Lord</Text>
+                    <Text style={styles.rulingValue}>{rulingPlanets.moonSubLord}</Text>
+                  </View>
+                  <View style={styles.rulingCard}>
+                    <Text style={styles.rulingLabel}>Lagna Lord</Text>
+                    <Text style={styles.rulingValue}>{rulingPlanets.lagnaLord}</Text>
+                  </View>
+                </View>
+                <SourceRef text="KP ruling planets combine weekday lord, Moon star/sub lord, and ascendant ruler for timing judgement." />
+              </GradientCard>
+            ) : null}
           </>
         )}
 
@@ -225,6 +255,16 @@ const styles = StyleSheet.create({
   strengthModerate: { backgroundColor: 'rgba(255, 171, 64, 0.15)' },
   strengthWeak: { backgroundColor: 'rgba(255, 255, 255, 0.05)' },
   strengthText: { color: COLORS.textSecondary, fontSize: 10, fontWeight: '600', textTransform: 'capitalize' },
+  rulingGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
+  rulingCard: {
+    width: '47%',
+    backgroundColor: 'rgba(255,255,255,0.58)',
+    borderRadius: BORDER_RADIUS.md,
+    padding: SPACING.md,
+    gap: 4,
+  },
+  rulingLabel: { color: COLORS.textMuted, fontSize: 10, fontFamily: FONTS.accent, letterSpacing: 0.8 },
+  rulingValue: { color: COLORS.textPrimary, fontSize: 15, fontFamily: FONTS.heading },
   sourceRef: {
     marginTop: SPACING.md, paddingTop: SPACING.sm,
     borderTopWidth: 1, borderTopColor: COLORS.glassBorder,

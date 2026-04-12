@@ -10,6 +10,7 @@ import { KundliChart } from '../../src/components/chart/KundliChart';
 import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../../src/constants/theme';
 import { useActiveProfile } from '../../src/hooks/useActiveProfile';
 import { toSiderealPositions } from '../../src/engines/vedic';
+import { calculateMuhurta } from '../../src/engines/vedic/muhurta';
 import { findActiveTransits } from '../../src/engines/common/transits';
 
 export default function VedicReadingScreen() {
@@ -42,6 +43,7 @@ export default function VedicReadingScreen() {
   );
 
   const now = new Date();
+  const muhurta = useMemo(() => calculateMuhurta(now, nakshatra), [nakshatra, now]);
   const dashaTimeline = dashas.map((d) => {
     const start = new Date(d.startDate);
     const end = new Date(d.endDate);
@@ -96,6 +98,37 @@ export default function VedicReadingScreen() {
                   ))}
                 </View>
                 <SourceRef text="Brihat Jataka by Varahamihira - Nakshatra Analysis" />
+              </GradientCard>
+            </ReAnimated.View>
+
+            <ReAnimated.View entering={isAndroid ? FadeInDown.duration(280).damping(24) : FadeInDown.delay(440).duration(450).springify().damping(16)}>
+              <GradientCard accentColor={COLORS.gold}>
+                <Text style={styles.cardTitle}>Muhurta / Auspicious Timing</Text>
+                <Text style={styles.subtitleText}>
+                  A compact panchang-style timing snapshot for today using tithi, yoga, karana, and your nakshatra context.
+                </Text>
+                <View style={styles.muhurtaGrid}>
+                  <View style={styles.muhurtaChip}>
+                    <Text style={styles.muhurtaLabel}>Tithi</Text>
+                    <Text style={styles.muhurtaValue}>{muhurta.tithi}</Text>
+                  </View>
+                  <View style={styles.muhurtaChip}>
+                    <Text style={styles.muhurtaLabel}>Nakshatra</Text>
+                    <Text style={styles.muhurtaValue}>{muhurta.nakshatra}</Text>
+                  </View>
+                  <View style={styles.muhurtaChip}>
+                    <Text style={styles.muhurtaLabel}>Yoga</Text>
+                    <Text style={styles.muhurtaValue}>{muhurta.yoga}</Text>
+                  </View>
+                  <View style={styles.muhurtaChip}>
+                    <Text style={styles.muhurtaLabel}>Karana</Text>
+                    <Text style={styles.muhurtaValue}>{muhurta.karana}</Text>
+                  </View>
+                </View>
+                <Text style={styles.muhurtaQuality}>Quality: {muhurta.quality}</Text>
+                <Text style={styles.detailText}>Good for: {muhurta.goodFor.join(', ')}.</Text>
+                <Text style={styles.detailText}>Avoid: {muhurta.avoid.join(', ')}.</Text>
+                <SourceRef text="Muhurta blends tithi, nakshatra, yoga, and karana to judge timing quality in Vedic electional astrology." />
               </GradientCard>
             </ReAnimated.View>
           </>
@@ -296,6 +329,17 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: COLORS.vedic,
   },
   padaDotActive: { backgroundColor: COLORS.vedic },
+  muhurtaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, marginBottom: SPACING.sm },
+  muhurtaChip: {
+    width: '47%',
+    backgroundColor: 'rgba(255,255,255,0.58)',
+    borderRadius: BORDER_RADIUS.md,
+    padding: SPACING.sm,
+    gap: 2,
+  },
+  muhurtaLabel: { color: COLORS.textMuted, fontSize: 10, fontFamily: FONTS.accent, letterSpacing: 0.7 },
+  muhurtaValue: { color: COLORS.textPrimary, fontSize: 14, fontFamily: FONTS.heading },
+  muhurtaQuality: { color: COLORS.gold, fontSize: 13, fontFamily: FONTS.heading, textTransform: 'capitalize', marginBottom: SPACING.xs },
   currentDashaLabel: {
     color: COLORS.starGold, fontSize: 15, fontWeight: '700',
     marginBottom: SPACING.md,

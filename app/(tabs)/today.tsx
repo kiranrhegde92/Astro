@@ -22,6 +22,7 @@ import { PredictionFeedbackCard } from '../../src/components/ui/PredictionFeedba
 import { buildForecastProfile } from '../../src/content/predictionSignals';
 import { fetchDailyReading } from '../../src/services/functionsService';
 import { showRewardedAd } from '../../src/services/rewardedAds';
+import { speakReading, stopReadingAudio } from '../../src/services/ttsService';
 import { scheduleHighImpactTransitAlert, cancelTransitAlerts } from '../../src/utils/notifications';
 import { useActiveProfile } from '../../src/hooks/useActiveProfile';
 import { useAdUnlockStore } from '../../src/store/adUnlockStore';
@@ -160,6 +161,7 @@ export default function TodayScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [forecastAdLoading, setForecastAdLoading] = useState(false);
   const [forecastUnlocked, setForecastUnlocked] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const { showAlert, alertModal } = useCosmicAlert();
   const today = useMemo(() => new Date(), []);
   const language = normalizeLanguage(user?.language ?? i18n.language);
@@ -306,6 +308,12 @@ export default function TodayScreen() {
     };
   }, [accountUser, isPremium, reading, transitAlertsEnabled]);
 
+  useEffect(() => {
+    return () => {
+      stopReadingAudio().catch(() => {});
+    };
+  }, []);
+
   const periodForecast = useMemo(() => {
     if (!profile) return null;
     return generatePeriodForecast(today, profile, forecastWindow);
@@ -389,6 +397,28 @@ export default function TodayScreen() {
   const timingNote = todayCopy.timingNoteText;
   const remedyText = todayCopy.remedyText;
   const focusArea = todayCopy.focusArea;
+  const handleToggleAudio = useCallback(async () => {
+    if (isSpeaking) {
+      await stopReadingAudio();
+      setIsSpeaking(false);
+      return;
+    }
+
+    const started = await speakReading({
+      headline,
+      heroBody,
+      bestUse,
+      watchFor,
+      affirmation: reading?.unified?.affirmation,
+    });
+
+    if (!started) {
+      showAlert('Audio unavailable', 'Spoken playback is available in the native app once expo-speech is installed in the build.');
+      return;
+    }
+
+    setIsSpeaking(true);
+  }, [bestUse, headline, heroBody, isSpeaking, reading?.unified?.affirmation, showAlert, watchFor]);
   const skyPreview = positions
     .filter((position) => ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn'].includes(position.planet))
     .slice(0, 6);
@@ -456,8 +486,14 @@ export default function TodayScreen() {
                     {isPremium ? <Ionicons name="star" size={10} color={COLORS.starGold} style={{ marginRight: 4 }} /> : null}
                     <Text style={[styles.heroBadgeText, isPremium && styles.heroBadgeTextPremium]}>{todayCopy.heroBadge}</Text>
                   </View>
-                  <View style={[styles.scorePill, { borderColor: `${toneAccent}55`, backgroundColor: `${toneAccent}22` }]}>
-                    <Text style={[styles.scoreText, { color: toneAccent }]}>{todayCopy.alignedText}</Text>
+                  <View style={styles.heroActionsRow}>
+                    <TouchableOpacity style={styles.heroAudioButton} onPress={() => void handleToggleAudio()} activeOpacity={0.84}>
+                      <Ionicons name={isSpeaking ? 'pause-circle-outline' : 'volume-high-outline'} size={16} color="#fffaf1" />
+                      <Text style={styles.heroAudioText}>{isSpeaking ? 'Stop audio' : 'Play audio'}</Text>
+                    </TouchableOpacity>
+                    <View style={[styles.scorePill, { borderColor: `${toneAccent}55`, backgroundColor: `${toneAccent}22` }]}>
+                      <Text style={[styles.scoreText, { color: toneAccent }]}>{todayCopy.alignedText}</Text>
+                    </View>
                   </View>
                 </View>
 
@@ -775,6 +811,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: SPACING.sm,
   },
+  heroActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
   heroBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -797,6 +838,22 @@ const styles = StyleSheet.create({
   },
   heroBadgeTextPremium: {
     color: COLORS.starGold,
+  },
+  heroAudioButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  heroAudioText: {
+    color: '#fffaf1',
+    fontSize: 11,
+    fontFamily: FONTS.heading,
   },
   scorePill: {
     borderRadius: BORDER_RADIUS.full,
