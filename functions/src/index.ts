@@ -68,6 +68,136 @@ function sanitizeProfileForExport(value: FirebaseFirestore.DocumentData): JsonSa
   return toJsonSafeObject(profile);
 }
 
+type AdminCallableRequest = {
+  auth?: {
+    uid?: string;
+    token?: Record<string, unknown>;
+  } | null;
+};
+
+type AdminSubscriptionTier = 'free' | 'premium';
+type AdminSubscriptionStatus = 'active' | 'expired' | 'trial' | 'unknown';
+type AdminBillingPeriod = 'monthly' | 'yearly';
+
+interface AdminUserListItem {
+  uid: string;
+  name: string;
+  email: string | null;
+  subscriptionTier: AdminSubscriptionTier;
+  subscriptionStatus: AdminSubscriptionStatus;
+  onboardingComplete: boolean;
+  chartCalculated: boolean;
+  disabled: boolean;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+interface AdminUserDetail extends AdminUserListItem {
+  language?: string | null;
+  activeSystems: string[];
+  cosmicPoints?: number;
+  streak?: number;
+  lastCheckIn?: string | null;
+  birthPlaceName?: string | null;
+  hasFcmToken: boolean;
+  chartSummary: {
+    hasWestern: boolean;
+    hasVedic: boolean;
+    hasChinese: boolean;
+    hasKP: boolean;
+  };
+  counts: {
+    dailyReadings: number;
+    predictionRuns: number;
+    connections: number;
+  };
+  rawProfile: Record<string, unknown>;
+}
+
+function assertAdmin(request: AdminCallableRequest) {
+  if (!request.auth?.uid) {
+    throw new HttpsError('unauthenticated', 'Sign in required.');
+  }
+
+  if (request.auth.token?.admin !== true) {
+    throw new HttpsError('permission-denied', 'Admin access required.');
+  }
+}
+
+function toIso(value: unknown): string | null {
+  if (!value) return null;
+  if (value instanceof admin.firestore.Timestamp) return value.toDate().toISOString();
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'object' && value !== null && 'toDate' in (value as Record<string, unknown>)) {
+    const converted = (value as { toDate?: () => Date }).toDate?.();
+    if (converted instanceof Date && !Number.isNaN(converted.getTime())) {
+      return converted.toISOString();
+    }
+  }
+  const parsed = new Date(String(value));
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
+
+function normalizeAdminSubscriptionTier(value: unknown): AdminSubscriptionTier {
+  return value === 'premium' || value === 'family' ? 'premium' : 'free';
+}
+
+function normalizeAdminSubscriptionStatus(value: unknown): AdminSubscriptionStatus {
+  return value === 'active' || value === 'expired' || value === 'trial' ? value : 'unknown';
+}
+
+function compareAdminUsersByRecency(a: AdminUserListItem, b: AdminUserListItem): number {
+  const aUpdated = new Date(a.updatedAt ?? a.createdAt ?? 0).getTime();
+  const bUpdated = new Date(b.updatedAt ?? b.createdAt ?? 0).getTime();
+  if (aUpdated !== bUpdated) return bUpdated - aUpdated;
+
+  const aCreated = new Date(a.createdAt ?? 0).getTime();
+  const bCreated = new Date(b.createdAt ?? 0).getTime();
+  return bCreated - aCreated;
+}
+
+function buildAdminUserListItem(
+  authUser: admin.auth.UserRecord,
+  profileData?: FirebaseFirestore.DocumentData | null
+): AdminUserListItem {
+  const name = typeof profileData?.name === 'string' && profileData.name.trim()
+    ? profileData.name.trim()
+    : authUser.displayName?.trim() || authUser.email?.split('@')[0] || authUser.uid;
+
+  return {
+    uid: authUser.uid,
+    name,
+    email: authUser.email ?? null,
+    subscriptionTier: normalizeAdminSubscriptionTier(profileData?.subscription?.tier),
+    subscriptionStatus: normalizeAdminSubscriptionStatus(profileData?.subscription?.status),
+    onboardingComplete: Boolean(profileData?.onboardingComplete),
+    chartCalculated: Boolean(profileData?.chartCalculated),
+    disabled: Boolean(profileData?.adminFlags?.disabled),
+    createdAt: toIso(profileData?.createdAt) ?? toIso(authUser.metadata.creationTime),
+    updatedAt: toIso(profileData?.updatedAt) ?? toIso(authUser.metadata.lastRefreshTime) ?? toIso(authUser.metadata.lastSignInTime),
+  };
+}
+
+async function writeAdminAuditLog(input: {
+  actorUid: string;
+  action: string;
+  targetUid: string;
+  details?: Record<string, unknown>;
+}) {
+  await db.collection('adminAuditLogs').add({
+    actorUid: input.actorUid,
+    action: input.action,
+    targetUid: input.targetUid,
+    details: toJsonSafeObject(input.details ?? {}),
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+}
+
+async function countCollectionDocuments(path: string, limit = 200): Promise<number> {
+  const snap = await db.collection(path).limit(limit).get();
+  return snap.size;
+}
+
 async function readCollectionForExport(path: string): Promise<JsonSafeObject[]> {
   const snap = await db.collection(path).get();
   return snap.docs
@@ -348,6 +478,244 @@ export const registerFCMToken = onCall({ region: 'us-central1' }, async (request
     fcmTokenUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
   return { success: true };
+});
+
+export const searchAdminUsers = onCall({ region: 'us-central1' }, async (request) => {
+  assertAdmin(request);
+
+  const rawQuery = typeof request.data?.query === 'string' ? request.data.query.trim() : '';
+  const normalizedQuery = rawQuery.toLowerCase();
+  const limit = Math.max(1, Math.min(Number(request.data?.limit ?? 20), 50));
+  const looksLikeUid = /^[A-Za-z0-9_-]{20,128}$/.test(rawQuery);
+
+  if (!rawQuery) {
+    return { users: [] as AdminUserListItem[] };
+  }
+
+  const authUsers = new Map<string, admin.auth.UserRecord>();
+
+  if (looksLikeUid) {
+    try {
+      const user = await admin.auth().getUser(rawQuery);
+      authUsers.set(user.uid, user);
+    } catch (error: any) {
+      if (error?.code !== 'auth/user-not-found') {
+        throw new HttpsError('internal', error?.message ?? 'Failed to search users.');
+      }
+    }
+  }
+
+  let pageToken: string | undefined;
+  let pages = 0;
+  while (authUsers.size < limit && pages < 5) {
+    const page = await admin.auth().listUsers(1000, pageToken);
+    for (const user of page.users) {
+      const email = user.email?.toLowerCase() ?? '';
+      const displayName = user.displayName?.toLowerCase() ?? '';
+      const uid = user.uid.toLowerCase();
+
+      if (email.includes(normalizedQuery) || displayName.includes(normalizedQuery) || uid.includes(normalizedQuery)) {
+        authUsers.set(user.uid, user);
+        if (authUsers.size >= limit) break;
+      }
+    }
+
+    if (!page.pageToken || authUsers.size >= limit) break;
+    pageToken = page.pageToken;
+    pages += 1;
+  }
+
+  const users = Array.from(authUsers.values());
+  const profileRefs = users.map((user) => db.doc(`users/${user.uid}`));
+  const profileSnaps = users.length ? await db.getAll(...profileRefs) : [];
+  const profileByUid = new Map(profileSnaps.map((snap) => [snap.id, snap.exists ? snap.data() : null]));
+
+  return {
+    users: users
+      .map((user) => buildAdminUserListItem(user, profileByUid.get(user.uid)))
+      .sort(compareAdminUsersByRecency)
+      .slice(0, limit),
+  };
+});
+
+export const getAdminUserDetail = onCall({ region: 'us-central1' }, async (request) => {
+  assertAdmin(request);
+
+  const uid = typeof request.data?.uid === 'string' ? request.data.uid.trim() : '';
+  if (!uid) {
+    throw new HttpsError('invalid-argument', 'uid is required.');
+  }
+
+  let authUser: admin.auth.UserRecord;
+  try {
+    authUser = await admin.auth().getUser(uid);
+  } catch (error: any) {
+    if (error?.code === 'auth/user-not-found') {
+      throw new HttpsError('not-found', 'User not found.');
+    }
+    throw new HttpsError('internal', error?.message ?? 'Failed to load user detail.');
+  }
+
+  const [profileSnap, chartSnap, dailyReadingsCount, predictionRunsCount, connectionsCount] = await Promise.all([
+    db.doc(`users/${uid}`).get(),
+    db.doc(`charts/${uid}`).get(),
+    countCollectionDocuments(`dailyReadings/${uid}/dates`),
+    countCollectionDocuments(`predictionRuns/${uid}/runs`),
+    countCollectionDocuments(`connections/${uid}/partners`),
+  ]);
+
+  const profileData = profileSnap.exists ? profileSnap.data() ?? {} : {};
+  const chartData = chartSnap.exists ? chartSnap.data() ?? {} : {};
+  const listItem = buildAdminUserListItem(authUser, profileData);
+
+  const rawProfile = profileSnap.exists ? sanitizeProfileForExport(profileData) : {};
+  delete rawProfile.fcmTokenUpdatedAt;
+
+  const birthDetails = (profileData.birthDetails ?? {}) as Record<string, unknown>;
+  const birthPlace = birthDetails.place as { name?: unknown } | undefined;
+
+  const detail: AdminUserDetail = {
+    ...listItem,
+    language: typeof profileData.language === 'string' ? profileData.language : null,
+    activeSystems: Array.isArray(profileData.activeSystems)
+      ? profileData.activeSystems.filter((system: unknown): system is string => typeof system === 'string')
+      : [],
+    cosmicPoints: typeof profileData.cosmicPoints === 'number' ? profileData.cosmicPoints : undefined,
+    streak: typeof profileData.streak === 'number' ? profileData.streak : undefined,
+    lastCheckIn: toIso(profileData.lastCheckIn),
+    birthPlaceName: typeof birthPlace?.name === 'string'
+      ? birthPlace.name
+      : typeof birthDetails.birthPlace === 'string'
+        ? birthDetails.birthPlace
+        : null,
+    hasFcmToken: typeof profileData.fcmToken === 'string' && profileData.fcmToken.length > 0,
+    chartSummary: {
+      hasWestern: Boolean(chartData.western),
+      hasVedic: Boolean(chartData.vedic),
+      hasChinese: Boolean(chartData.chinese),
+      hasKP: Boolean(chartData.kp),
+    },
+    counts: {
+      dailyReadings: dailyReadingsCount,
+      predictionRuns: predictionRunsCount,
+      connections: connectionsCount,
+    },
+    rawProfile,
+  };
+
+  return detail;
+});
+
+export const updateAdminUserSubscription = onCall({ region: 'us-central1' }, async (request) => {
+  assertAdmin(request);
+
+  const uid = typeof request.data?.uid === 'string' ? request.data.uid.trim() : '';
+  const subscription = request.data?.subscription as {
+    tier?: unknown;
+    status?: unknown;
+    billingPeriod?: unknown;
+    productId?: unknown;
+  } | undefined;
+
+  if (!uid) {
+    throw new HttpsError('invalid-argument', 'uid is required.');
+  }
+
+  if (!subscription || (subscription.tier !== 'free' && subscription.tier !== 'premium')) {
+    throw new HttpsError('invalid-argument', 'subscription tier must be free or premium.');
+  }
+
+  if (subscription.status !== 'active' && subscription.status !== 'expired' && subscription.status !== 'trial') {
+    throw new HttpsError('invalid-argument', 'subscription status must be active, expired, or trial.');
+  }
+
+  if (
+    subscription.billingPeriod !== undefined &&
+    subscription.billingPeriod !== 'monthly' &&
+    subscription.billingPeriod !== 'yearly'
+  ) {
+    throw new HttpsError('invalid-argument', 'billingPeriod must be monthly or yearly when provided.');
+  }
+
+  const nextSubscription: {
+    tier: AdminSubscriptionTier;
+    status: Exclude<AdminSubscriptionStatus, 'unknown'>;
+    billingPeriod?: AdminBillingPeriod;
+    productId?: string;
+  } = {
+    tier: subscription.tier,
+    status: subscription.status,
+  };
+
+  if (subscription.billingPeriod === 'monthly' || subscription.billingPeriod === 'yearly') {
+    nextSubscription.billingPeriod = subscription.billingPeriod;
+  }
+  if (typeof subscription.productId === 'string' && subscription.productId.trim()) {
+    nextSubscription.productId = subscription.productId.trim();
+  }
+
+  await db.doc(`users/${uid}`).set({
+    subscription: nextSubscription,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  await writeAdminAuditLog({
+    actorUid: request.auth!.uid!,
+    action: 'updateAdminUserSubscription',
+    targetUid: uid,
+    details: { subscription: nextSubscription },
+  });
+
+  return { success: true, uid, message: 'Subscription updated.' };
+});
+
+export const setAdminUserDisabled = onCall({ region: 'us-central1' }, async (request) => {
+  assertAdmin(request);
+
+  const uid = typeof request.data?.uid === 'string' ? request.data.uid.trim() : '';
+  const disabled = request.data?.disabled;
+
+  if (!uid || typeof disabled !== 'boolean') {
+    throw new HttpsError('invalid-argument', 'uid and disabled are required.');
+  }
+
+  await db.doc(`users/${uid}`).set({
+    adminFlags: { disabled },
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  await writeAdminAuditLog({
+    actorUid: request.auth!.uid!,
+    action: 'setAdminUserDisabled',
+    targetUid: uid,
+    details: { disabled },
+  });
+
+  return { success: true, uid, message: disabled ? 'User disabled.' : 'User re-enabled.' };
+});
+
+export const clearAdminUserPushToken = onCall({ region: 'us-central1' }, async (request) => {
+  assertAdmin(request);
+
+  const uid = typeof request.data?.uid === 'string' ? request.data.uid.trim() : '';
+  if (!uid) {
+    throw new HttpsError('invalid-argument', 'uid is required.');
+  }
+
+  await db.doc(`users/${uid}`).set({
+    fcmToken: admin.firestore.FieldValue.delete(),
+    fcmTokenUpdatedAt: admin.firestore.FieldValue.delete(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  await writeAdminAuditLog({
+    actorUid: request.auth!.uid!,
+    action: 'clearAdminUserPushToken',
+    targetUid: uid,
+    details: {},
+  });
+
+  return { success: true, uid, message: 'Push token cleared.' };
 });
 
 const VALID_PREDICTION_WINDOWS: PredictionWindow[] = ['today', 'week', 'month', 'life'];

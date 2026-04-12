@@ -137,6 +137,7 @@ export default function RootLayout() {
 
     const inAuth = segments[0] === '(auth)';
     const inOnboarding = segments[0] === '(onboarding)';
+    const inAdmin = segments[0] === 'admin';
     const onboardingScreen = segments.slice(1)[0];
     const entryRoute = getEntryRoute(user);
 
@@ -155,6 +156,10 @@ export default function RootLayout() {
       if (!inAuth) {
         navigate('/(auth)/login');
       }
+      return;
+    }
+
+    if (inAdmin) {
       return;
     }
 

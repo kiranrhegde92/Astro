@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.scheduledDailyReadings = exports.deleteMyAccount = exports.exportMyData = exports.exportMyPredictionDataset = exports.savePredictionFeedback = exports.getPredictionModelSnapshot = exports.registerFCMToken = exports.calculateCompatibility = exports.getDailyReading = exports.calculateChart = void 0;
+exports.scheduledDailyReadings = exports.deleteMyAccount = exports.exportMyData = exports.exportMyPredictionDataset = exports.savePredictionFeedback = exports.getPredictionModelSnapshot = exports.clearAdminUserPushToken = exports.setAdminUserDisabled = exports.updateAdminUserSubscription = exports.getAdminUserDetail = exports.searchAdminUsers = exports.registerFCMToken = exports.calculateCompatibility = exports.getDailyReading = exports.calculateChart = void 0;
 exports.generateReadingFromTransits = generateReadingFromTransits;
 const admin = __importStar(require("firebase-admin"));
 const https_1 = require("firebase-functions/v2/https");
@@ -89,6 +89,80 @@ function sanitizeProfileForExport(value) {
     const profile = Object.assign({}, value);
     delete profile.fcmToken;
     return toJsonSafeObject(profile);
+}
+function assertAdmin(request) {
+    var _a, _b;
+    if (!((_a = request.auth) === null || _a === void 0 ? void 0 : _a.uid)) {
+        throw new https_1.HttpsError('unauthenticated', 'Sign in required.');
+    }
+    if (((_b = request.auth.token) === null || _b === void 0 ? void 0 : _b.admin) !== true) {
+        throw new https_1.HttpsError('permission-denied', 'Admin access required.');
+    }
+}
+function toIso(value) {
+    var _a, _b;
+    if (!value)
+        return null;
+    if (value instanceof admin.firestore.Timestamp)
+        return value.toDate().toISOString();
+    if (value instanceof Date)
+        return value.toISOString();
+    if (typeof value === 'object' && value !== null && 'toDate' in value) {
+        const converted = (_b = (_a = value).toDate) === null || _b === void 0 ? void 0 : _b.call(_a);
+        if (converted instanceof Date && !Number.isNaN(converted.getTime())) {
+            return converted.toISOString();
+        }
+    }
+    const parsed = new Date(String(value));
+    return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
+function normalizeAdminSubscriptionTier(value) {
+    return value === 'premium' || value === 'family' ? 'premium' : 'free';
+}
+function normalizeAdminSubscriptionStatus(value) {
+    return value === 'active' || value === 'expired' || value === 'trial' ? value : 'unknown';
+}
+function compareAdminUsersByRecency(a, b) {
+    var _a, _b, _c, _d, _e, _f;
+    const aUpdated = new Date((_b = (_a = a.updatedAt) !== null && _a !== void 0 ? _a : a.createdAt) !== null && _b !== void 0 ? _b : 0).getTime();
+    const bUpdated = new Date((_d = (_c = b.updatedAt) !== null && _c !== void 0 ? _c : b.createdAt) !== null && _d !== void 0 ? _d : 0).getTime();
+    if (aUpdated !== bUpdated)
+        return bUpdated - aUpdated;
+    const aCreated = new Date((_e = a.createdAt) !== null && _e !== void 0 ? _e : 0).getTime();
+    const bCreated = new Date((_f = b.createdAt) !== null && _f !== void 0 ? _f : 0).getTime();
+    return bCreated - aCreated;
+}
+function buildAdminUserListItem(authUser, profileData) {
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j;
+    const name = typeof (profileData === null || profileData === void 0 ? void 0 : profileData.name) === 'string' && profileData.name.trim()
+        ? profileData.name.trim()
+        : ((_a = authUser.displayName) === null || _a === void 0 ? void 0 : _a.trim()) || ((_b = authUser.email) === null || _b === void 0 ? void 0 : _b.split('@')[0]) || authUser.uid;
+    return {
+        uid: authUser.uid,
+        name,
+        email: (_c = authUser.email) !== null && _c !== void 0 ? _c : null,
+        subscriptionTier: normalizeAdminSubscriptionTier((_d = profileData === null || profileData === void 0 ? void 0 : profileData.subscription) === null || _d === void 0 ? void 0 : _d.tier),
+        subscriptionStatus: normalizeAdminSubscriptionStatus((_e = profileData === null || profileData === void 0 ? void 0 : profileData.subscription) === null || _e === void 0 ? void 0 : _e.status),
+        onboardingComplete: Boolean(profileData === null || profileData === void 0 ? void 0 : profileData.onboardingComplete),
+        chartCalculated: Boolean(profileData === null || profileData === void 0 ? void 0 : profileData.chartCalculated),
+        disabled: Boolean((_f = profileData === null || profileData === void 0 ? void 0 : profileData.adminFlags) === null || _f === void 0 ? void 0 : _f.disabled),
+        createdAt: (_g = toIso(profileData === null || profileData === void 0 ? void 0 : profileData.createdAt)) !== null && _g !== void 0 ? _g : toIso(authUser.metadata.creationTime),
+        updatedAt: (_j = (_h = toIso(profileData === null || profileData === void 0 ? void 0 : profileData.updatedAt)) !== null && _h !== void 0 ? _h : toIso(authUser.metadata.lastRefreshTime)) !== null && _j !== void 0 ? _j : toIso(authUser.metadata.lastSignInTime),
+    };
+}
+async function writeAdminAuditLog(input) {
+    var _a;
+    await db.collection('adminAuditLogs').add({
+        actorUid: input.actorUid,
+        action: input.action,
+        targetUid: input.targetUid,
+        details: toJsonSafeObject((_a = input.details) !== null && _a !== void 0 ? _a : {}),
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+}
+async function countCollectionDocuments(path, limit = 200) {
+    const snap = await db.collection(path).limit(limit).get();
+    return snap.size;
 }
 async function readCollectionForExport(path) {
     const snap = await db.collection(path).get();
@@ -328,6 +402,188 @@ exports.registerFCMToken = (0, https_1.onCall)({ region: 'us-central1' }, async 
         fcmTokenUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
     return { success: true };
+});
+exports.searchAdminUsers = (0, https_1.onCall)({ region: 'us-central1' }, async (request) => {
+    var _a, _b, _c, _d, _e, _f, _g, _h;
+    assertAdmin(request);
+    const rawQuery = typeof ((_a = request.data) === null || _a === void 0 ? void 0 : _a.query) === 'string' ? request.data.query.trim() : '';
+    const normalizedQuery = rawQuery.toLowerCase();
+    const limit = Math.max(1, Math.min(Number((_c = (_b = request.data) === null || _b === void 0 ? void 0 : _b.limit) !== null && _c !== void 0 ? _c : 20), 50));
+    const looksLikeUid = /^[A-Za-z0-9_-]{20,128}$/.test(rawQuery);
+    if (!rawQuery) {
+        return { users: [] };
+    }
+    const authUsers = new Map();
+    if (looksLikeUid) {
+        try {
+            const user = await admin.auth().getUser(rawQuery);
+            authUsers.set(user.uid, user);
+        }
+        catch (error) {
+            if ((error === null || error === void 0 ? void 0 : error.code) !== 'auth/user-not-found') {
+                throw new https_1.HttpsError('internal', (_d = error === null || error === void 0 ? void 0 : error.message) !== null && _d !== void 0 ? _d : 'Failed to search users.');
+            }
+        }
+    }
+    let pageToken;
+    let pages = 0;
+    while (authUsers.size < limit && pages < 5) {
+        const page = await admin.auth().listUsers(1000, pageToken);
+        for (const user of page.users) {
+            const email = (_f = (_e = user.email) === null || _e === void 0 ? void 0 : _e.toLowerCase()) !== null && _f !== void 0 ? _f : '';
+            const displayName = (_h = (_g = user.displayName) === null || _g === void 0 ? void 0 : _g.toLowerCase()) !== null && _h !== void 0 ? _h : '';
+            const uid = user.uid.toLowerCase();
+            if (email.includes(normalizedQuery) || displayName.includes(normalizedQuery) || uid.includes(normalizedQuery)) {
+                authUsers.set(user.uid, user);
+                if (authUsers.size >= limit)
+                    break;
+            }
+        }
+        if (!page.pageToken || authUsers.size >= limit)
+            break;
+        pageToken = page.pageToken;
+        pages += 1;
+    }
+    const users = Array.from(authUsers.values());
+    const profileRefs = users.map((user) => db.doc(`users/${user.uid}`));
+    const profileSnaps = users.length ? await db.getAll(...profileRefs) : [];
+    const profileByUid = new Map(profileSnaps.map((snap) => [snap.id, snap.exists ? snap.data() : null]));
+    return {
+        users: users
+            .map((user) => buildAdminUserListItem(user, profileByUid.get(user.uid)))
+            .sort(compareAdminUsersByRecency)
+            .slice(0, limit),
+    };
+});
+exports.getAdminUserDetail = (0, https_1.onCall)({ region: 'us-central1' }, async (request) => {
+    var _a, _b, _c, _d, _e;
+    assertAdmin(request);
+    const uid = typeof ((_a = request.data) === null || _a === void 0 ? void 0 : _a.uid) === 'string' ? request.data.uid.trim() : '';
+    if (!uid) {
+        throw new https_1.HttpsError('invalid-argument', 'uid is required.');
+    }
+    let authUser;
+    try {
+        authUser = await admin.auth().getUser(uid);
+    }
+    catch (error) {
+        if ((error === null || error === void 0 ? void 0 : error.code) === 'auth/user-not-found') {
+            throw new https_1.HttpsError('not-found', 'User not found.');
+        }
+        throw new https_1.HttpsError('internal', (_b = error === null || error === void 0 ? void 0 : error.message) !== null && _b !== void 0 ? _b : 'Failed to load user detail.');
+    }
+    const [profileSnap, chartSnap, dailyReadingsCount, predictionRunsCount, connectionsCount] = await Promise.all([
+        db.doc(`users/${uid}`).get(),
+        db.doc(`charts/${uid}`).get(),
+        countCollectionDocuments(`dailyReadings/${uid}/dates`),
+        countCollectionDocuments(`predictionRuns/${uid}/runs`),
+        countCollectionDocuments(`connections/${uid}/partners`),
+    ]);
+    const profileData = profileSnap.exists ? (_c = profileSnap.data()) !== null && _c !== void 0 ? _c : {} : {};
+    const chartData = chartSnap.exists ? (_d = chartSnap.data()) !== null && _d !== void 0 ? _d : {} : {};
+    const listItem = buildAdminUserListItem(authUser, profileData);
+    const rawProfile = profileSnap.exists ? sanitizeProfileForExport(profileData) : {};
+    delete rawProfile.fcmTokenUpdatedAt;
+    const birthDetails = ((_e = profileData.birthDetails) !== null && _e !== void 0 ? _e : {});
+    const birthPlace = birthDetails.place;
+    const detail = Object.assign(Object.assign({}, listItem), { language: typeof profileData.language === 'string' ? profileData.language : null, activeSystems: Array.isArray(profileData.activeSystems)
+            ? profileData.activeSystems.filter((system) => typeof system === 'string')
+            : [], cosmicPoints: typeof profileData.cosmicPoints === 'number' ? profileData.cosmicPoints : undefined, streak: typeof profileData.streak === 'number' ? profileData.streak : undefined, lastCheckIn: toIso(profileData.lastCheckIn), birthPlaceName: typeof (birthPlace === null || birthPlace === void 0 ? void 0 : birthPlace.name) === 'string'
+            ? birthPlace.name
+            : typeof birthDetails.birthPlace === 'string'
+                ? birthDetails.birthPlace
+                : null, hasFcmToken: typeof profileData.fcmToken === 'string' && profileData.fcmToken.length > 0, chartSummary: {
+            hasWestern: Boolean(chartData.western),
+            hasVedic: Boolean(chartData.vedic),
+            hasChinese: Boolean(chartData.chinese),
+            hasKP: Boolean(chartData.kp),
+        }, counts: {
+            dailyReadings: dailyReadingsCount,
+            predictionRuns: predictionRunsCount,
+            connections: connectionsCount,
+        }, rawProfile });
+    return detail;
+});
+exports.updateAdminUserSubscription = (0, https_1.onCall)({ region: 'us-central1' }, async (request) => {
+    var _a, _b;
+    assertAdmin(request);
+    const uid = typeof ((_a = request.data) === null || _a === void 0 ? void 0 : _a.uid) === 'string' ? request.data.uid.trim() : '';
+    const subscription = (_b = request.data) === null || _b === void 0 ? void 0 : _b.subscription;
+    if (!uid) {
+        throw new https_1.HttpsError('invalid-argument', 'uid is required.');
+    }
+    if (!subscription || (subscription.tier !== 'free' && subscription.tier !== 'premium')) {
+        throw new https_1.HttpsError('invalid-argument', 'subscription tier must be free or premium.');
+    }
+    if (subscription.status !== 'active' && subscription.status !== 'expired' && subscription.status !== 'trial') {
+        throw new https_1.HttpsError('invalid-argument', 'subscription status must be active, expired, or trial.');
+    }
+    if (subscription.billingPeriod !== undefined &&
+        subscription.billingPeriod !== 'monthly' &&
+        subscription.billingPeriod !== 'yearly') {
+        throw new https_1.HttpsError('invalid-argument', 'billingPeriod must be monthly or yearly when provided.');
+    }
+    const nextSubscription = {
+        tier: subscription.tier,
+        status: subscription.status,
+    };
+    if (subscription.billingPeriod === 'monthly' || subscription.billingPeriod === 'yearly') {
+        nextSubscription.billingPeriod = subscription.billingPeriod;
+    }
+    if (typeof subscription.productId === 'string' && subscription.productId.trim()) {
+        nextSubscription.productId = subscription.productId.trim();
+    }
+    await db.doc(`users/${uid}`).set({
+        subscription: nextSubscription,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    await writeAdminAuditLog({
+        actorUid: request.auth.uid,
+        action: 'updateAdminUserSubscription',
+        targetUid: uid,
+        details: { subscription: nextSubscription },
+    });
+    return { success: true, uid, message: 'Subscription updated.' };
+});
+exports.setAdminUserDisabled = (0, https_1.onCall)({ region: 'us-central1' }, async (request) => {
+    var _a, _b;
+    assertAdmin(request);
+    const uid = typeof ((_a = request.data) === null || _a === void 0 ? void 0 : _a.uid) === 'string' ? request.data.uid.trim() : '';
+    const disabled = (_b = request.data) === null || _b === void 0 ? void 0 : _b.disabled;
+    if (!uid || typeof disabled !== 'boolean') {
+        throw new https_1.HttpsError('invalid-argument', 'uid and disabled are required.');
+    }
+    await db.doc(`users/${uid}`).set({
+        adminFlags: { disabled },
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    await writeAdminAuditLog({
+        actorUid: request.auth.uid,
+        action: 'setAdminUserDisabled',
+        targetUid: uid,
+        details: { disabled },
+    });
+    return { success: true, uid, message: disabled ? 'User disabled.' : 'User re-enabled.' };
+});
+exports.clearAdminUserPushToken = (0, https_1.onCall)({ region: 'us-central1' }, async (request) => {
+    var _a;
+    assertAdmin(request);
+    const uid = typeof ((_a = request.data) === null || _a === void 0 ? void 0 : _a.uid) === 'string' ? request.data.uid.trim() : '';
+    if (!uid) {
+        throw new https_1.HttpsError('invalid-argument', 'uid is required.');
+    }
+    await db.doc(`users/${uid}`).set({
+        fcmToken: admin.firestore.FieldValue.delete(),
+        fcmTokenUpdatedAt: admin.firestore.FieldValue.delete(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    await writeAdminAuditLog({
+        actorUid: request.auth.uid,
+        action: 'clearAdminUserPushToken',
+        targetUid: uid,
+        details: {},
+    });
+    return { success: true, uid, message: 'Push token cleared.' };
 });
 const VALID_PREDICTION_WINDOWS = ['today', 'week', 'month', 'life'];
 const PREDICTION_MODEL_VERSION = '0.1.0';
