@@ -270,7 +270,7 @@ In the Firebase Console:
 
 To grant admin access to your own account after first sign-up:
 ```bash
-node scripts/bootstrap-admin.js <your-uid>
+node scripts/admin/set-admin-claim.js <your-uid>
 ```
 
 Find your UID in: **Firebase Console → Authentication → Users → copy UID**
