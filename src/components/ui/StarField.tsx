@@ -11,6 +11,7 @@
 
 import React, { useEffect, useMemo, useRef } from 'react';
 import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { useSettingsStore } from '../../store/settingsStore';
 import Animated, {
   Easing,
   interpolate,
@@ -61,8 +62,17 @@ interface StarFieldProps {
 }
 
 /* ─── Component ─────────────────────────────────────────────────────────── */
+const LIGHT_BG: [string, string, string] = ['#fff8f2', '#f4ebf8', '#ddd5ff'];
+const DARK_BG:  [string, string, string] = ['#0d0e1f', '#1a1430', '#130d25'];
+
+const LIGHT_BLOBS = ['#f5d4b2', '#c9b4e8', '#a8c4e8', '#7b5ea0'];
+const DARK_BLOBS  = ['#3b1f6e', '#1e3a6e', '#4a1060', '#1a2d60'];
+
 export function StarField({ children }: StarFieldProps) {
   const { width, height } = useWindowDimensions();
+  const darkMode = useSettingsStore((s) => s.darkMode);
+  const bgGradient = darkMode ? DARK_BG : LIGHT_BG;
+  const blobs = darkMode ? DARK_BLOBS : LIGHT_BLOBS;
 
   /* Twinkle groups — 4 shared values, different periods & start phases */
   const tw0 = useSharedValue(1.0);
@@ -271,28 +281,28 @@ export function StarField({ children }: StarFieldProps) {
   const orbitPath = `M ${cx - rx} ${cy} Q ${cx - rx * 0.3} ${cy - ry * 2.6} ${cx + rx} ${cy} Q ${cx + rx * 0.3} ${cy + ry * 2.6} ${cx - rx} ${cy}`;
 
   return (
-    <LinearGradient colors={['#fff8f2', '#f4ebf8', '#ddd5ff']} style={styles.root}>
+    <LinearGradient colors={bgGradient} style={styles.root}>
 
       {/* ── Atmospheric nebula blobs ── */}
       <Animated.View pointerEvents="none" style={[
         styles.blob, glowStyle1,
         { width: width * 0.74, height: width * 0.74, borderRadius: width * 0.37,
-          backgroundColor: '#f5d4b2', right: -width * 0.18, top: -width * 0.12 },
+          backgroundColor: blobs[0], right: -width * 0.18, top: -width * 0.12 },
       ]} />
       <Animated.View pointerEvents="none" style={[
         styles.blob, glowStyle2,
         { width: width * 0.58, height: width * 0.58, borderRadius: width * 0.29,
-          backgroundColor: '#c9b4e8', right: -width * 0.14, top: height * 0.26 },
+          backgroundColor: blobs[1], right: -width * 0.14, top: height * 0.26 },
       ]} />
       <Animated.View pointerEvents="none" style={[
         styles.blob, glowStyle3,
         { width: width * 0.52, height: width * 0.52, borderRadius: width * 0.26,
-          backgroundColor: '#a8c4e8', bottom: height * 0.08, left: -width * 0.16 },
+          backgroundColor: blobs[2], bottom: height * 0.08, left: -width * 0.16 },
       ]} />
       <Animated.View pointerEvents="none" style={[
         styles.blob, glowStyle4,
         { width: width * 0.46, height: width * 0.46, borderRadius: width * 0.23,
-          backgroundColor: '#7b5ea0', bottom: -width * 0.08, left: width * 0.08 },
+          backgroundColor: blobs[3], bottom: -width * 0.08, left: width * 0.08 },
       ]} />
 
       {/* ── FAR star layer — galaxy-rotation wrapper (iOS) ── */}

@@ -10,11 +10,15 @@ interface SettingsState {
   notificationsEnabled: boolean;
   dailyNotificationTime: string; // HH:mm
   transitAlertsEnabled: boolean;
+  darkMode: boolean;
+  hasSeenTutorial: boolean;
   theme: 'aurora';
   setLanguage: (lang: string) => void;
   setNotifications: (enabled: boolean) => void;
   setNotificationTime: (time: string) => void;
   setTransitAlerts: (enabled: boolean) => void;
+  setDarkMode: (enabled: boolean) => void;
+  setTutorialSeen: (seen: boolean) => void;
   loadSettings: () => Promise<void>;
   saveSettings: () => Promise<void>;
   clearSettings: () => Promise<void>;
@@ -26,6 +30,8 @@ const DEFAULT_SETTINGS = {
   notificationsEnabled: true,
   dailyNotificationTime: '08:00',
   transitAlertsEnabled: false,
+  darkMode: false,
+  hasSeenTutorial: false,
   theme: 'aurora' as const,
 };
 
@@ -83,6 +89,16 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     get().saveSettings();
   },
 
+  setDarkMode: (enabled) => {
+    set({ darkMode: enabled });
+    get().saveSettings();
+  },
+
+  setTutorialSeen: (seen) => {
+    set({ hasSeenTutorial: seen });
+    get().saveSettings();
+  },
+
   loadSettings: async () => {
     try {
       const data = await AsyncStorage.getItem(STORAGE_KEY);
@@ -102,10 +118,10 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   },
 
   saveSettings: async () => {
-    const { language, notificationsEnabled, dailyNotificationTime, transitAlertsEnabled } = get();
+    const { language, notificationsEnabled, dailyNotificationTime, transitAlertsEnabled, darkMode, hasSeenTutorial } = get();
     await AsyncStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ language, notificationsEnabled, dailyNotificationTime, transitAlertsEnabled })
+      JSON.stringify({ language, notificationsEnabled, dailyNotificationTime, transitAlertsEnabled, darkMode, hasSeenTutorial })
     );
   },
 

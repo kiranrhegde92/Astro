@@ -9,6 +9,7 @@ import { GradientCard } from '../../src/components/ui/GradientCard';
 import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { SectionTabs } from '../../src/components/ui/SectionTabs';
 import { StarField } from '../../src/components/ui/StarField';
+import { SynastryWheel } from '../../src/components/chart/SynastryWheel';
 import { BORDER_RADIUS, COLORS, FONTS, SPACING } from '../../src/constants/theme';
 import { CompatibilityCard } from '../../src/components/share/ShareableCard';
 import { calculateCosmicProfile } from '../../src/engines/unified';
@@ -524,6 +525,19 @@ export default function CompatibilityScreen() {
               <ScoreLine label="Vedic" value={result.vedic.score} text={result.vedic.details} />
               <ScoreLine label="Chinese" value={result.chinese.score} text={result.chinese.details} />
             </GradientCard>
+
+            {user.western?.planets?.length && activePartnerProfile.western?.planets?.length ? (
+              <GradientCard>
+                <Text style={styles.sectionLabel}>Synastry chart</Text>
+                <SynastryWheel
+                  userPlanets={user.western.planets}
+                  partnerPlanets={activePartnerProfile.western.planets}
+                  userName={user.name}
+                  partnerName={partnerName}
+                  size={300}
+                />
+              </GradientCard>
+            ) : null}
 
             <View style={styles.resultActions}>
               <CosmicButton title="Share this result" onPress={handleShare} />

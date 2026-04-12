@@ -14,6 +14,7 @@ import { AnimatedCard } from '../../src/components/ui/AnimatedScreen';
 import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { SectionTabs } from '../../src/components/ui/SectionTabs';
 import { StarField } from '../../src/components/ui/StarField';
+import { TutorialOverlay } from '../../src/components/ui/TutorialOverlay';
 import { BORDER_RADIUS, COLORS, FONTS, SHADOWS, SPACING } from '../../src/constants/theme';
 import { generateDailyReading } from '../../src/content/dailyTemplates';
 import { generatePeriodForecast, type ForecastWindow } from '../../src/content/forecastTemplates';
@@ -147,6 +148,7 @@ export default function TodayScreen() {
   const accountUser = useUserStore((state) => state.user);
   const user = useActiveProfile();
   const transitAlertsEnabled = useSettingsStore((state) => state.transitAlertsEnabled);
+  const hasSeenTutorial = useSettingsStore((state) => state.hasSeenTutorial);
   const incrementStreak = useUserStore((state) => state.incrementStreak);
   const tokens = useAdUnlockStore((state) => state.tokens);
   const grantUnlock = useAdUnlockStore((state) => state.grantUnlock);
@@ -583,13 +585,53 @@ export default function TodayScreen() {
 
             <AnimatedCard index={5}>
               <GradientCard accentColor={COLORS.kp}>
-                <Text style={styles.cardEyebrow}>TRANSIT CENTER</Text>
-                <Text style={styles.cardTitle}>See the live aspects behind today’s reading.</Text>
-                <Text style={styles.cardBody}>
-                  Open the transit center for the exact support lines, pressure points, and current planetary positions touching your chart.
-                </Text>
+                <Text style={styles.cardEyebrow}>LIVE TRANSITS</Text>
+                <View style={styles.transitSummaryRow}>
+                  <View style={styles.transitSummaryItem}>
+                    <View style={[styles.transitDot, { backgroundColor: COLORS.tide }]} />
+                    <Text style={styles.transitSummaryCount}>{supportCount}</Text>
+                    <Text style={styles.transitSummaryLabel}>Support</Text>
+                  </View>
+                  <View style={styles.transitSummaryDivider} />
+                  <View style={styles.transitSummaryItem}>
+                    <View style={[styles.transitDot, { backgroundColor: COLORS.coral }]} />
+                    <Text style={styles.transitSummaryCount}>{tensionCount}</Text>
+                    <Text style={styles.transitSummaryLabel}>Tension</Text>
+                  </View>
+                  <View style={styles.transitSummaryDivider} />
+                  <View style={styles.transitSummaryItem}>
+                    <View style={[styles.transitDot, { backgroundColor: COLORS.textSecondary }]} />
+                    <Text style={styles.transitSummaryCount}>{transits.length - supportCount - tensionCount}</Text>
+                    <Text style={styles.transitSummaryLabel}>Neutral</Text>
+                  </View>
+                </View>
+                {transits.slice(0, 3).map((transit, i) => (
+                  <View key={`${transit.transitPlanet}-${transit.natalPlanet}-${i}`} style={styles.transitRow}>
+                    <View style={[styles.transitNature, {
+                      backgroundColor: transit.nature === 'support'
+                        ? `${COLORS.tide}22`
+                        : transit.nature === 'tension'
+                        ? `${COLORS.coral}22`
+                        : 'rgba(255,255,255,0.06)',
+                    }]}>
+                      <Text style={[styles.transitAspect, {
+                        color: transit.nature === 'support'
+                          ? COLORS.tide
+                          : transit.nature === 'tension'
+                          ? COLORS.coral
+                          : COLORS.textSecondary,
+                      }]}>
+                        {transit.transitPlanet} {transit.aspect} {transit.natalPlanet}
+                      </Text>
+                    </View>
+                    <Text style={styles.transitBrief} numberOfLines={2}>{transit.brief}</Text>
+                  </View>
+                ))}
+                {transits.length === 0 && (
+                  <Text style={styles.cardBody}>No major transits active right now. A quiet sky today.</Text>
+                )}
                 <View style={styles.actions}>
-                  <CosmicButton title="Open transits" onPress={() => router.push('/reading/transits')} />
+                  <CosmicButton title="View all transits" onPress={() => router.push('/reading/transits')} />
                 </View>
               </GradientCard>
             </AnimatedCard>
@@ -719,6 +761,7 @@ export default function TodayScreen() {
         <View style={styles.bottomPad} />
       </ResetScrollView>
       {alertModal}
+      <TutorialOverlay visible={!hasSeenTutorial && !!reading} />
     </StarField>
   );
 }
@@ -1102,5 +1145,59 @@ const styles = StyleSheet.create({
   },
   bottomPad: {
     height: 40,
+  },
+  transitSummaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING.md,
+    gap: SPACING.md,
+  },
+  transitSummaryItem: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  transitSummaryDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+  },
+  transitDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  transitSummaryCount: {
+    color: '#fffaf1',
+    fontSize: 22,
+    fontFamily: FONTS.heading,
+    lineHeight: 26,
+  },
+  transitSummaryLabel: {
+    color: 'rgba(255,250,241,0.50)',
+    fontSize: 11,
+    fontFamily: FONTS.accent,
+    letterSpacing: 0.5,
+  },
+  transitRow: {
+    gap: 4,
+    marginBottom: SPACING.sm,
+  },
+  transitNature: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.sm,
+  },
+  transitAspect: {
+    fontSize: 12,
+    fontFamily: FONTS.heading,
+    letterSpacing: 0.3,
+  },
+  transitBrief: {
+    color: 'rgba(255,250,241,0.68)',
+    fontSize: 13,
+    fontFamily: FONTS.body,
+    lineHeight: 19,
   },
 });

@@ -252,9 +252,12 @@ export default function RootLayout() {
     }
   }, [authReady, profileLoading, firebaseUser, router]);
 
+  const darkMode = useSettingsStore((s) => s.darkMode);
+  const rootBg = darkMode ? '#070814' : COLORS.bgDeep;
+
   if ((!authReady || !fontReady) && !onWebLanding) {
     return (
-      <View style={{ flex: 1, backgroundColor: COLORS.bgDeep, justifyContent: 'center', alignItems: 'center' }}>
+      <View style={{ flex: 1, backgroundColor: rootBg, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator color={COLORS.western} />
       </View>
     );
@@ -266,7 +269,7 @@ export default function RootLayout() {
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: COLORS.bgDeep },
+          contentStyle: { backgroundColor: rootBg },
           animation: 'fade',
         }}
       />

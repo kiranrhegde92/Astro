@@ -49,9 +49,11 @@ export default function SettingsScreen() {
     notificationsEnabled,
     dailyNotificationTime,
     transitAlertsEnabled,
+    darkMode,
     setNotifications,
     setNotificationTime,
     setTransitAlerts,
+    setDarkMode,
   } = useSettingsStore();
   const user = useUserStore((s) => s.user);
   const setActiveSystems = useUserStore((s) => s.setActiveSystems);
@@ -295,6 +297,23 @@ export default function SettingsScreen() {
             </TouchableOpacity>
           </GradientCard>
         ) : null}
+
+        {/* ── Appearance ───────────────────────────────────────────── */}
+        <GradientCard style={styles.section}>
+          <Text style={styles.sectionLabel}>Appearance</Text>
+          <View style={styles.switchRow}>
+            <View style={styles.systemLabelRow}>
+              <Ionicons name={darkMode ? 'moon' : 'sunny-outline'} size={16} color={darkMode ? COLORS.iris : COLORS.starGold} />
+              <Text style={styles.rowText}>{darkMode ? 'Dark mode' : 'Light mode'}</Text>
+            </View>
+            <Switch
+              value={darkMode}
+              onValueChange={setDarkMode}
+              trackColor={{ false: 'rgba(40,49,73,0.16)', true: COLORS.iris }}
+              thumbColor="#fffaf1"
+            />
+          </View>
+        </GradientCard>
 
         {/* ── Quick links ────────────────────────────────────────────── */}
         <GradientCard style={styles.section}>
