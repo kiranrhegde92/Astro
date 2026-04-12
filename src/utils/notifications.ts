@@ -199,11 +199,11 @@ export async function requestNotificationPermissions(): Promise<boolean> {
 
   const Notifications = getNotifications();
 
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  let finalStatus = existingStatus;
-  if (existingStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
+  const existingPermissions = await Notifications.getPermissionsAsync() as any;
+  let finalStatus = existingPermissions?.granted ? 'granted' : existingPermissions?.status ?? 'denied';
+  if (!existingPermissions?.granted && finalStatus !== 'granted') {
+    const requestedPermissions = await Notifications.requestPermissionsAsync() as any;
+    finalStatus = requestedPermissions?.granted ? 'granted' : requestedPermissions?.status ?? 'denied';
   }
   if (finalStatus !== 'granted') return false;
 

@@ -40,3 +40,14 @@ yarn-error.*
 /ios
 /android
 .worktrees/
+
+# local agent/editor state
+/.claude/
+
+# root-level generated QA/debug artifacts
+/*.log
+/*.xml
+/*.mp4
+/*.png
+/cloudflare-domdump*.txt
+/cloudflare-domdump-server.py

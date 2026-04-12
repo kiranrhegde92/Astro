@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -16,9 +16,14 @@ import { StarField } from '../../src/components/ui/StarField';
 import { CosmicButton } from '../../src/components/ui/CosmicButton';
 import { useCosmicAlert } from '../../src/components/ui/CosmicAlert';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS } from '../../src/constants/theme';
-import { searchAdminUsers } from '../../src/services/adminService';
+import {
+  getAdminDashboardSummary,
+  searchAdminUsers,
+  sendAdminBroadcastNotification,
+  updateAdminGlobalSettings,
+} from '../../src/services/adminService';
 import { useAuthStore } from '../../src/store/authStore';
-import type { AdminUserListItem } from '../../src/types/admin';
+import type { AdminBroadcastNotificationInput, AdminDashboardSummary, AdminUserListItem } from '../../src/types/admin';
 
 function Badge({ label, tone = 'default' }: { label: string; tone?: 'default' | 'success' | 'warning' | 'danger' }) {
   const toneStyle =
@@ -38,7 +43,7 @@ function Badge({ label, tone = 'default' }: { label: string; tone?: 'default' | 
 }
 
 function SearchResultCard({ item, onPress }: { item: AdminUserListItem; onPress: () => void }) {
-  const subscriptionLabel = `${item.subscriptionTier} · ${item.subscriptionStatus}`;
+  const subscriptionLabel = `${item.subscriptionTier} • ${item.subscriptionStatus}`;
 
   return (
     <Pressable onPress={onPress} style={styles.resultPressable}>
@@ -63,6 +68,15 @@ function SearchResultCard({ item, onPress }: { item: AdminUserListItem; onPress:
   );
 }
 
+function StatCard({ label, value, tone = COLORS.iris }: { label: string; value: string | number; tone?: string }) {
+  return (
+    <View style={[styles.statCard, { borderColor: `${tone}55` }]}> 
+      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={[styles.statValue, { color: tone }]}>{value}</Text>
+    </View>
+  );
+}
+
 export default function AdminIndexScreen() {
   const router = useRouter();
   const authReady = useAuthStore((s) => s.authReady);
@@ -76,13 +90,51 @@ export default function AdminIndexScreen() {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<AdminUserListItem[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
+  const [summary, setSummary] = useState<AdminDashboardSummary | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [broadcastLoading, setBroadcastLoading] = useState(false);
+  const [supportEmail, setSupportEmail] = useState('admin@cosmicself.app');
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [broadcastPushEnabled, setBroadcastPushEnabled] = useState(true);
+  const [broadcastTitle, setBroadcastTitle] = useState('');
+  const [broadcastBody, setBroadcastBody] = useState('');
+  const [broadcastTarget, setBroadcastTarget] = useState<AdminBroadcastNotificationInput['target']>('all');
 
   const ready = authReady && !profileLoading;
   const trimmedQuery = query.trim();
   const helperText = useMemo(
-    () => 'Search by email, display name, or uid. Results stay behind callable admin functions.',
+    () => 'Search by email, display name, or uid. Leave the field blank to review recent users.',
     [],
   );
+
+  const syncSummarySettings = (nextSummary: AdminDashboardSummary) => {
+    setSupportEmail(nextSummary.settings.supportEmail);
+    setMaintenanceMode(nextSummary.settings.maintenanceMode);
+    setBroadcastPushEnabled(nextSummary.settings.broadcastPushEnabled);
+  };
+
+  const loadSummary = async () => {
+    try {
+      setSummaryLoading(true);
+      const nextSummary = await getAdminDashboardSummary();
+      setSummary(nextSummary);
+      syncSummarySettings(nextSummary);
+    } catch (error: any) {
+      const message = typeof error?.message === 'string'
+        ? error.message
+        : 'Could not load admin dashboard metrics.';
+      showAlert('Dashboard unavailable', message);
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (ready && firebaseUser && isAdmin) {
+      void loadSummary();
+    }
+  }, [ready, firebaseUser, isAdmin]);
 
   const handleRefreshClaims = async () => {
     try {
@@ -109,6 +161,47 @@ export default function AdminIndexScreen() {
       setResults([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    try {
+      setSettingsSaving(true);
+      const result = await updateAdminGlobalSettings({
+        supportEmail,
+        maintenanceMode,
+        broadcastPushEnabled,
+      });
+      showAlert('Admin settings saved', result.message);
+      await loadSummary();
+    } catch (error: any) {
+      const message = typeof error?.message === 'string'
+        ? error.message
+        : 'Could not save admin settings.';
+      showAlert('Save failed', message);
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
+
+  const handleBroadcast = async (dryRun: boolean) => {
+    try {
+      setBroadcastLoading(true);
+      const result = await sendAdminBroadcastNotification({
+        title: broadcastTitle,
+        body: broadcastBody,
+        target: broadcastTarget,
+        dryRun,
+      });
+      showAlert(dryRun ? 'Dry run complete' : 'Broadcast complete', result.message);
+      await loadSummary();
+    } catch (error: any) {
+      const message = typeof error?.message === 'string'
+        ? error.message
+        : 'Could not send the admin broadcast.';
+      showAlert('Broadcast failed', message);
+    } finally {
+      setBroadcastLoading(false);
     }
   };
 
@@ -166,7 +259,20 @@ export default function AdminIndexScreen() {
     <StarField>
       <ScreenHeader title="Admin console" />
       <ResetScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        <Text style={styles.pageHeadline}>Search and inspect CosmicSelf accounts.</Text>
+        <Text style={styles.pageHeadline}>Search users, review global admin settings, and manage push operations.</Text>
+
+        <GradientCard style={styles.section} accentColor={COLORS.starGold}>
+          <View style={styles.resultsHeader}>
+            <Text style={styles.resultsTitle}>Overview</Text>
+            <Text style={styles.resultsMeta}>{summaryLoading ? 'Refreshing…' : 'Live admin summary'}</Text>
+          </View>
+          <View style={styles.statsGrid}>
+            <StatCard label="Users" value={summary?.totals.users ?? '—'} />
+            <StatCard label="Premium" value={summary?.totals.premiumUsers ?? '—'} tone={COLORS.starGold} />
+            <StatCard label="Push ready" value={summary?.totals.pushReadyUsers ?? '—'} tone={COLORS.tide} />
+            <StatCard label="Disabled" value={summary?.totals.disabledUsers ?? '—'} tone={COLORS.coral} />
+          </View>
+        </GradientCard>
 
         <GradientCard style={styles.section} accentColor={COLORS.iris}>
           <Text style={styles.kicker}>User search</Text>
@@ -184,38 +290,91 @@ export default function AdminIndexScreen() {
           />
           <View style={styles.actionStack}>
             <CosmicButton title="Search users" onPress={handleSearch} loading={loading} />
-            <CosmicButton title="Refresh claims" onPress={handleRefreshClaims} variant="outline" disabled={loading} />
+            <CosmicButton title="Refresh dashboard" onPress={() => void loadSummary()} variant="outline" disabled={loading || summaryLoading} />
           </View>
         </GradientCard>
 
-        {hasSearched ? (
-          <View style={styles.resultsWrap}>
-            <View style={styles.resultsHeader}>
-              <Text style={styles.resultsTitle}>Results</Text>
-              <Text style={styles.resultsMeta}>{loading ? 'Searching…' : `${results.length} found`}</Text>
-            </View>
-
-            {results.length === 0 && !loading ? (
-              <GradientCard style={styles.emptyCard}>
-                <Text style={styles.emptyTitle}>No matching users</Text>
-                <Text style={styles.body}>Try a broader email prefix, display name fragment, or exact uid.</Text>
-              </GradientCard>
-            ) : null}
-
-            {results.map((item) => (
-              <SearchResultCard
-                key={item.uid}
-                item={item}
-                onPress={() => router.push({ pathname: '/admin/user/[uid]', params: { uid: item.uid } })}
-              />
-            ))}
+        <GradientCard style={styles.section} accentColor={COLORS.plum}>
+          <Text style={styles.kicker}>Global settings</Text>
+          <Text style={styles.body}>Admin-only operational switches for the app and support workflow.</Text>
+          <TextInput
+            value={supportEmail}
+            onChangeText={setSupportEmail}
+            placeholder="Support email"
+            placeholderTextColor={COLORS.textMuted}
+            autoCapitalize="none"
+            autoCorrect={false}
+            style={styles.input}
+          />
+          <View style={styles.toggleRow}>
+            <Text style={styles.toggleLabel}>Maintenance mode</Text>
+            <Pressable onPress={() => setMaintenanceMode((current) => !current)} style={[styles.toggleChip, maintenanceMode && styles.toggleChipActive]}>
+              <Text style={[styles.toggleChipText, maintenanceMode && styles.toggleChipTextActive]}>{maintenanceMode ? 'On' : 'Off'}</Text>
+            </Pressable>
           </View>
-        ) : (
-          <GradientCard style={styles.emptyCard}>
-            <Text style={styles.emptyTitle}>Ready for lookup</Text>
-            <Text style={styles.body}>Run a search to inspect a user profile, subscription state, charts, and admin actions.</Text>
-          </GradientCard>
-        )}
+          <View style={styles.toggleRow}>
+            <Text style={styles.toggleLabel}>Broadcast push enabled</Text>
+            <Pressable onPress={() => setBroadcastPushEnabled((current) => !current)} style={[styles.toggleChip, broadcastPushEnabled && styles.toggleChipActive]}>
+              <Text style={[styles.toggleChipText, broadcastPushEnabled && styles.toggleChipTextActive]}>{broadcastPushEnabled ? 'Enabled' : 'Disabled'}</Text>
+            </Pressable>
+          </View>
+          <CosmicButton title="Save admin settings" onPress={handleSaveSettings} loading={settingsSaving} />
+        </GradientCard>
+
+        <GradientCard style={styles.section} accentColor={COLORS.tide}>
+          <Text style={styles.kicker}>Push notifications</Text>
+          <Text style={styles.body}>Send an admin broadcast to every registered device token or just premium users.</Text>
+          <TextInput
+            value={broadcastTitle}
+            onChangeText={setBroadcastTitle}
+            placeholder="Push title"
+            placeholderTextColor={COLORS.textMuted}
+            style={styles.input}
+          />
+          <TextInput
+            value={broadcastBody}
+            onChangeText={setBroadcastBody}
+            placeholder="Push body"
+            placeholderTextColor={COLORS.textMuted}
+            style={[styles.input, styles.textArea]}
+            multiline
+          />
+          <View style={styles.badgeRow}>
+            <Pressable onPress={() => setBroadcastTarget('all')} style={[styles.toggleChip, broadcastTarget === 'all' && styles.toggleChipActive]}>
+              <Text style={[styles.toggleChipText, broadcastTarget === 'all' && styles.toggleChipTextActive]}>All users</Text>
+            </Pressable>
+            <Pressable onPress={() => setBroadcastTarget('premium')} style={[styles.toggleChip, broadcastTarget === 'premium' && styles.toggleChipActive]}>
+              <Text style={[styles.toggleChipText, broadcastTarget === 'premium' && styles.toggleChipTextActive]}>Premium only</Text>
+            </Pressable>
+          </View>
+          <View style={styles.actionStack}>
+            <CosmicButton title="Dry run" onPress={() => void handleBroadcast(true)} loading={broadcastLoading} />
+            <CosmicButton title="Send broadcast" onPress={() => void handleBroadcast(false)} variant="outline" disabled={broadcastLoading} />
+          </View>
+          <Text style={styles.resultsMeta}>Last broadcast: {summary?.settings.latestBroadcastAt ? new Date(summary.settings.latestBroadcastAt).toLocaleString() : 'Never'}</Text>
+        </GradientCard>
+
+        <View style={styles.resultsWrap}>
+          <View style={styles.resultsHeader}>
+            <Text style={styles.resultsTitle}>{hasSearched ? 'Results' : 'Recent users'}</Text>
+            <Text style={styles.resultsMeta}>{loading ? 'Searching…' : `${(hasSearched ? results : summary?.recentUsers ?? []).length} shown`}</Text>
+          </View>
+
+          {(hasSearched ? results : summary?.recentUsers ?? []).length === 0 && !loading ? (
+            <GradientCard style={styles.emptyCard}>
+              <Text style={styles.emptyTitle}>{hasSearched ? 'No matching users' : 'No recent users yet'}</Text>
+              <Text style={styles.body}>{hasSearched ? 'Try a broader email prefix, display name fragment, or exact uid.' : 'Once users sign in and profiles exist, they will appear here.'}</Text>
+            </GradientCard>
+          ) : null}
+
+          {(hasSearched ? results : summary?.recentUsers ?? []).map((item) => (
+            <SearchResultCard
+              key={item.uid}
+              item={item}
+              onPress={() => router.push({ pathname: '/admin/user/[uid]', params: { uid: item.uid } })}
+            />
+          ))}
+        </View>
       </ResetScrollView>
       {alertModal}
     </StarField>
@@ -284,8 +443,69 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.76)',
     fontSize: 15,
   },
+  textArea: {
+    minHeight: 96,
+    textAlignVertical: 'top',
+  },
   actionStack: {
     gap: SPACING.sm,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+  },
+  statCard: {
+    width: '47%',
+    borderWidth: 1,
+    borderRadius: BORDER_RADIUS.lg,
+    backgroundColor: 'rgba(255,255,255,0.68)',
+    padding: SPACING.md,
+    gap: 4,
+  },
+  statLabel: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    fontFamily: FONTS.accent,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  statValue: {
+    fontSize: 24,
+    fontFamily: FONTS.heading,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: SPACING.sm,
+  },
+  toggleLabel: {
+    flex: 1,
+    color: COLORS.textPrimary,
+    fontSize: 15,
+    lineHeight: 21,
+    fontFamily: FONTS.heading,
+  },
+  toggleChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
+    borderColor: COLORS.glassBorderBright,
+    backgroundColor: 'rgba(255,255,255,0.64)',
+  },
+  toggleChipActive: {
+    backgroundColor: 'rgba(115,103,255,0.16)',
+    borderColor: 'rgba(115,103,255,0.32)',
+  },
+  toggleChipText: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    fontFamily: FONTS.heading,
+  },
+  toggleChipTextActive: {
+    color: COLORS.textPrimary,
   },
   resultsWrap: {
     gap: SPACING.md,

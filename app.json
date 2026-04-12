@@ -39,7 +39,6 @@
         }
       ],
       "expo-sharing",
-      "react-native-purchases",
       [
         "react-native-google-mobile-ads",
         {

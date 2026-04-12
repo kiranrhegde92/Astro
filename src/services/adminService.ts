@@ -1,6 +1,10 @@
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import app from './firebase';
 import type {
+  AdminBroadcastNotificationInput,
+  AdminBroadcastNotificationResult,
+  AdminDashboardSummary,
+  AdminGlobalSettingsPatch,
   AdminSubscriptionPatch,
   AdminUserActionResult,
   AdminUserDetail,
@@ -12,6 +16,26 @@ const functions = getFunctions(app, 'us-central1');
 export async function searchAdminUsers(query?: string, limit = 20): Promise<AdminUserSearchResponse> {
   const fn = httpsCallable<{ query?: string; limit?: number }, AdminUserSearchResponse>(functions, 'searchAdminUsers');
   const result = await fn({ query, limit });
+  return result.data;
+}
+
+export async function getAdminDashboardSummary(): Promise<AdminDashboardSummary> {
+  const fn = httpsCallable<Record<string, never>, AdminDashboardSummary>(functions, 'getAdminDashboardSummary');
+  const result = await fn({});
+  return result.data;
+}
+
+export async function updateAdminGlobalSettings(settings: AdminGlobalSettingsPatch): Promise<AdminUserActionResult> {
+  const fn = httpsCallable<{ settings: AdminGlobalSettingsPatch }, AdminUserActionResult>(functions, 'updateAdminGlobalSettings');
+  const result = await fn({ settings });
+  return result.data;
+}
+
+export async function sendAdminBroadcastNotification(
+  input: AdminBroadcastNotificationInput,
+): Promise<AdminBroadcastNotificationResult> {
+  const fn = httpsCallable<AdminBroadcastNotificationInput, AdminBroadcastNotificationResult>(functions, 'sendAdminBroadcastNotification');
+  const result = await fn(input);
   return result.data;
 }
 

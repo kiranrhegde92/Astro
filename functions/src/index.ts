@@ -114,6 +114,23 @@ interface AdminUserDetail extends AdminUserListItem {
   rawProfile: Record<string, unknown>;
 }
 
+interface AdminDashboardSummary {
+  totals: {
+    users: number;
+    premiumUsers: number;
+    disabledUsers: number;
+    chartReadyUsers: number;
+    pushReadyUsers: number;
+  };
+  recentUsers: AdminUserListItem[];
+  settings: {
+    maintenanceMode: boolean;
+    supportEmail: string;
+    broadcastPushEnabled: boolean;
+    latestBroadcastAt?: string | null;
+  };
+}
+
 function assertAdmin(request: AdminCallableRequest) {
   if (!request.auth?.uid) {
     throw new HttpsError('unauthenticated', 'Sign in required.');
@@ -191,6 +208,42 @@ async function writeAdminAuditLog(input: {
     details: toJsonSafeObject(input.details ?? {}),
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
   });
+}
+
+function getDefaultAdminSettings() {
+  return {
+    maintenanceMode: false,
+    supportEmail: 'admin@cosmicself.app',
+    broadcastPushEnabled: true,
+    latestBroadcastAt: null as string | null,
+  };
+}
+
+async function getAdminSettings() {
+  const snap = await db.doc('admin/config').get();
+  const defaults = getDefaultAdminSettings();
+  const data = snap.exists ? snap.data() ?? {} : {};
+  return {
+    maintenanceMode: Boolean(data.maintenanceMode ?? defaults.maintenanceMode),
+    supportEmail: typeof data.supportEmail === 'string' && data.supportEmail.trim()
+      ? data.supportEmail.trim()
+      : defaults.supportEmail,
+    broadcastPushEnabled: Boolean(data.broadcastPushEnabled ?? defaults.broadcastPushEnabled),
+    latestBroadcastAt: toIso(data.latestBroadcastAt) ?? defaults.latestBroadcastAt,
+  };
+}
+
+async function listAllAuthUsers(maxPages = 10) {
+  const users: admin.auth.UserRecord[] = [];
+  let pageToken: string | undefined;
+  let page = 0;
+  do {
+    const result = await admin.auth().listUsers(1000, pageToken);
+    users.push(...result.users);
+    pageToken = result.pageToken;
+    page += 1;
+  } while (pageToken && page < maxPages);
+  return users;
 }
 
 async function countCollectionDocuments(path: string, limit = 200): Promise<number> {
@@ -487,12 +540,21 @@ export const searchAdminUsers = onCall({ region: 'us-central1' }, async (request
   const normalizedQuery = rawQuery.toLowerCase();
   const limit = Math.max(1, Math.min(Number(request.data?.limit ?? 20), 50));
   const looksLikeUid = /^[A-Za-z0-9_-]{20,128}$/.test(rawQuery);
+  const authUsers = new Map<string, admin.auth.UserRecord>();
 
   if (!rawQuery) {
-    return { users: [] as AdminUserListItem[] };
-  }
+    const users = await listAllAuthUsers(2);
+    const profileRefs = users.map((user) => db.doc(`users/${user.uid}`));
+    const profileSnaps = users.length ? await db.getAll(...profileRefs) : [];
+    const profileByUid = new Map(profileSnaps.map((snap) => [snap.id, snap.exists ? snap.data() : null]));
 
-  const authUsers = new Map<string, admin.auth.UserRecord>();
+    return {
+      users: users
+        .map((user) => buildAdminUserListItem(user, profileByUid.get(user.uid)))
+        .sort(compareAdminUsersByRecency)
+        .slice(0, limit),
+    };
+  }
 
   if (looksLikeUid) {
     try {
@@ -535,6 +597,147 @@ export const searchAdminUsers = onCall({ region: 'us-central1' }, async (request
       .map((user) => buildAdminUserListItem(user, profileByUid.get(user.uid)))
       .sort(compareAdminUsersByRecency)
       .slice(0, limit),
+  };
+});
+
+export const getAdminDashboardSummary = onCall({ region: 'us-central1' }, async (request) => {
+  assertAdmin(request);
+
+  const authUsers = await listAllAuthUsers(10);
+  const profileRefs = authUsers.map((user) => db.doc(`users/${user.uid}`));
+  const profileSnaps = authUsers.length ? await db.getAll(...profileRefs) : [];
+  const profileByUid = new Map(profileSnaps.map((snap) => [snap.id, snap.exists ? snap.data() : null]));
+
+  let premiumUsers = 0;
+  let disabledUsers = 0;
+  let chartReadyUsers = 0;
+  let pushReadyUsers = 0;
+
+  const recentUsers = authUsers
+    .map((user) => buildAdminUserListItem(user, profileByUid.get(user.uid)))
+    .sort(compareAdminUsersByRecency)
+    .slice(0, 12);
+
+  for (const user of authUsers) {
+    const profile = profileByUid.get(user.uid);
+    if (normalizeAdminSubscriptionTier(profile?.subscription?.tier) === 'premium') premiumUsers += 1;
+    if (Boolean(profile?.adminFlags?.disabled)) disabledUsers += 1;
+    if (Boolean(profile?.chartCalculated)) chartReadyUsers += 1;
+    if (typeof profile?.fcmToken === 'string' && profile.fcmToken.length > 0) pushReadyUsers += 1;
+  }
+
+  const settings = await getAdminSettings();
+  const summary: AdminDashboardSummary = {
+    totals: {
+      users: authUsers.length,
+      premiumUsers,
+      disabledUsers,
+      chartReadyUsers,
+      pushReadyUsers,
+    },
+    recentUsers,
+    settings,
+  };
+
+  return summary;
+});
+
+export const updateAdminGlobalSettings = onCall({ region: 'us-central1' }, async (request) => {
+  assertAdmin(request);
+
+  const settings = (request.data?.settings ?? {}) as Record<string, unknown>;
+  const updates: Record<string, unknown> = {
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  if (typeof settings.maintenanceMode === 'boolean') {
+    updates.maintenanceMode = settings.maintenanceMode;
+  }
+  if (typeof settings.broadcastPushEnabled === 'boolean') {
+    updates.broadcastPushEnabled = settings.broadcastPushEnabled;
+  }
+  if (typeof settings.supportEmail === 'string' && settings.supportEmail.trim()) {
+    updates.supportEmail = settings.supportEmail.trim().slice(0, 120);
+  }
+
+  await db.doc('admin/config').set(updates, { merge: true });
+  await writeAdminAuditLog({
+    actorUid: request.auth!.uid!,
+    action: 'updateAdminGlobalSettings',
+    targetUid: 'admin/config',
+    details: { updates },
+  });
+
+  return { success: true, uid: 'admin/config', message: 'Admin settings updated.' };
+});
+
+export const sendAdminBroadcastNotification = onCall({ region: 'us-central1' }, async (request) => {
+  assertAdmin(request);
+
+  const title = typeof request.data?.title === 'string' ? request.data.title.trim() : '';
+  const body = typeof request.data?.body === 'string' ? request.data.body.trim() : '';
+  const target = request.data?.target === 'premium' ? 'premium' : 'all';
+  const dryRun = Boolean(request.data?.dryRun);
+
+  if (!title || !body) {
+    throw new HttpsError('invalid-argument', 'title and body are required.');
+  }
+
+  const settings = await getAdminSettings();
+  if (!settings.broadcastPushEnabled) {
+    throw new HttpsError('failed-precondition', 'Broadcast push is disabled in admin settings.');
+  }
+
+  const authUsers = await listAllAuthUsers(10);
+  const profileRefs = authUsers.map((user) => db.doc(`users/${user.uid}`));
+  const profileSnaps = authUsers.length ? await db.getAll(...profileRefs) : [];
+  const profileByUid = new Map(profileSnaps.map((snap) => [snap.id, snap.exists ? snap.data() : null]));
+
+  const tokens = authUsers
+    .filter((user) => {
+      const profile = profileByUid.get(user.uid);
+      if (!profile || typeof profile.fcmToken !== 'string' || !profile.fcmToken.length) return false;
+      if (target === 'premium') return normalizeAdminSubscriptionTier(profile.subscription?.tier) === 'premium';
+      return true;
+    })
+    .map((user) => String(profileByUid.get(user.uid)?.fcmToken));
+
+  const attempted = tokens.length;
+  let sent = 0;
+  let failed = 0;
+
+  if (!dryRun && tokens.length > 0) {
+    const response = await admin.messaging().sendEachForMulticast({
+      tokens,
+      notification: { title: title.slice(0, 80), body: body.slice(0, 200) },
+      data: { screen: 'today', kind: 'admin_broadcast' },
+    });
+    sent = response.successCount;
+    failed = response.failureCount;
+  }
+
+  await db.doc('admin/config').set({
+    latestBroadcastAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  await writeAdminAuditLog({
+    actorUid: request.auth!.uid!,
+    action: 'sendAdminBroadcastNotification',
+    targetUid: 'broadcast',
+    details: { title, body, target, dryRun, attempted, sent, failed },
+  });
+
+  return {
+    success: true,
+    target,
+    dryRun,
+    attempted,
+    sent: dryRun ? 0 : sent,
+    failed: dryRun ? 0 : failed,
+    message: dryRun
+      ? `Dry run complete. ${attempted} device tokens match the selected audience.`
+      : `Broadcast sent to ${sent} devices${failed ? `, ${failed} failed.` : '.'}`,
   };
 });
 

@@ -48,6 +48,46 @@ export interface AdminUserSearchResponse {
   users: AdminUserListItem[];
 }
 
+export interface AdminDashboardSummary {
+  totals: {
+    users: number;
+    premiumUsers: number;
+    disabledUsers: number;
+    chartReadyUsers: number;
+    pushReadyUsers: number;
+  };
+  recentUsers: AdminUserListItem[];
+  settings: {
+    maintenanceMode: boolean;
+    supportEmail: string;
+    broadcastPushEnabled: boolean;
+    latestBroadcastAt?: string | null;
+  };
+}
+
+export interface AdminGlobalSettingsPatch {
+  maintenanceMode?: boolean;
+  supportEmail?: string;
+  broadcastPushEnabled?: boolean;
+}
+
+export interface AdminBroadcastNotificationInput {
+  title: string;
+  body: string;
+  target: 'all' | 'premium';
+  dryRun?: boolean;
+}
+
+export interface AdminBroadcastNotificationResult {
+  success: boolean;
+  target: 'all' | 'premium';
+  dryRun: boolean;
+  attempted: number;
+  sent: number;
+  failed: number;
+  message: string;
+}
+
 export interface AdminUserActionResult {
   success: boolean;
   uid: string;

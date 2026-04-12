@@ -111,7 +111,12 @@ export default function RootLayout() {
 
   useEffect(() => {
     // Expo Go keeps the screen awake by default in dev — disable it
-    deactivateKeepAwake();
+    // On web, deactivateKeepAwake can throw if no wake lock was ever activated.
+    if (Platform.OS !== 'web') {
+      try {
+        deactivateKeepAwake();
+      } catch {}
+    }
     loadUser().catch(() => {});
     const unsubscribe = initialize();
     return unsubscribe;

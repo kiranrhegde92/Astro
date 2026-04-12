@@ -58,6 +58,8 @@ export default function SettingsScreen() {
   const setSubscription = useUserStore((s) => s.setSubscription);
   const logout = useAuthStore((s) => s.logout);
   const deleteAccount = useAuthStore((s) => s.deleteAccount);
+  const isAdmin = useAuthStore((s) => s.isAdmin);
+  const refreshClaims = useAuthStore((s) => s.refreshClaims);
   const { showAlert, alertModal } = useCosmicAlert();
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [accountAction, setAccountAction] = useState<'logout' | 'delete' | null>(null);
@@ -152,6 +154,19 @@ export default function SettingsScreen() {
       showAlert('Export failed', 'Could not export your data right now. Please try again after signing in again.');
     } finally {
       setExportingData(false);
+    }
+  };
+
+  const handleAdminAccess = async () => {
+    try {
+      await refreshClaims();
+      if (useAuthStore.getState().isAdmin) {
+        router.push('/admin');
+      } else {
+        showAlert('Admin access unavailable', 'This account does not currently have the admin custom claim. Sign out and back in if the claim was just granted.');
+      }
+    } catch {
+      showAlert('Admin access unavailable', 'Could not refresh your admin claims right now.');
     }
   };
 
@@ -297,6 +312,11 @@ export default function SettingsScreen() {
           <TouchableOpacity style={styles.linkRow} onPress={() => router.push('/legal/privacy')} activeOpacity={0.84}>
             <Ionicons name="shield-checkmark-outline" size={18} color={COLORS.tide} />
             <Text style={styles.linkText}>Privacy Policy</Text>
+            <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.linkRow} onPress={() => void handleAdminAccess()} activeOpacity={0.84}>
+            <Ionicons name="settings-outline" size={18} color={isAdmin ? COLORS.starGold : COLORS.textMuted} />
+            <Text style={styles.linkText}>{isAdmin ? 'Admin console' : 'Check admin access'}</Text>
             <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.linkRowNoBorder} onPress={() => router.push('/legal/terms')} activeOpacity={0.84}>

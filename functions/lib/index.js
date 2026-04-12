@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.scheduledDailyReadings = exports.deleteMyAccount = exports.exportMyData = exports.exportMyPredictionDataset = exports.savePredictionFeedback = exports.getPredictionModelSnapshot = exports.clearAdminUserPushToken = exports.setAdminUserDisabled = exports.updateAdminUserSubscription = exports.getAdminUserDetail = exports.searchAdminUsers = exports.registerFCMToken = exports.calculateCompatibility = exports.getDailyReading = exports.calculateChart = void 0;
+exports.scheduledDailyReadings = exports.deleteMyAccount = exports.exportMyData = exports.exportMyPredictionDataset = exports.savePredictionFeedback = exports.getPredictionModelSnapshot = exports.clearAdminUserPushToken = exports.setAdminUserDisabled = exports.updateAdminUserSubscription = exports.getAdminUserDetail = exports.sendAdminBroadcastNotification = exports.updateAdminGlobalSettings = exports.getAdminDashboardSummary = exports.searchAdminUsers = exports.registerFCMToken = exports.calculateCompatibility = exports.getDailyReading = exports.calculateChart = void 0;
 exports.generateReadingFromTransits = generateReadingFromTransits;
 const admin = __importStar(require("firebase-admin"));
 const https_1 = require("firebase-functions/v2/https");
@@ -159,6 +159,40 @@ async function writeAdminAuditLog(input) {
         details: toJsonSafeObject((_a = input.details) !== null && _a !== void 0 ? _a : {}),
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
+}
+function getDefaultAdminSettings() {
+    return {
+        maintenanceMode: false,
+        supportEmail: 'admin@cosmicself.app',
+        broadcastPushEnabled: true,
+        latestBroadcastAt: null,
+    };
+}
+async function getAdminSettings() {
+    var _a, _b, _c, _d;
+    const snap = await db.doc('admin/config').get();
+    const defaults = getDefaultAdminSettings();
+    const data = snap.exists ? (_a = snap.data()) !== null && _a !== void 0 ? _a : {} : {};
+    return {
+        maintenanceMode: Boolean((_b = data.maintenanceMode) !== null && _b !== void 0 ? _b : defaults.maintenanceMode),
+        supportEmail: typeof data.supportEmail === 'string' && data.supportEmail.trim()
+            ? data.supportEmail.trim()
+            : defaults.supportEmail,
+        broadcastPushEnabled: Boolean((_c = data.broadcastPushEnabled) !== null && _c !== void 0 ? _c : defaults.broadcastPushEnabled),
+        latestBroadcastAt: (_d = toIso(data.latestBroadcastAt)) !== null && _d !== void 0 ? _d : defaults.latestBroadcastAt,
+    };
+}
+async function listAllAuthUsers(maxPages = 10) {
+    const users = [];
+    let pageToken;
+    let page = 0;
+    do {
+        const result = await admin.auth().listUsers(1000, pageToken);
+        users.push(...result.users);
+        pageToken = result.pageToken;
+        page += 1;
+    } while (pageToken && page < maxPages);
+    return users;
 }
 async function countCollectionDocuments(path, limit = 200) {
     const snap = await db.collection(path).limit(limit).get();
@@ -410,10 +444,19 @@ exports.searchAdminUsers = (0, https_1.onCall)({ region: 'us-central1' }, async 
     const normalizedQuery = rawQuery.toLowerCase();
     const limit = Math.max(1, Math.min(Number((_c = (_b = request.data) === null || _b === void 0 ? void 0 : _b.limit) !== null && _c !== void 0 ? _c : 20), 50));
     const looksLikeUid = /^[A-Za-z0-9_-]{20,128}$/.test(rawQuery);
-    if (!rawQuery) {
-        return { users: [] };
-    }
     const authUsers = new Map();
+    if (!rawQuery) {
+        const users = await listAllAuthUsers(2);
+        const profileRefs = users.map((user) => db.doc(`users/${user.uid}`));
+        const profileSnaps = users.length ? await db.getAll(...profileRefs) : [];
+        const profileByUid = new Map(profileSnaps.map((snap) => [snap.id, snap.exists ? snap.data() : null]));
+        return {
+            users: users
+                .map((user) => buildAdminUserListItem(user, profileByUid.get(user.uid)))
+                .sort(compareAdminUsersByRecency)
+                .slice(0, limit),
+        };
+    }
     if (looksLikeUid) {
         try {
             const user = await admin.auth().getUser(rawQuery);
@@ -453,6 +496,134 @@ exports.searchAdminUsers = (0, https_1.onCall)({ region: 'us-central1' }, async 
             .map((user) => buildAdminUserListItem(user, profileByUid.get(user.uid)))
             .sort(compareAdminUsersByRecency)
             .slice(0, limit),
+    };
+});
+exports.getAdminDashboardSummary = (0, https_1.onCall)({ region: 'us-central1' }, async (request) => {
+    var _a, _b;
+    assertAdmin(request);
+    const authUsers = await listAllAuthUsers(10);
+    const profileRefs = authUsers.map((user) => db.doc(`users/${user.uid}`));
+    const profileSnaps = authUsers.length ? await db.getAll(...profileRefs) : [];
+    const profileByUid = new Map(profileSnaps.map((snap) => [snap.id, snap.exists ? snap.data() : null]));
+    let premiumUsers = 0;
+    let disabledUsers = 0;
+    let chartReadyUsers = 0;
+    let pushReadyUsers = 0;
+    const recentUsers = authUsers
+        .map((user) => buildAdminUserListItem(user, profileByUid.get(user.uid)))
+        .sort(compareAdminUsersByRecency)
+        .slice(0, 12);
+    for (const user of authUsers) {
+        const profile = profileByUid.get(user.uid);
+        if (normalizeAdminSubscriptionTier((_a = profile === null || profile === void 0 ? void 0 : profile.subscription) === null || _a === void 0 ? void 0 : _a.tier) === 'premium')
+            premiumUsers += 1;
+        if (Boolean((_b = profile === null || profile === void 0 ? void 0 : profile.adminFlags) === null || _b === void 0 ? void 0 : _b.disabled))
+            disabledUsers += 1;
+        if (Boolean(profile === null || profile === void 0 ? void 0 : profile.chartCalculated))
+            chartReadyUsers += 1;
+        if (typeof (profile === null || profile === void 0 ? void 0 : profile.fcmToken) === 'string' && profile.fcmToken.length > 0)
+            pushReadyUsers += 1;
+    }
+    const settings = await getAdminSettings();
+    const summary = {
+        totals: {
+            users: authUsers.length,
+            premiumUsers,
+            disabledUsers,
+            chartReadyUsers,
+            pushReadyUsers,
+        },
+        recentUsers,
+        settings,
+    };
+    return summary;
+});
+exports.updateAdminGlobalSettings = (0, https_1.onCall)({ region: 'us-central1' }, async (request) => {
+    var _a, _b;
+    assertAdmin(request);
+    const settings = ((_b = (_a = request.data) === null || _a === void 0 ? void 0 : _a.settings) !== null && _b !== void 0 ? _b : {});
+    const updates = {
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    if (typeof settings.maintenanceMode === 'boolean') {
+        updates.maintenanceMode = settings.maintenanceMode;
+    }
+    if (typeof settings.broadcastPushEnabled === 'boolean') {
+        updates.broadcastPushEnabled = settings.broadcastPushEnabled;
+    }
+    if (typeof settings.supportEmail === 'string' && settings.supportEmail.trim()) {
+        updates.supportEmail = settings.supportEmail.trim().slice(0, 120);
+    }
+    await db.doc('admin/config').set(updates, { merge: true });
+    await writeAdminAuditLog({
+        actorUid: request.auth.uid,
+        action: 'updateAdminGlobalSettings',
+        targetUid: 'admin/config',
+        details: { updates },
+    });
+    return { success: true, uid: 'admin/config', message: 'Admin settings updated.' };
+});
+exports.sendAdminBroadcastNotification = (0, https_1.onCall)({ region: 'us-central1' }, async (request) => {
+    var _a, _b, _c, _d;
+    assertAdmin(request);
+    const title = typeof ((_a = request.data) === null || _a === void 0 ? void 0 : _a.title) === 'string' ? request.data.title.trim() : '';
+    const body = typeof ((_b = request.data) === null || _b === void 0 ? void 0 : _b.body) === 'string' ? request.data.body.trim() : '';
+    const target = ((_c = request.data) === null || _c === void 0 ? void 0 : _c.target) === 'premium' ? 'premium' : 'all';
+    const dryRun = Boolean((_d = request.data) === null || _d === void 0 ? void 0 : _d.dryRun);
+    if (!title || !body) {
+        throw new https_1.HttpsError('invalid-argument', 'title and body are required.');
+    }
+    const settings = await getAdminSettings();
+    if (!settings.broadcastPushEnabled) {
+        throw new https_1.HttpsError('failed-precondition', 'Broadcast push is disabled in admin settings.');
+    }
+    const authUsers = await listAllAuthUsers(10);
+    const profileRefs = authUsers.map((user) => db.doc(`users/${user.uid}`));
+    const profileSnaps = authUsers.length ? await db.getAll(...profileRefs) : [];
+    const profileByUid = new Map(profileSnaps.map((snap) => [snap.id, snap.exists ? snap.data() : null]));
+    const tokens = authUsers
+        .filter((user) => {
+        var _a;
+        const profile = profileByUid.get(user.uid);
+        if (!profile || typeof profile.fcmToken !== 'string' || !profile.fcmToken.length)
+            return false;
+        if (target === 'premium')
+            return normalizeAdminSubscriptionTier((_a = profile.subscription) === null || _a === void 0 ? void 0 : _a.tier) === 'premium';
+        return true;
+    })
+        .map((user) => { var _a; return String((_a = profileByUid.get(user.uid)) === null || _a === void 0 ? void 0 : _a.fcmToken); });
+    const attempted = tokens.length;
+    let sent = 0;
+    let failed = 0;
+    if (!dryRun && tokens.length > 0) {
+        const response = await admin.messaging().sendEachForMulticast({
+            tokens,
+            notification: { title: title.slice(0, 80), body: body.slice(0, 200) },
+            data: { screen: 'today', kind: 'admin_broadcast' },
+        });
+        sent = response.successCount;
+        failed = response.failureCount;
+    }
+    await db.doc('admin/config').set({
+        latestBroadcastAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    await writeAdminAuditLog({
+        actorUid: request.auth.uid,
+        action: 'sendAdminBroadcastNotification',
+        targetUid: 'broadcast',
+        details: { title, body, target, dryRun, attempted, sent, failed },
+    });
+    return {
+        success: true,
+        target,
+        dryRun,
+        attempted,
+        sent: dryRun ? 0 : sent,
+        failed: dryRun ? 0 : failed,
+        message: dryRun
+            ? `Dry run complete. ${attempted} device tokens match the selected audience.`
+            : `Broadcast sent to ${sent} devices${failed ? `, ${failed} failed.` : '.'}`,
     };
 });
 exports.getAdminUserDetail = (0, https_1.onCall)({ region: 'us-central1' }, async (request) => {
