@@ -82,6 +82,7 @@ export default function RootLayout() {
   const profileLoading = useAuthStore((s) => s.profileLoading);
   const firebaseUser = useAuthStore((s) => s.firebaseUser);
   const isEmailVerified = useAuthStore((s) => s.isEmailVerified);
+  const pendingReferral = useAuthStore((s) => s.pendingReferral);
 
   const loadUser = useUserStore((s) => s.loadUser);
   const user = useUserStore((s) => s.user);
@@ -174,6 +175,12 @@ export default function RootLayout() {
       return;
     }
 
+    if (pendingReferral) {
+      const inReferralEntry = inAuth && routeSegments[1] === 'referral-entry';
+      if (!inReferralEntry) navigate('/(auth)/referral-entry');
+      return;
+    }
+
     if (inAdmin) {
       return;
     }
@@ -189,7 +196,7 @@ export default function RootLayout() {
       }
       return;
     }
-  }, [authReady, firebaseUser, fontReady, isEmailVerified, onWebLanding, profileLoading, router, segments, user]);
+  }, [authReady, firebaseUser, fontReady, isEmailVerified, onWebLanding, pendingReferral, profileLoading, router, segments, user]);
 
   useEffect(() => {
     const handleDeepLink = (event: { url: string }) => {

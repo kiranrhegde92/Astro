@@ -7,6 +7,8 @@ import {
   collection,
   getDocs,
   serverTimestamp,
+  runTransaction,
+  increment,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { UserProfile } from '../types/user';
@@ -68,6 +70,94 @@ export async function saveDailyReading(
     ...reading,
     generatedAt: serverTimestamp(),
   });
+}
+
+// ─── Referral system ──────────────────────────────────────────────────────────
+
+const REFERRAL_MAX_USES = 3;
+const REFERRAL_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no O/0/I/1
+
+function makeReferralCode(): string {
+  let code = '';
+  for (let i = 0; i < 8; i++) {
+    code += REFERRAL_CODE_CHARS[Math.floor(Math.random() * REFERRAL_CODE_CHARS.length)];
+  }
+  return code;
+}
+
+export async function generateUniqueReferralCode(): Promise<string> {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const code = makeReferralCode();
+    const snap = await getDoc(doc(db, 'referralCodes', code));
+    if (!snap.exists()) return code;
+  }
+  // Extremely rare — extend to 10 chars
+  return makeReferralCode() + makeReferralCode().slice(0, 2);
+}
+
+export async function createReferralCodeDoc(code: string, uid: string): Promise<void> {
+  await setDoc(doc(db, 'referralCodes', code), {
+    uid,
+    usedCount: 0,
+    createdAt: serverTimestamp(),
+  });
+}
+
+export interface ReferralValidation {
+  valid: boolean;
+  referrerId?: string;
+  error?: string;
+}
+
+export async function validateReferralCode(code: string): Promise<ReferralValidation> {
+  if (!code || code.length < 6) {
+    return { valid: false, error: 'Invalid referral code.' };
+  }
+  const snap = await getDoc(doc(db, 'referralCodes', code.toUpperCase().trim()));
+  if (!snap.exists()) {
+    return { valid: false, error: 'Referral code not found.' };
+  }
+  const data = snap.data() as { uid: string; usedCount: number };
+  if (data.usedCount >= REFERRAL_MAX_USES) {
+    return { valid: false, error: 'This referral code has already been fully used.' };
+  }
+  return { valid: true, referrerId: data.uid };
+}
+
+export async function applyReferralTransaction(
+  newUid: string,
+  code: string
+): Promise<{ success: boolean; referrerId?: string; error?: string }> {
+  const normalizedCode = code.toUpperCase().trim();
+  const codeRef = doc(db, 'referralCodes', normalizedCode);
+  const newUserRef = doc(db, 'users', newUid);
+
+  let referrerId = '';
+  try {
+    await runTransaction(db, async (tx) => {
+      const codeSnap = await tx.get(codeRef);
+      if (!codeSnap.exists()) throw new Error('invalid-code');
+
+      const codeData = codeSnap.data() as { uid: string; usedCount: number };
+      if (codeData.usedCount >= REFERRAL_MAX_USES) throw new Error('limit-reached');
+      if (codeData.uid === newUid) throw new Error('self-referral');
+
+      referrerId = codeData.uid;
+      const referrerRef = doc(db, 'users', referrerId);
+
+      tx.update(codeRef, { usedCount: codeData.usedCount + 1 });
+      tx.update(referrerRef, { referralCount: increment(1) });
+      tx.update(newUserRef, { referredBy: referrerId });
+    });
+    return { success: true, referrerId };
+  } catch (e: any) {
+    const error =
+      e.message === 'invalid-code' ? 'Referral code not found.' :
+      e.message === 'limit-reached' ? 'This referral code has been fully used.' :
+      e.message === 'self-referral' ? 'You cannot use your own referral code.' :
+      'Failed to apply referral. Please try again.';
+    return { success: false, error };
+  }
 }
 
 // ─── Account deletion ─────────────────────────────────────────────────────────

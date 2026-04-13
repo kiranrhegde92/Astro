@@ -163,5 +163,8 @@ export function normalizeUserProfile(user: Partial<UserProfile>): UserProfile {
     lastCheckIn: user.lastCheckIn,
     onboardingComplete: Boolean(user.onboardingComplete),
     createdAt: toDate(user.createdAt, now),
+    referralCode: typeof user.referralCode === 'string' ? user.referralCode : '',
+    referralCount: typeof user.referralCount === 'number' ? user.referralCount : 0,
+    referredBy: user.referredBy,
   };
 }

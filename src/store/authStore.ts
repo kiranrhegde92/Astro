@@ -59,6 +59,9 @@ interface AuthState {
   profileLoading: boolean;
   isAdmin: boolean;
   isEmailVerified: boolean;
+  /** True when a new Google user needs to supply a referral code before onboarding. */
+  pendingReferral: boolean;
+  setPendingReferral: (val: boolean) => void;
   initialize: () => () => void;
   refreshClaims: () => Promise<void>;
   refreshEmailVerification: () => Promise<boolean>;
@@ -94,7 +97,13 @@ async function hydrateVerifiedUser(user: User, set: (state: Partial<AuthState>) 
         id: user.uid,
       } as any);
     } else if (!hasMatchingLocalUser) {
-      useUserStore.getState().setUser(buildPendingProfile(user) as any);
+      // New Google user with no Firestore profile → require referral before onboarding
+      const isGoogleUser = user.providerData.some((p) => p.providerId === 'google.com');
+      if (isGoogleUser) {
+        set({ pendingReferral: true });
+      } else {
+        useUserStore.getState().setUser(buildPendingProfile(user) as any);
+      }
     }
 
     set({ isAdmin });
@@ -115,6 +124,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   profileLoading: false,
   isAdmin: false,
   isEmailVerified: false,
+  pendingReferral: false,
+  setPendingReferral: (val) => set({ pendingReferral: val }),
 
   initialize: () => {
     const timeout = setTimeout(() => {
@@ -189,7 +200,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: async () => {
     await signOut();
-    set({ firebaseUser: null, isAdmin: false, isEmailVerified: false });
+    set({ firebaseUser: null, isAdmin: false, isEmailVerified: false, pendingReferral: false });
   },
 
   deleteAccount: async () => {

@@ -17,12 +17,20 @@ import { AnimatedPressable } from '../../src/components/ui/AnimatedPressable';
 import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../../src/constants/theme';
 import {
+  deleteCurrentUser,
   getGoogleAuthErrorMessage,
   isUserEmailVerified,
   signInWithGoogle,
   signUp,
 } from '../../src/services/authService';
-import { createUserProfile } from '../../src/services/firestoreService';
+import {
+  applyReferralTransaction,
+  createReferralCodeDoc,
+  createUserProfile,
+  deleteAllUserData,
+  generateUniqueReferralCode,
+  validateReferralCode,
+} from '../../src/services/firestoreService';
 import { useCosmicAlert } from '../../src/components/ui/CosmicAlert';
 
 function FocusInput({ error, children }: { error?: boolean; children: React.ReactNode }) {
@@ -51,15 +59,17 @@ export default function SignupScreen() {
   const router = useRouter();
   const emailRef = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
+  const referralRef = useRef<TextInput>(null);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [referralCode, setReferralCode] = useState('');
   const [showPass, setShowPass] = useState(false);
   const { showAlert, alertModal } = useCosmicAlert();
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string; referralCode?: string }>({});
 
   const validate = () => {
     const e: typeof errors = {};
@@ -68,6 +78,7 @@ export default function SignupScreen() {
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) e.email = 'Enter a valid email';
     if (!password) e.password = 'Password is required';
     else if (password.length < 6) e.password = 'Password must be at least 6 characters';
+    if (!referralCode.trim()) e.referralCode = 'Referral code is required';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -76,7 +87,22 @@ export default function SignupScreen() {
     if (!validate()) return;
     setLoading(true);
     try {
+      const trimmedCode = referralCode.trim().toUpperCase();
+
+      // 1. Pre-validate referral code before creating the account
+      const validation = await validateReferralCode(trimmedCode);
+      if (!validation.valid) {
+        setErrors((prev) => ({ ...prev, referralCode: validation.error }));
+        return;
+      }
+
+      // 2. Create Firebase Auth user
       const user = await signUp(email.trim().toLowerCase(), password, name.trim());
+
+      // 3. Generate this new user's own referral code
+      const newReferralCode = await generateUniqueReferralCode();
+
+      // 4. Create Firestore profile
       await createUserProfile(user.uid, {
         name: name.trim(),
         activeSystems: [],
@@ -85,7 +111,23 @@ export default function SignupScreen() {
         onboardingComplete: false,
         language: 'en',
         subscription: { tier: 'free', status: 'active' },
+        referralCode: newReferralCode,
+        referralCount: 0,
       } as any);
+
+      // 5. Store the referral code doc for this new user
+      await createReferralCodeDoc(newReferralCode, user.uid);
+
+      // 6. Atomically apply the referral
+      const result = await applyReferralTransaction(user.uid, trimmedCode);
+      if (!result.success) {
+        // Roll back: delete profile + auth user, the referral slot was taken by a race
+        await deleteAllUserData(user.uid).catch(() => {});
+        await deleteCurrentUser().catch(() => {});
+        setErrors((prev) => ({ ...prev, referralCode: result.error }));
+        return;
+      }
+
       if (!isUserEmailVerified(user)) {
         showAlert('Verify your email', 'We sent a verification link. You can continue after confirming your email.');
       }
@@ -186,14 +228,35 @@ export default function SignupScreen() {
                   onChangeText={t => { setPassword(t); setErrors(p => ({ ...p, password: undefined })); }}
                   secureTextEntry={!showPass}
                   autoComplete="new-password"
-                  returnKeyType="done"
-                  onSubmitEditing={handleSignup}
+                  returnKeyType="next"
+                  onSubmitEditing={() => referralRef.current?.focus()}
                 />
                 <TouchableOpacity onPress={() => setShowPass(v => !v)} style={styles.eyeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                   <Ionicons name={showPass ? 'eye-off-outline' : 'eye-outline'} size={18} color={COLORS.textMuted} />
                 </TouchableOpacity>
               </FocusInput>
               {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+            </View>
+
+            {/* Referral code */}
+            <View>
+              <Text style={styles.label}>Referral Code</Text>
+              <FocusInput error={!!errors.referralCode}>
+                <Ionicons name="key-outline" size={18} color={COLORS.textMuted} style={styles.icon} />
+                <TextInput
+                  ref={referralRef}
+                  style={[styles.input, styles.codeInput]}
+                  placeholder="Ask a friend for their code"
+                  placeholderTextColor={COLORS.textMuted}
+                  value={referralCode}
+                  onChangeText={t => { setReferralCode(t); setErrors(p => ({ ...p, referralCode: undefined })); }}
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                  returnKeyType="done"
+                  onSubmitEditing={handleSignup}
+                />
+              </FocusInput>
+              {errors.referralCode && <Text style={styles.errorText}>{errors.referralCode}</Text>}
             </View>
           </Animated.View>
 
@@ -275,6 +338,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   eyeBtn: { padding: 4 },
+  codeInput: { letterSpacing: 2 },
   errorText: { color: COLORS.error, fontSize: 12, marginTop: 4, marginLeft: 2 },
   btn: {
     backgroundColor: COLORS.western,

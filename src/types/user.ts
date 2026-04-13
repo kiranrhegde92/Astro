@@ -42,4 +42,7 @@ export interface UserProfile {
   lastCheckIn?: string;
   onboardingComplete: boolean;
   createdAt: Date;
+  referralCode: string;
+  referralCount: number;
+  referredBy?: string;
 }
