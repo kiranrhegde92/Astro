@@ -28,6 +28,18 @@ const TRANSIT_WEIGHTS: Record<string, number> = {
   KETU: 2.2,
 };
 
+const DAILY_TRANSIT_TIER: Record<string, number> = {
+  MOON: 0,
+  SUN: 1,
+  MERCURY: 1,
+  VENUS: 1,
+  MARS: 2,
+  JUPITER: 3,
+  SATURN: 3,
+  MEAN_NODE: 3,
+  KETU: 3,
+};
+
 const ASPECTS = [
   { name: 'conjunction', angle: 0, maxOrb: 6, support: 1.1, tension: 0.2 },
   { name: 'trine', angle: 120, maxOrb: 6, support: 1, tension: 0 },
@@ -72,8 +84,23 @@ const AREA_WARNINGS: Record<SignalArea, string> = {
   wellness: 'Avoid letting the schedule outrun your body.',
 };
 
+const MOON_SIGN_CUES: Record<string, string> = {
+  Aries: 'start cleanly, act early, and avoid letting impatience choose the pace',
+  Taurus: 'stabilize money, food, rest, and the one commitment that needs consistency',
+  Gemini: 'keep conversations light enough to stay useful and write down what changes',
+  Cancer: 'protect emotional bandwidth and handle home or family matters gently',
+  Leo: 'lead visibly, but keep the heart warmer than the performance',
+  Virgo: 'sort details, reduce clutter, and make one practical adjustment',
+  Libra: 'choose balance in conversations before small tensions become bigger than needed',
+  Scorpio: 'keep depth without suspicion and move carefully around intense reactions',
+  Sagittarius: 'make room for learning, movement, and the wider perspective',
+  Capricorn: 'prioritize responsibility, timing, and the task that builds trust',
+  Aquarius: 'look for the cleaner pattern and leave space for a different solution',
+  Pisces: 'soften the pace, listen inwardly, and avoid absorbing every mood around you',
+};
+
 const MONTH_ELEMENTS = ['Water', 'Wood', 'Wood', 'Fire', 'Fire', 'Earth', 'Earth', 'Metal', 'Metal', 'Water', 'Water', 'Earth'];
-const DAILY_READING_VERSION = 4;
+const DAILY_READING_VERSION = 5;
 
 const DIRECTION_BY_ELEMENT: Record<string, string> = {
   Wood: 'East',
@@ -141,6 +168,13 @@ function formatSignal(signal: Pick<TransitSignal, 'transitPlanet' | 'natalPlanet
 function getSignalFocus(signal?: TransitSignal) {
   if (!signal) return 'the clearest signal in your chart';
   return `${formatSignal(signal)} in the zone of ${HOUSE_THEMES[signal.house] ?? 'timing and priorities'}`;
+}
+
+function getLiveMoonNote(transits: Record<string, any>) {
+  const moon = transits.MOON;
+  const sign = String(moon?.sign ?? 'Cancer');
+  const degree = Math.round(Number(moon?.degree ?? 0) * 10) / 10;
+  return `Live Moon in ${sign} (${degree.toFixed(1)} deg) asks you to ${MOON_SIGN_CUES[sign] ?? 'protect emotional pace and respond with care'}.`;
 }
 
 function getWesternSignature(chart: any) {
@@ -266,7 +300,12 @@ function collectSignals(chart: any, transits: Record<string, any>) {
         return [];
       }),
     )
-    .sort((a, b) => (b.support + b.tension) - (a.support + a.tension));
+    .sort((a, b) => {
+      const tierDiff = (DAILY_TRANSIT_TIER[a.transitPlanet] ?? 2) - (DAILY_TRANSIT_TIER[b.transitPlanet] ?? 2);
+      if (tierDiff !== 0) return tierDiff;
+      if (a.orb !== b.orb) return a.orb - b.orb;
+      return (b.support + b.tension) - (a.support + a.tension);
+    });
 }
 
 function getAreaSignal(signals: TransitSignal[], area: SignalArea) {
@@ -324,12 +363,13 @@ export function buildTransitReading(chart: any, transits: Record<string, any>, d
   const positivityScore = Number(Math.max(0.64, Math.min(0.92, 0.74 + supportScore * 0.018 - challengeScore * 0.014)).toFixed(2));
   const tone = buildTone(supportScore, challengeScore);
   const headline = AREA_HEADLINES[dominantArea];
-  const evidenceLine = buildEvidenceLine(overallSignal, cautionSignal, currentDasha);
+  const liveMoonNote = getLiveMoonNote(transits);
+  const evidenceLine = [buildEvidenceLine(overallSignal, cautionSignal, currentDasha), liveMoonNote].filter(Boolean).join(' ');
   const bestUse = `Use the day for ${AREA_AIMS[dominantArea]}.`;
   const watchFor = cautionSignal
     ? `${AREA_WARNINGS[dominantArea]} The pressure point is ${formatSignal(cautionSignal)}.`
     : AREA_WARNINGS[dominantArea];
-  const timingNote = `${kpLagna} lagna with ${kpSubLord} sub-lord sharpens timing around ${dominantArea} matters, while ${currentDasha} Mahadasha carries the broader tempo.`;
+  const timingNote = `${kpLagna} lagna with ${kpSubLord} sub-lord sharpens timing around ${dominantArea} matters, while ${currentDasha} Mahadasha carries the broader tempo. ${liveMoonNote}`;
   const cosmicVibe = overallSignal
     ? `${headline} ${formatSignal(overallSignal)} is the clearest opening, and ${cautionSignal ? `${formatSignal(cautionSignal)} is where the pressure concentrates.` : 'The faster transits are lighter than the long-cycle timing today.'}`
     : `${headline} ${currentDasha} Mahadasha is doing more of the work than the fast-moving sky, so the day rewards cleaner choices than usual.`;
@@ -355,8 +395,8 @@ export function buildTransitReading(chart: any, transits: Record<string, any>, d
     date: date.toISOString().split('T')[0],
     western: {
       overall: overallSignal
-        ? `${getSignalFocus(overallSignal)} is setting the western tone. For your ${signature} makeup, the right move is to ${dominantArea === 'love' ? 'lead with warmth before intensity' : dominantArea === 'career' ? 'back the consequential decision' : 'protect your pace before pressure builds'}.`
-        : `Your ${signature} makeup wants cleaner pacing and fewer scattered commitments today.`,
+        ? `${getSignalFocus(overallSignal)} is setting the western tone. For your ${signature} makeup, the right move is to ${dominantArea === 'love' ? 'lead with warmth before intensity' : dominantArea === 'career' ? 'back the consequential decision' : 'protect your pace before pressure builds'}. ${liveMoonNote}`
+        : `Your ${signature} makeup wants cleaner pacing and fewer scattered commitments today. ${liveMoonNote}`,
       love: loveSignal
         ? `${getSignalFocus(loveSignal)} softens relationship dynamics. Let your ${natalMoon} Moon stay honest instead of over-managed.`
         : `Connection improves when your ${natalMoon} Moon stays warm and simple instead of over-explaining itself.`,

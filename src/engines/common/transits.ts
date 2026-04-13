@@ -150,13 +150,18 @@ const TRANSIT_MEANINGS: Record<string, Record<string, string>> = {
   },
 };
 
+/**
+ * Sort modes:
+ *  'forecast' (default) — slow planets first (Jupiter/Saturn define weekly/monthly trends)
+ *  'daily'              — fast planets first (Moon/Sun change day to day)
+ */
 export function findActiveTransits(
   natalPlanets: PlanetPosition[],
   transitDate = new Date(),
+  sortMode: 'daily' | 'forecast' = 'forecast',
 ): TransitHit[] {
   const transits = getCurrentTransits(transitDate);
   const hits: TransitHit[] = [];
-  const slowPlanets = new Set<Planet>(['Jupiter','Saturn','NorthNode','SouthNode']);
 
   for (const tp of transits) {
     for (const np of natalPlanets) {
@@ -179,13 +184,30 @@ export function findActiveTransits(
     }
   }
 
-  // sort: slow-planet transits first (more significant), then by orb
-  hits.sort((a, b) => {
-    const aW = slowPlanets.has(a.transitPlanet) ? 0 : 1;
-    const bW = slowPlanets.has(b.transitPlanet) ? 0 : 1;
-    if (aW !== bW) return aW - bW;
-    return a.orb - b.orb;
-  });
+  if (sortMode === 'daily') {
+    // Daily mode: Moon first (13°/day), then other fast movers, then outer planets.
+    // This ensures the daily reading reflects what is unique to TODAY.
+    const DAILY_TIER: Partial<Record<string, number>> = {
+      Moon: 0,
+      Sun: 1, Mercury: 1, Venus: 1, Mars: 2,
+      Jupiter: 3, Saturn: 3, Uranus: 3, Neptune: 3, Pluto: 3, NorthNode: 3, SouthNode: 3,
+    };
+    hits.sort((a, b) => {
+      const aT = DAILY_TIER[a.transitPlanet] ?? 2;
+      const bT = DAILY_TIER[b.transitPlanet] ?? 2;
+      if (aT !== bT) return aT - bT;
+      return a.orb - b.orb;
+    });
+  } else {
+    // Forecast mode: slow planets first (they define the sustained trend).
+    const slowPlanets = new Set<Planet>(['Jupiter', 'Saturn', 'NorthNode', 'SouthNode']);
+    hits.sort((a, b) => {
+      const aW = slowPlanets.has(a.transitPlanet) ? 0 : 1;
+      const bW = slowPlanets.has(b.transitPlanet) ? 0 : 1;
+      if (aW !== bW) return aW - bW;
+      return a.orb - b.orb;
+    });
+  }
 
   return hits.slice(0, 6); // top 6 most significant
 }

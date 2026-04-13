@@ -6,6 +6,13 @@ import { getSpokenForecastCopy } from '../../i18n/spokenContent';
 import type { SupportedLanguage } from '../../i18n/language';
 import { GradientCard } from './GradientCard';
 
+const IMPACT_TONE_LABELS = {
+  support: 'support',
+  challenge: 'pressure',
+  mixed: 'mixed',
+  quiet: 'quiet',
+} as const;
+
 export function ForecastPanel({
   forecast,
   window,
@@ -53,6 +60,28 @@ export function ForecastPanel({
             {copy.drivers.map((driver) => (
               <View key={driver} style={styles.driverChip}>
                 <Text style={styles.driverText}>{driver}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      ) : null}
+
+      {copy.impactScores?.length ? (
+        <View style={styles.impactWrap}>
+          <Text style={styles.driverLabel}>{copy.impactLabel}</Text>
+          <View style={styles.impactList}>
+            {copy.impactScores.map((item) => (
+              <View key={item.area} style={styles.impactRow}>
+                <View style={styles.impactHeader}>
+                  <Text style={styles.impactLabel} numberOfLines={1}>{item.label}</Text>
+                  <Text style={styles.impactScore}>{item.score}/10</Text>
+                </View>
+                <View style={styles.impactTrack}>
+                  <View style={[styles.impactFill, { width: `${item.score * 10}%` }]} />
+                </View>
+                <Text style={styles.impactTone}>
+                  {IMPACT_TONE_LABELS[item.tone] ?? item.tone}
+                </Text>
               </View>
             ))}
           </View>
@@ -169,6 +198,55 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: FONTS.accent,
     letterSpacing: 0.3,
+  },
+  impactWrap: {
+    gap: SPACING.xs,
+  },
+  impactList: {
+    gap: SPACING.sm,
+  },
+  impactRow: {
+    gap: 5,
+    paddingVertical: 7,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.glassBorder,
+  },
+  impactHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: SPACING.sm,
+  },
+  impactLabel: {
+    flex: 1,
+    color: COLORS.textPrimary,
+    fontSize: 13,
+    fontFamily: FONTS.heading,
+  },
+  impactScore: {
+    width: 42,
+    color: COLORS.textPrimary,
+    fontSize: 12,
+    fontFamily: FONTS.accent,
+    textAlign: 'right',
+  },
+  impactTrack: {
+    height: 5,
+    borderRadius: BORDER_RADIUS.sm,
+    backgroundColor: 'rgba(36,40,74,0.10)',
+    overflow: 'hidden',
+  },
+  impactFill: {
+    height: '100%',
+    borderRadius: BORDER_RADIUS.sm,
+    backgroundColor: COLORS.tide,
+  },
+  impactTone: {
+    color: COLORS.textMuted,
+    fontSize: 10,
+    fontFamily: FONTS.accent,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
   },
   focusList: {
     gap: SPACING.sm,

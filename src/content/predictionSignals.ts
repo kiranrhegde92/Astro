@@ -12,11 +12,20 @@ import type {
   VedicProfile,
   ChineseProfile,
   KPProfile,
+  WesternSign,
 } from '../types/astrology';
 import type { UserProfile } from '../types/user';
 import { getDateKey } from '../utils/dateUtils';
 
 export type ForecastArea = 'career' | 'love' | 'wellness' | 'wealth' | 'education' | 'travel';
+export type ForecastImpactTone = 'support' | 'challenge' | 'mixed' | 'quiet';
+
+export interface ForecastImpactScore {
+  area: ForecastArea;
+  label: string;
+  score: number;
+  tone: ForecastImpactTone;
+}
 
 export interface DailySignalSnapshot {
   date: Date;
@@ -28,6 +37,17 @@ export interface DailySignalSnapshot {
   supportScore: number;
   challengeScore: number;
 }
+
+const FORECAST_AREAS: ForecastArea[] = ['wealth', 'wellness', 'career', 'love', 'education', 'travel'];
+
+const FORECAST_IMPACT_LABELS: Record<ForecastArea, string> = {
+  career: 'Work',
+  wealth: 'Money',
+  wellness: 'Health',
+  love: 'Relationships',
+  education: 'Learning',
+  travel: 'Travel',
+};
 
 const DAILY_REFERENCES: PredictionReference[] = [
   { source: "Ptolemy's Tetrabiblos", type: 'book', tradition: 'western' },
@@ -96,6 +116,21 @@ const AREA_WARNINGS: Record<ForecastArea, string> = {
   travel: 'Avoid rigid timing or rushing movement that needs margin.',
 };
 
+const MOON_SIGN_CUES: Record<WesternSign, string> = {
+  Aries: 'start cleanly, act early, and avoid letting impatience choose the pace',
+  Taurus: 'stabilize money, food, rest, and the one commitment that needs consistency',
+  Gemini: 'keep conversations light enough to stay useful and write down what changes',
+  Cancer: 'protect emotional bandwidth and handle home or family matters gently',
+  Leo: 'lead visibly, but keep the heart warmer than the performance',
+  Virgo: 'sort details, reduce clutter, and make one practical adjustment',
+  Libra: 'choose balance in conversations before small tensions become bigger than needed',
+  Scorpio: 'keep depth without suspicion and move carefully around intense reactions',
+  Sagittarius: 'make room for learning, movement, and the wider perspective',
+  Capricorn: 'prioritize responsibility, timing, and the task that builds trust',
+  Aquarius: 'look for the cleaner pattern and leave space for a different solution',
+  Pisces: 'soften the pace, listen inwardly, and avoid absorbing every mood around you',
+};
+
 const AFFIRMATIONS: Record<ForecastArea, string> = {
   career: 'I move with timing, clarity, and earned confidence.',
   love: 'I let closeness deepen through honesty and steady warmth.',
@@ -140,7 +175,7 @@ const MONTH_ELEMENT: ChineseElement[] = [
   'Earth',
 ];
 
-const DAILY_READING_VERSION = 4;
+const DAILY_READING_VERSION = 5;
 
 const ELEMENT_STYLE: Record<string, string> = {
   Fire: 'move boldly while the signal is clear',
@@ -327,6 +362,17 @@ function scoreHit(hit: TransitHit): { support: number; tension: number } {
   };
 }
 
+function createAreaScores(): Record<ForecastArea, number> {
+  return {
+    career: 0,
+    love: 0,
+    wellness: 0,
+    wealth: 0,
+    education: 0,
+    travel: 0,
+  };
+}
+
 function addPlanetAreaWeights(scores: Record<ForecastArea, number>, planet: Planet, multiplier: number) {
   const apply = (area: ForecastArea, value: number) => {
     scores[area] += value * multiplier;
@@ -380,21 +426,18 @@ function addPlanetAreaWeights(scores: Record<ForecastArea, number>, planet: Plan
   }
 }
 
+function addHitAreaWeights(scores: Record<ForecastArea, number>, hit: TransitHit, multiplier: number) {
+  addPlanetAreaWeights(scores, hit.transitPlanet, multiplier);
+  addPlanetAreaWeights(scores, hit.natalPlanet, multiplier * 0.8);
+}
+
 function getPrimaryArea(hits: TransitHit[]): ForecastArea {
-  const scores: Record<ForecastArea, number> = {
-    career: 0,
-    love: 0,
-    wellness: 0,
-    wealth: 0,
-    education: 0,
-    travel: 0,
-  };
+  const scores = createAreaScores();
 
   for (const hit of hits) {
     const impact = scoreHit(hit);
     const multiplier = Math.max(impact.support, impact.tension);
-    addPlanetAreaWeights(scores, hit.transitPlanet, multiplier);
-    addPlanetAreaWeights(scores, hit.natalPlanet, multiplier * 0.8);
+    addHitAreaWeights(scores, hit, multiplier);
   }
 
   return (Object.entries(scores).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'career') as ForecastArea;
@@ -544,8 +587,12 @@ function getKPLead(profile: Partial<CosmicProfile>, preferredArea?: ForecastArea
   return predictions.sort((a, b) => b.confidence - a.confidence)[0];
 }
 
-export function buildDailySnapshot(profile: Partial<CosmicProfile>, date: Date): DailySignalSnapshot {
-  const hits = profile.western?.planets?.length ? findActiveTransits(profile.western.planets, date) : [];
+export function buildDailySnapshot(
+  profile: Partial<CosmicProfile>,
+  date: Date,
+  sortMode: 'daily' | 'forecast' = 'daily',
+): DailySignalSnapshot {
+  const hits = profile.western?.planets?.length ? findActiveTransits(profile.western.planets, date, sortMode) : [];
   const supportHits = hits.filter((hit) => hit.aspect !== 'square' && hit.aspect !== 'opposition');
   const challengeHits = hits.filter((hit) => hit.aspect === 'square' || hit.aspect === 'opposition');
   const supportScore = supportHits.reduce((sum, hit) => sum + scoreHit(hit).support, 0);
@@ -576,6 +623,11 @@ function getChinesePulse(profile: Partial<CosmicProfile>, date: Date) {
     animalText: `Your ${animal} instinct works best when you lean on ${ANIMAL_STYLE[animal] ?? 'clean timing and steady focus'}.`,
     direction: DIRECTION_BY_ELEMENT[monthElement],
   };
+}
+
+function getLiveMoonNote(moon?: { sign: WesternSign; degree: number }) {
+  if (!moon) return '';
+  return `Live Moon in ${moon.sign} (${moon.degree.toFixed(1)} deg) asks you to ${MOON_SIGN_CUES[moon.sign]}.`;
 }
 
 function formatAspectSymbol(aspect: string): string {
@@ -615,6 +667,8 @@ export function generateSignalDailyReading(date: Date, profile: Partial<CosmicPr
   const chinesePulse = getChinesePulse(profile, date);
   const signature = getWesternSignature(profile);
   const styleCue = getStyleCue(profile);
+  const transitPositionsRaw = getCurrentTransits(date);
+  const liveMoonNote = getLiveMoonNote(transitPositionsRaw.find((position) => position.planet === 'Moon'));
   const cautionHit = snapshot.challengeHits[0];
   const tone = buildTone(snapshot);
   const activeCount = snapshot.hits.length;
@@ -622,7 +676,7 @@ export function generateSignalDailyReading(date: Date, profile: Partial<CosmicPr
   const challengeCount = snapshot.challengeHits.length;
   const topTransitLabel = topSupport ? `${topSupport.transitPlanet} ${formatAspectSymbol(topSupport.aspect)} natal ${topSupport.natalPlanet} (${topSupport.orb.toFixed(1)} deg)` : '';
   const headline = AREA_HEADLINES[snapshot.supportArea];
-  const evidenceLine = buildEvidenceLine(topSupport, cautionHit, dashaPlanet);
+  const evidenceLine = [buildEvidenceLine(topSupport, cautionHit, dashaPlanet), liveMoonNote].filter(Boolean).join(' ');
   const cosmicVibe = buildCosmicVibe(snapshot.supportArea, snapshot.challengeArea, topSupport, cautionHit, dashaPlanet);
 
   const focusArea = AREA_LABELS[snapshot.supportArea];
@@ -631,9 +685,10 @@ export function generateSignalDailyReading(date: Date, profile: Partial<CosmicPr
   const watchFor = cautionHit
     ? `${AREA_WARNINGS[snapshot.challengeArea]} The pressure point is ${cautionHit.transitPlanet} ${formatAspectSymbol(cautionHit.aspect)} ${cautionHit.natalPlanet}.`
     : AREA_WARNINGS[snapshot.challengeArea];
-  const timingNote = kpLead
+  const timingNoteBase = kpLead
     ? `KP timing is sharpest around ${kpLead.area === 'health' ? 'wellness' : kpLead.area} matters, while ${dashaPlanet} Mahadasha keeps the broader tempo on ${DASHA_THEMES[dashaPlanet]}.`
     : `${dashaPlanet} Mahadasha keeps the day centered on ${DASHA_THEMES[dashaPlanet]}.`;
+  const timingNote = [timingNoteBase, liveMoonNote].filter(Boolean).join(' ');
 
   const shareText = `${topTransitLabel || signature} | ${activeCount} active transits | ${(western?.sun ?? 'Leo')} + ${(vedic?.rashi ?? 'Simha')} + ${(chinese?.animal ?? 'Dragon')} | CosmicSelf`;
   const positivityScore = Number(
@@ -649,7 +704,7 @@ export function generateSignalDailyReading(date: Date, profile: Partial<CosmicPr
     brief: briefTransit(hit),
   }));
 
-  const transitPositions = getCurrentTransits(date).map((p: any) => ({
+  const transitPositions = transitPositionsRaw.map((p) => ({
     planet: p.planet,
     sign: p.sign,
     degree: Math.round(p.degree * 10) / 10,
@@ -661,8 +716,8 @@ export function generateSignalDailyReading(date: Date, profile: Partial<CosmicPr
     date: getDateKey(date),
     western: {
       overall: topSupport
-        ? `${topSupport.transitPlanet} ${formatAspectSymbol(topSupport.aspect)} natal ${topSupport.natalPlanet} (${topSupport.orb.toFixed(1)}° orb) sets today's western tone. For ${signature}: ${AREA_PROMPTS[snapshot.supportArea]}.`
-        : `${signature} placements favour a steady approach today — ${styleCue}.`,
+        ? `${topSupport.transitPlanet} ${formatAspectSymbol(topSupport.aspect)} natal ${topSupport.natalPlanet} (${topSupport.orb.toFixed(1)}° orb) sets today's western tone. For ${signature}: ${AREA_PROMPTS[snapshot.supportArea]}. ${liveMoonNote}`
+        : `${signature} placements favour a steady approach today — ${styleCue}. ${liveMoonNote}`,
       love: loveHit
         ? `${loveHit.transitPlanet} ${formatAspectSymbol(loveHit.aspect)} ${loveHit.natalPlanet} (${loveHit.orb.toFixed(1)}°) activates relationship themes. Your ${western?.moon ?? 'Cancer'} Moon benefits from direct, unhurried connection.`
         : `No strong love transits today. Your ${western?.moon ?? 'Cancer'} Moon does best with warm, low-pressure relating.`,
@@ -722,7 +777,50 @@ export function getForecastWindowDates(date: Date, window: 'week' | 'month') {
 }
 
 export function getWindowSamples(profile: Partial<CosmicProfile>, date: Date, window: 'week' | 'month') {
-  return getForecastWindowDates(date, window).map((sampleDate) => buildDailySnapshot(profile, sampleDate));
+  return getForecastWindowDates(date, window).map((sampleDate) => buildDailySnapshot(profile, sampleDate, 'forecast'));
+}
+
+export function getForecastImpactScores(samples: DailySignalSnapshot[]): ForecastImpactScore[] {
+  const supportScores = createAreaScores();
+  const tensionScores = createAreaScores();
+  const sampleCount = Math.max(samples.length, 1);
+
+  for (const sample of samples) {
+    for (const hit of sample.hits) {
+      const impact = scoreHit(hit);
+      if (impact.support > 0) addHitAreaWeights(supportScores, hit, impact.support);
+      if (impact.tension > 0) addHitAreaWeights(tensionScores, hit, impact.tension);
+    }
+  }
+
+  const averageImpact = FORECAST_AREAS.map((area) => ({
+    area,
+    support: supportScores[area] / sampleCount,
+    tension: tensionScores[area] / sampleCount,
+  }));
+  const maxImpact = Math.max(...averageImpact.map((item) => item.support + item.tension), 0);
+
+  return averageImpact.map((item) => {
+    const total = item.support + item.tension;
+    const tone: ForecastImpactTone =
+      total <= 0
+        ? 'quiet'
+        : item.support >= item.tension * 1.25
+        ? 'support'
+        : item.tension >= item.support * 1.15
+        ? 'challenge'
+        : 'mixed';
+    const absoluteScore = Math.min(10, Math.round(total * 1.35));
+    const relativeScore = maxImpact <= 0 ? 0 : Math.round(3 + (total / maxImpact) * 7);
+    const score = total <= 0 ? 0 : Math.max(1, Math.min(10, Math.round(absoluteScore * 0.65 + relativeScore * 0.35)));
+
+    return {
+      area: item.area,
+      label: FORECAST_IMPACT_LABELS[item.area],
+      score,
+      tone,
+    };
+  });
 }
 
 export function getWindowRange(samples: DailySignalSnapshot[], mode: 'support' | 'challenge', span: number) {

@@ -44,7 +44,7 @@ import {
 } from '../../src/i18n/spokenContent';
 import { hasPremiumEntitlement } from '../../src/utils/subscription';
 
-const READING_VERSION = 4;
+const READING_VERSION = 5;
 
 const TONE_GRADIENTS: Record<'Opening' | 'Mixed' | 'Pressurized', readonly [string, string, string]> = {
   Opening: ['#16223c', '#25496a', '#217063'],

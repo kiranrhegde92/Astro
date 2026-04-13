@@ -448,6 +448,8 @@ export function getSpokenForecastCopy(forecast: PeriodForecast, language?: strin
       summary: forecast.summary,
       driverLabel: 'Signals behind this',
       drivers: forecast.drivers ?? [],
+      impactLabel: 'Impact by area',
+      impactScores: forecast.impactScores ?? [],
       focusAreas: forecast.focusAreas,
       openWindowLabel: 'Open window',
       carefulWindowLabel: 'Move carefully',
@@ -467,6 +469,7 @@ export function getSpokenForecastCopy(forecast: PeriodForecast, language?: strin
       summary: 'जहां रास्ता खुला लगे, वहां action लें। जहां शरीर या मन tight लगे, वहां बात को धीमा करें।',
       driverLabel: 'किस बात पर ध्यान है',
       drivers: ['गोचर', 'दशा', 'आपकी कुंडली'],
+      impactLabel: 'किस हिस्से पर असर',
       focusAreas: [
         { label: 'पश्चिमी', text: 'मूड और choices को बहुत जल्दी final मत मानें।' },
         { label: 'वैदिक', text: 'समय की rhythm देखकर अगला कदम लें।' },
@@ -486,6 +489,7 @@ export function getSpokenForecastCopy(forecast: PeriodForecast, language?: strin
       summary: '顺的时候就做下一步；紧的时候先慢下来，不要急着证明什么。',
       driverLabel: '主要信号',
       drivers: ['行运', 'Dasha', '本命盘'],
+      impactLabel: '领域影响',
       focusAreas: [
         { label: '西方', text: '先看清你的感受和选择，不要太快定论。' },
         { label: '吠陀', text: '按时间节奏来，动作会更省力。' },
@@ -505,6 +509,7 @@ export function getSpokenForecastCopy(forecast: PeriodForecast, language?: strin
       summary: 'ದಾರಿ ತೆರೆಯುತ್ತಿದೆ ಅನ್ನಿಸಿದಾಗ action ತೆಗೆದುಕೊಳ್ಳಿ. tight ಅನ್ನಿಸಿದಾಗ ವಿಷಯವನ್ನು ನಿಧಾನ ಮಾಡಿ.',
       driverLabel: 'ಮುಖ್ಯ ಸೂಚನೆಗಳು',
       drivers: ['ಸಂಚಾರ', 'ದಶಾ', 'ಜನ್ಮ ಚಾರ್ಟ್'],
+      impactLabel: 'ಯಾವ ಭಾಗದ ಮೇಲೆ ಪ್ರಭಾವ',
       focusAreas: [
         { label: 'ಪಾಶ್ಚಾತ್ಯ', text: 'ಮೂಡ್ ಮತ್ತು choices ಅನ್ನು ಬೇಗ final ಮಾಡಬೇಡಿ.' },
         { label: 'ವೇದಿಕ', text: 'ಸಮಯದ rhythm ನೋಡಿ ಮುಂದಿನ ಹೆಜ್ಜೆ ಇಡಿ.' },
@@ -519,6 +524,7 @@ export function getSpokenForecastCopy(forecast: PeriodForecast, language?: strin
 
   return {
     ...copy,
+    impactScores: forecast.impactScores ?? [],
     brightWindow: forecast.brightWindow,
     cautionWindow: forecast.cautionWindow,
   };

@@ -13,7 +13,7 @@ import { geocodePlace, localToUtc } from './utils/geocoding';
 
 admin.initializeApp();
 const db = admin.firestore();
-const DAILY_READING_VERSION = 4;
+const DAILY_READING_VERSION = 5;
 const HIGH_IMPACT_TRANSIT_ORB = 1.25;
 
 type JsonSafeValue = null | boolean | number | string | JsonSafeValue[] | { [key: string]: JsonSafeValue };

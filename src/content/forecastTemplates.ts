@@ -3,10 +3,12 @@ import {
   getCurrentSubPeriod,
   getDominantArea,
   getForecastDrivers,
+  getForecastImpactScores,
   getNextDashaShift,
   getWindowRange,
   getWindowSamples,
   type ForecastArea,
+  type ForecastImpactScore,
 } from './predictionSignals';
 
 export type ForecastWindow = 'week' | 'month';
@@ -24,6 +26,7 @@ export interface PeriodForecast {
   cautionWindow: string;
   ritualPrompt: string;
   drivers?: string[];
+  impactScores: ForecastImpactScore[];
   references: PredictionReference[];
 }
 
@@ -153,6 +156,7 @@ export function generatePeriodForecast(
   const brightWindow = getWindowRange(samples, 'support', brightSpan);
   const cautionWindow = getWindowRange(samples, 'challenge', cautionSpan);
   const drivers = getForecastDrivers(samples);
+  const impactScores = getForecastImpactScores(samples);
   const supportArea = getDominantArea(samples, 'supportArea');
   const challengeArea = getDominantArea(samples, 'challengeArea');
   const nextShift = getNextDashaShift(profile, date, window === 'week' ? 7 : 30);
@@ -231,6 +235,7 @@ export function generatePeriodForecast(
     cautionWindow: cautionWindow.label,
     ritualPrompt: window === 'week' ? AREA_WEEKLY_PROMPTS[supportArea] : AREA_MONTHLY_PROMPTS[supportArea],
     drivers,
+    impactScores,
     references: [
       { source: "Ptolemy's Tetrabiblos", type: 'book', tradition: 'western' },
       { source: 'Planets in Transit', type: 'book', tradition: 'western' },
