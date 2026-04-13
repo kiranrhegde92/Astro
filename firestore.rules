@@ -2,9 +2,31 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Users can read/write their own profile
+    // Users can read/write their own profile.
+    // Referral transactions may increment only the referrer's visible invite count.
     match /users/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+      allow read, create, delete: if request.auth != null && request.auth.uid == uid;
+      allow update: if request.auth != null && request.auth.uid == uid;
+      allow update: if request.auth != null
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly(['referralCount'])
+        && resource.data.referralCount is int
+        && request.resource.data.referralCount == resource.data.referralCount + 1
+        && request.resource.data.referralCount <= 3;
+    }
+
+    // Invite codes are readable for signup validation and tightly writable by owners.
+    match /referralCodes/{code} {
+      allow get: if true;
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(['uid', 'usedCount', 'createdAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.usedCount == 0;
+      allow update: if request.auth != null
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly(['usedCount'])
+        && resource.data.uid is string
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.usedCount == resource.data.usedCount + 1
+        && request.resource.data.usedCount <= 3;
     }
 
     // Charts are private to each user

@@ -37,6 +37,8 @@ function buildPendingProfile(user: User) {
     streak: 0,
     onboardingComplete: false,
     createdAt: new Date(),
+    referralCode: '',
+    referralCount: 0,
   };
 }
 

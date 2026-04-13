@@ -61,6 +61,7 @@ export default function ProfileScreen() {
   const [exportingDataset, setExportingDataset] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [editName, setEditName] = useState('');
+  const [showProfileDetails, setShowProfileDetails] = useState(false);
 
   const setUser = useUserStore((s) => s.setUser);
 
@@ -363,6 +364,8 @@ export default function ProfileScreen() {
         </AnimatedCard>
 
         {/* ── Badges & Streak ──────────────────────────────────────────── */}
+        {showProfileDetails ? (
+          <>
         <AnimatedCard index={3}>
           <LinearGradient colors={COLORS.gradientInkSoft} style={styles.card}>
             <Text style={styles.sectionLabel}>Badges</Text>
@@ -445,6 +448,9 @@ export default function ProfileScreen() {
         ) : null}
 
         {/* ── Settings link ──────────────────────────────────────────────── */}
+          </>
+        ) : null}
+
         <AnimatedCard index={5}>
           <TouchableOpacity
             style={styles.settingsBtn}
@@ -471,6 +477,20 @@ export default function ProfileScreen() {
 
         {/* ── Language ───────────────────────────────────────────────── */}
         <AnimatedCard index={7}>
+          <TouchableOpacity
+            style={styles.settingsBtn}
+            onPress={() => setShowProfileDetails((value) => !value)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name={showProfileDetails ? 'chevron-up' : 'ellipsis-horizontal'} size={20} color={COLORS.textSecondary} />
+            <Text style={styles.settingsLabel}>{showProfileDetails ? 'Hide profile tools' : 'More profile tools'}</Text>
+            <Ionicons name={showProfileDetails ? 'chevron-up' : 'chevron-forward'} size={16} color={COLORS.textMuted} />
+          </TouchableOpacity>
+        </AnimatedCard>
+
+        {showProfileDetails ? (
+          <>
+        <AnimatedCard index={8}>
           <GradientCard style={styles.card} colors={COLORS.gradientSilver}>
             <Text style={styles.sectionLabel}>Language</Text>
             <Text style={styles.langNote}>Changes navigation and rewrites the Today reading in a natural spoken style where supported.</Text>
@@ -556,6 +576,9 @@ export default function ProfileScreen() {
             <Text style={styles.deleteText}>{deletingAccount ? 'Deleting account...' : 'Delete my account'}</Text>
           </TouchableOpacity>
         </AnimatedCard>
+
+          </>
+        ) : null}
 
       </ResetScrollView>
       {alertModal}

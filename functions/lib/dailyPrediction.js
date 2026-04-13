@@ -17,6 +17,17 @@ const TRANSIT_WEIGHTS = {
     MEAN_NODE: 2.4,
     KETU: 2.2,
 };
+const DAILY_TRANSIT_TIER = {
+    MOON: 0,
+    SUN: 1,
+    MERCURY: 1,
+    VENUS: 1,
+    MARS: 2,
+    JUPITER: 3,
+    SATURN: 3,
+    MEAN_NODE: 3,
+    KETU: 3,
+};
 const ASPECTS = [
     { name: 'conjunction', angle: 0, maxOrb: 6, support: 1.1, tension: 0.2 },
     { name: 'trine', angle: 120, maxOrb: 6, support: 1, tension: 0 },
@@ -55,8 +66,22 @@ const AREA_WARNINGS = {
     career: 'Avoid reacting to pressure or stacking too many serious priorities at once.',
     wellness: 'Avoid letting the schedule outrun your body.',
 };
+const MOON_SIGN_CUES = {
+    Aries: 'start cleanly, act early, and avoid letting impatience choose the pace',
+    Taurus: 'stabilize money, food, rest, and the one commitment that needs consistency',
+    Gemini: 'keep conversations light enough to stay useful and write down what changes',
+    Cancer: 'protect emotional bandwidth and handle home or family matters gently',
+    Leo: 'lead visibly, but keep the heart warmer than the performance',
+    Virgo: 'sort details, reduce clutter, and make one practical adjustment',
+    Libra: 'choose balance in conversations before small tensions become bigger than needed',
+    Scorpio: 'keep depth without suspicion and move carefully around intense reactions',
+    Sagittarius: 'make room for learning, movement, and the wider perspective',
+    Capricorn: 'prioritize responsibility, timing, and the task that builds trust',
+    Aquarius: 'look for the cleaner pattern and leave space for a different solution',
+    Pisces: 'soften the pace, listen inwardly, and avoid absorbing every mood around you',
+};
 const MONTH_ELEMENTS = ['Water', 'Wood', 'Wood', 'Fire', 'Fire', 'Earth', 'Earth', 'Metal', 'Metal', 'Water', 'Water', 'Earth'];
-const DAILY_READING_VERSION = 4;
+const DAILY_READING_VERSION = 5;
 const DIRECTION_BY_ELEMENT = {
     Wood: 'East',
     Fire: 'South',
@@ -120,6 +145,13 @@ function getSignalFocus(signal) {
     if (!signal)
         return 'the clearest signal in your chart';
     return `${formatSignal(signal)} in the zone of ${(_a = HOUSE_THEMES[signal.house]) !== null && _a !== void 0 ? _a : 'timing and priorities'}`;
+}
+function getLiveMoonNote(transits) {
+    var _a, _b, _c;
+    const moon = transits.MOON;
+    const sign = String((_a = moon === null || moon === void 0 ? void 0 : moon.sign) !== null && _a !== void 0 ? _a : 'Cancer');
+    const degree = Math.round(Number((_b = moon === null || moon === void 0 ? void 0 : moon.degree) !== null && _b !== void 0 ? _b : 0) * 10) / 10;
+    return `Live Moon in ${sign} (${degree.toFixed(1)} deg) asks you to ${(_c = MOON_SIGN_CUES[sign]) !== null && _c !== void 0 ? _c : 'protect emotional pace and respond with care'}.`;
 }
 function getWesternSignature(chart) {
     var _a, _b, _c, _d, _e, _f, _g;
@@ -235,7 +267,15 @@ function collectSignals(chart, transits) {
             return [];
         });
     })
-        .sort((a, b) => (b.support + b.tension) - (a.support + a.tension));
+        .sort((a, b) => {
+        var _a, _b;
+        const tierDiff = ((_a = DAILY_TRANSIT_TIER[a.transitPlanet]) !== null && _a !== void 0 ? _a : 2) - ((_b = DAILY_TRANSIT_TIER[b.transitPlanet]) !== null && _b !== void 0 ? _b : 2);
+        if (tierDiff !== 0)
+            return tierDiff;
+        if (a.orb !== b.orb)
+            return a.orb - b.orb;
+        return (b.support + b.tension) - (a.support + a.tension);
+    });
 }
 function getAreaSignal(signals, area) {
     var _a;
@@ -290,12 +330,13 @@ function buildTransitReading(chart, transits, date) {
     const positivityScore = Number(Math.max(0.64, Math.min(0.92, 0.74 + supportScore * 0.018 - challengeScore * 0.014)).toFixed(2));
     const tone = buildTone(supportScore, challengeScore);
     const headline = AREA_HEADLINES[dominantArea];
-    const evidenceLine = buildEvidenceLine(overallSignal, cautionSignal, currentDasha);
+    const liveMoonNote = getLiveMoonNote(transits);
+    const evidenceLine = [buildEvidenceLine(overallSignal, cautionSignal, currentDasha), liveMoonNote].filter(Boolean).join(' ');
     const bestUse = `Use the day for ${AREA_AIMS[dominantArea]}.`;
     const watchFor = cautionSignal
         ? `${AREA_WARNINGS[dominantArea]} The pressure point is ${formatSignal(cautionSignal)}.`
         : AREA_WARNINGS[dominantArea];
-    const timingNote = `${kpLagna} lagna with ${kpSubLord} sub-lord sharpens timing around ${dominantArea} matters, while ${currentDasha} Mahadasha carries the broader tempo.`;
+    const timingNote = `${kpLagna} lagna with ${kpSubLord} sub-lord sharpens timing around ${dominantArea} matters, while ${currentDasha} Mahadasha carries the broader tempo. ${liveMoonNote}`;
     const cosmicVibe = overallSignal
         ? `${headline} ${formatSignal(overallSignal)} is the clearest opening, and ${cautionSignal ? `${formatSignal(cautionSignal)} is where the pressure concentrates.` : 'The faster transits are lighter than the long-cycle timing today.'}`
         : `${headline} ${currentDasha} Mahadasha is doing more of the work than the fast-moving sky, so the day rewards cleaner choices than usual.`;
@@ -323,8 +364,8 @@ function buildTransitReading(chart, transits, date) {
         date: date.toISOString().split('T')[0],
         western: {
             overall: overallSignal
-                ? `${getSignalFocus(overallSignal)} is setting the western tone. For your ${signature} makeup, the right move is to ${dominantArea === 'love' ? 'lead with warmth before intensity' : dominantArea === 'career' ? 'back the consequential decision' : 'protect your pace before pressure builds'}.`
-                : `Your ${signature} makeup wants cleaner pacing and fewer scattered commitments today.`,
+                ? `${getSignalFocus(overallSignal)} is setting the western tone. For your ${signature} makeup, the right move is to ${dominantArea === 'love' ? 'lead with warmth before intensity' : dominantArea === 'career' ? 'back the consequential decision' : 'protect your pace before pressure builds'}. ${liveMoonNote}`
+                : `Your ${signature} makeup wants cleaner pacing and fewer scattered commitments today. ${liveMoonNote}`,
             love: loveSignal
                 ? `${getSignalFocus(loveSignal)} softens relationship dynamics. Let your ${natalMoon} Moon stay honest instead of over-managed.`
                 : `Connection improves when your ${natalMoon} Moon stays warm and simple instead of over-explaining itself.`,

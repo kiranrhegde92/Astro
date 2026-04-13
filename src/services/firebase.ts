@@ -8,9 +8,23 @@ const firebaseConfig = FirebaseConfig;
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-const authPersistenceFactory = (require('@firebase/auth') as any).getReactNativePersistence as
+function loadReactNativePersistence():
   | ((storage: typeof AsyncStorage) => unknown)
-  | undefined;
+  | undefined {
+  try {
+    const factory = (require('firebase/auth') as any).getReactNativePersistence;
+    if (typeof factory === 'function') return factory;
+  } catch {}
+
+  try {
+    const factory = (require('@firebase/auth') as any).getReactNativePersistence;
+    if (typeof factory === 'function') return factory;
+  } catch {}
+
+  return undefined;
+}
+
+const authPersistenceFactory = loadReactNativePersistence();
 
 export const auth = (() => {
   try {

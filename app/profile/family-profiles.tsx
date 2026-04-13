@@ -48,6 +48,7 @@ export default function FamilyProfilesScreen() {
   const [minute, setMinute] = useState('');
   const [place, setPlace] = useState('');
   const [saving, setSaving] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
 
   const premium = hasPremiumEntitlement(user?.subscription);
   const canAddMore = managedProfiles.length < MAX_EXTRA_MANAGED_PROFILES;
@@ -89,6 +90,7 @@ export default function FamilyProfilesScreen() {
     setHour('');
     setMinute('');
     setPlace('');
+    setShowAddForm(false);
   };
 
   const handleAddProfile = useCallback(async () => {
@@ -213,6 +215,13 @@ export default function FamilyProfilesScreen() {
           ) : canAddMore ? (
             <GradientCard style={styles.section} accentColor={COLORS.tide}>
               <Text style={styles.sectionLabel}>Add family profile</Text>
+              {!showAddForm ? (
+                <>
+                  <Text style={styles.copy}>Add another chart only when you need to switch the daily reading to someone else.</Text>
+                  <CosmicButton title="Add profile" onPress={() => setShowAddForm(true)} />
+                </>
+              ) : (
+                <>
               <TextInput
                 style={styles.input}
                 value={name}
@@ -286,6 +295,11 @@ export default function FamilyProfilesScreen() {
                 disabled={!isValid || saving}
                 loading={saving}
               />
+              <TouchableOpacity style={styles.cancelAddBtn} onPress={() => setShowAddForm(false)} activeOpacity={0.84}>
+                <Text style={styles.cancelAddText}>Cancel</Text>
+              </TouchableOpacity>
+                </>
+              )}
             </GradientCard>
           ) : (
             <GradientCard style={styles.section} accentColor={COLORS.starGold}>
@@ -425,6 +439,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
     fontFamily: FONTS.accent,
+  },
+  cancelAddBtn: {
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelAddText: {
+    color: COLORS.textMuted,
+    fontSize: 14,
+    fontFamily: FONTS.heading,
   },
   bottomPad: { height: 20 },
 });

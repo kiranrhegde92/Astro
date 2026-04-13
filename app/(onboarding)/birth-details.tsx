@@ -122,6 +122,8 @@ export default function BirthDetailsScreen() {
       streak: 0,
       onboardingComplete: false,
       createdAt: new Date(),
+      referralCode: '',
+      referralCount: 0,
     };
 
     setUser(profile);
