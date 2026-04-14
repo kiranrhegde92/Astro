@@ -16,10 +16,11 @@ Everything you need to clone, configure, run, and deploy this project from scrat
 8. [AdMob Setup](#8-admob-setup)
 9. [Run the App Locally](#9-run-the-app-locally)
 10. [Run on a Real Device](#10-run-on-a-real-device)
-11. [Cloudflare Pages (Web Deploy)](#11-cloudflare-pages-web-deploy)
-12. [Project Structure](#12-project-structure)
-13. [Common Commands](#13-common-commands)
-14. [Troubleshooting](#14-troubleshooting)
+11. [Production Build & Store Submission](#11-production-build--store-submission)
+12. [Cloudflare Pages (Web Deploy)](#12-cloudflare-pages-web-deploy)
+13. [Project Structure](#13-project-structure)
+14. [Common Commands](#14-common-commands)
+15. [Troubleshooting](#15-troubleshooting)
 
 ---
 
@@ -471,7 +472,218 @@ Scan the QR from the installed dev client (not Expo Go).
 
 ---
 
-## 11. Cloudflare Pages (Web Deploy)
+## 11. Production Build & Store Submission
+
+This section covers everything needed to build a production binary and ship it to the App Store (iOS) and Google Play Store (Android) using EAS (Expo Application Services).
+
+### 11a. Prerequisites
+
+- EAS CLI installed and logged in:
+  ```bash
+  npm install -g eas-cli
+  eas login
+  ```
+- **iOS**: An active [Apple Developer account](https://developer.apple.com) ($99/year). Required for signing and App Store Connect access.
+- **Android**: A [Google Play Console account](https://play.google.com/console) ($25 one-time). Required to create the app listing and submit builds.
+- All credentials in your `.env` file filled in with **production values** (real RevenueCat keys, real AdMob IDs, `EXPO_PUBLIC_ADMOB_USE_PRODUCTION=true`).
+
+---
+
+### 11b. Configure eas.json
+
+Create `eas.json` in the project root (if it doesn't exist):
+
+```json
+{
+  "cli": {
+    "version": ">= 10.0.0"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": { "buildType": "apk" }
+    },
+    "production": {
+      "autoIncrement": true
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "your@apple-id.com",
+        "ascAppId": "YOUR_APP_STORE_CONNECT_APP_ID",
+        "appleTeamId": "YOUR_APPLE_TEAM_ID"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./google-play-service-account.json",
+        "track": "internal"
+      }
+    }
+  }
+}
+```
+
+> **`autoIncrement: true`** automatically bumps `ios.buildNumber` and `android.versionCode` on every production build so you never submit a duplicate build number.
+
+---
+
+### 11c. Bump the version number
+
+Before each release, update the `version` in `app.config.js`:
+
+```js
+version: '1.1.0',   // user-visible version (e.g. 1.0.0 → 1.1.0)
+```
+
+The build number (`ios.buildNumber`) and version code (`android.versionCode`) are managed automatically by EAS when `autoIncrement: true` is set.
+
+---
+
+### 11d. Build for iOS (App Store)
+
+#### Step 1 — Create the production build
+```bash
+eas build --profile production --platform ios
+```
+
+EAS will:
+1. Ask to set up Apple credentials if first time (auto-managed or manual)
+2. Upload your code to EAS servers and compile it in the cloud
+3. Return a download link for the signed `.ipa`
+
+> On first run, EAS can auto-generate and manage your **Distribution Certificate** and **Provisioning Profile**. Choose "Let EAS handle this" unless you already have your own.
+
+#### Step 2 — Create the app in App Store Connect (first time only)
+
+1. Go to [App Store Connect](https://appstoreconnect.apple.com) → **My Apps → +**
+2. Set:
+   - **Bundle ID**: `com.cosmicself.app`
+   - **Name**: CosmicSelf
+   - **SKU**: any unique string (e.g. `cosmicself-001`)
+3. Fill in the listing: description, keywords, screenshots (required sizes: 6.9" and 6.5" iPhone screenshots), support URL, privacy policy URL.
+4. Set **Age Rating**, **Category** (Lifestyle or Entertainment), and **Pricing** (Free).
+
+#### Step 3 — Submit to App Store
+```bash
+eas submit --profile production --platform ios
+```
+
+EAS uploads the build directly to App Store Connect. After upload:
+1. In App Store Connect → your app → **TestFlight**: the build appears within minutes.
+2. Test on TestFlight (internal testers) before submitting for App Review.
+3. When ready: **App Store Connect → Prepare for Submission → Submit for Review**.
+
+Apple review typically takes **24–48 hours**.
+
+---
+
+### 11e. Build for Android (Google Play)
+
+#### Step 1 — Create the production build
+```bash
+eas build --profile production --platform android
+```
+
+This produces a signed **AAB** (Android App Bundle) — the format required by Google Play.
+
+#### Step 2 — Create the app in Google Play Console (first time only)
+
+1. Go to [Google Play Console](https://play.google.com/console) → **Create app**
+2. Set:
+   - **App name**: CosmicSelf
+   - **Default language**: English
+   - **App or game**: App
+   - **Free or paid**: Free
+3. Complete the **Dashboard checklist**: store listing, content rating questionnaire, target audience, privacy policy, data safety form.
+4. Add screenshots (phone + 7-inch tablet) and a feature graphic (1024×500).
+
+#### Step 3 — Set up a Google Play service account for automated submissions
+
+EAS needs a service account to submit builds on your behalf.
+
+1. In **Google Play Console → Setup → API access**, link to a Google Cloud project.
+2. In [Google Cloud Console](https://console.cloud.google.com) → **IAM & Admin → Service Accounts** → Create a service account.
+3. Grant it the **Release Manager** role in Play Console.
+4. Download the JSON key file and save it as `google-play-service-account.json` in the project root.
+
+> **Never commit this file.** It's already in `.gitignore`.
+
+#### Step 4 — Submit to Google Play
+```bash
+eas submit --profile production --platform android
+```
+
+This uploads the AAB to the **internal testing track**. Promote it through the tracks as testing completes:
+
+| Track | Audience | How to promote |
+|-------|----------|---------------|
+| Internal testing | Up to 100 testers | Automatic after EAS submit |
+| Closed testing (Alpha) | Invite-only group | Play Console → promote |
+| Open testing (Beta) | Anyone who opts in | Play Console → promote |
+| Production | All users | Play Console → promote (may take hours to roll out) |
+
+Google review for new apps typically takes **1–3 days**.
+
+---
+
+### 11f. Build both platforms at once
+
+```bash
+eas build --profile production --platform all
+```
+
+Kicks off both iOS and Android builds in parallel on EAS servers.
+
+---
+
+### 11g. Over-the-air (OTA) updates with EAS Update
+
+For **JS-only changes** (no native code, no new native packages), you can push updates directly to users without going through App Store / Play Store review:
+
+```bash
+# Install EAS Update (first time only)
+npx expo install expo-updates
+
+# Push an update to the production channel
+eas update --branch production --message "Fix transit text visibility"
+```
+
+Users receive the update automatically on next app launch (or background refresh).
+
+> **What qualifies for OTA**: changes to JS/TS files, assets, styles, logic.
+> **What requires a full build**: new native packages, changes to `app.config.js` plugins, new permissions, splash screen changes.
+
+---
+
+### 11h. Full release checklist
+
+Before every production release, go through this checklist:
+
+**Code & config**
+- [ ] `version` bumped in `app.config.js`
+- [ ] `.env` has production values (real RevenueCat keys, real AdMob IDs, `EXPO_PUBLIC_ADMOB_USE_PRODUCTION=true`)
+- [ ] Firebase Cloud Functions deployed: `firebase deploy --only functions`
+- [ ] Firestore rules deployed: `firebase deploy --only firestore:rules`
+- [ ] TypeScript passes: `npx tsc --noEmit`
+
+**iOS**
+- [ ] App Store Connect listing updated (release notes, screenshots if new screens added)
+- [ ] Build submitted and visible in TestFlight
+- [ ] Tested on at least one physical iPhone
+
+**Android**
+- [ ] Play Store listing updated (release notes)
+- [ ] Build submitted to internal track
+- [ ] Tested on at least one physical Android device
+- [ ] Data safety form up to date in Play Console
+
+---
+
+## 12. Cloudflare Pages (Web Deploy)
 
 The web build deploys to Cloudflare Pages as a static site.
 
@@ -503,7 +715,7 @@ In Cloudflare Dashboard → Pages → cosmicself → Custom Domains → Add doma
 
 ---
 
-## 12. Environment Configuration Reference
+## 13. Environment Configuration Reference
 
 All configuration lives in `app.json` under the `extra` key. No `.env` file is used.
 
@@ -519,7 +731,7 @@ Firebase config is hardcoded in `src/services/firebase.ts` (no secret — Fireba
 
 ---
 
-## 13. Project Structure
+## 14. Project Structure
 
 ```
 CosmicSelf/
@@ -607,7 +819,7 @@ CosmicSelf/
 
 ---
 
-## 14. Common Commands
+## 15. Common Commands
 
 | Task | Command |
 |------|---------|
@@ -630,7 +842,7 @@ CosmicSelf/
 
 ---
 
-## 15. Troubleshooting
+## 16. Troubleshooting
 
 ### "Metro bundler can't resolve module"
 ```bash
