@@ -1174,7 +1174,7 @@ const styles = StyleSheet.create({
     lineHeight: 26,
   },
   transitSummaryLabel: {
-    color: 'rgba(255,250,241,0.50)',
+    color: 'rgba(255,250,241,0.75)',
     fontSize: 11,
     fontFamily: FONTS.accent,
     letterSpacing: 0.5,
@@ -1195,7 +1195,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   transitBrief: {
-    color: 'rgba(255,250,241,0.68)',
+    color: 'rgba(255,250,241,0.90)',
     fontSize: 13,
     fontFamily: FONTS.body,
     lineHeight: 19,
