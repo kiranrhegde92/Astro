@@ -14,8 +14,6 @@ import { BORDER_RADIUS, COLORS, FONTS, SHADOWS, SPACING } from '../../src/consta
 import { getEarnedBadges, getNextBadge } from '../../src/constants/badges';
 import { calculateCosmicProfile, getCosmicDNASummary } from '../../src/engines/unified';
 import { useActiveProfile } from '../../src/hooks/useActiveProfile';
-import { useAdUnlockStore } from '../../src/store/adUnlockStore';
-import { useAuthStore } from '../../src/store/authStore';
 import { useConnectionsStore } from '../../src/store/connectionsStore';
 import { useJournalStore } from '../../src/store/journalStore';
 import { useManagedProfilesStore } from '../../src/store/managedProfilesStore';
@@ -32,17 +30,8 @@ export default function ProfileScreen() {
   const router = useRouter();
   const accountUser = useUserStore((s) => s.user);
   const user = useActiveProfile();
-  const clearUser = useUserStore((s) => s.clearUser);
-  const logout = useAuthStore((s) => s.logout);
-  const deleteAccount = useAuthStore((s) => s.deleteAccount);
-  const clearReadings = useReadingStore((s) => s.clearReadings);
-  const clearConnections = useConnectionsStore((s) => s.clearConnections);
-  const clearJournal = useJournalStore((s) => s.clearJournal);
-  const clearAdUnlocks = useAdUnlockStore((s) => s.clearAdUnlocks);
-  const clearManagedProfiles = useManagedProfilesStore((s) => s.clearManagedProfiles);
   const managedProfiles = useManagedProfilesStore((s) => s.managedProfiles);
   const updateManagedProfile = useManagedProfilesStore((s) => s.updateManagedProfile);
-  const clearSettings = useSettingsStore((s) => s.clearSettings);
   const savedProfiles = useConnectionsStore((s) => s.savedProfiles);
   const compatibilityHistory = useConnectionsStore((s) => s.compatibilityHistory);
   const entries = useJournalStore((s) => s.entries);
@@ -57,8 +46,7 @@ export default function ProfileScreen() {
   const setLanguage = useUserStore((s) => s.setLanguage);
   const [currentLang, setCurrentLang] = useState(normalizeLanguage(user?.language ?? i18n.language));
   const [recalculating, setRecalculating] = useState(false);
-  const [deletingAccount, setDeletingAccount] = useState(false);
-  const [exportingDataset, setExportingDataset] = useState(false);
+const [exportingDataset, setExportingDataset] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [editName, setEditName] = useState('');
   const [showProfileDetails, setShowProfileDetails] = useState(false);
@@ -183,55 +171,6 @@ export default function ProfileScreen() {
     } finally {
       setRecalculating(false);
     }
-  };
-
-  const handleLogout = () => {
-    showAlert(
-      'Log out',
-      'This signs you out and clears the local chart on this device.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Log out', style: 'destructive',
-          onPress: async () => {
-            await Promise.all([logout(), clearUser(), clearReadings(), clearConnections(), clearJournal(), clearAdUnlocks(), clearManagedProfiles()]);
-            await clearSettings();
-            router.dismissAll();
-            router.replace('/(auth)/login');
-          },
-        },
-      ]
-    );
-  };
-
-  const handleDeleteAccount = () => {
-    showAlert(
-      'Delete account',
-      'This permanently deletes your profile, charts, readings, connections, and device data.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete forever',
-          style: 'destructive',
-          onPress: async () => {
-            setDeletingAccount(true);
-            try {
-              await deleteAccount();
-              router.dismissAll();
-              router.replace('/(auth)/login');
-            } catch (error: any) {
-              const message =
-                error?.message && typeof error.message === 'string'
-                  ? error.message
-                  : 'We could not delete your account right now. Please try again.';
-              showAlert('Deletion failed', message);
-            } finally {
-              setDeletingAccount(false);
-            }
-          },
-        },
-      ]
-    );
   };
 
   const handleExportDataset = async () => {
@@ -545,29 +484,6 @@ export default function ProfileScreen() {
               : <Ionicons name="analytics-outline" size={20} color={COLORS.iris} />
             }
             <Text style={styles.datasetText}>{exportingDataset ? 'Loading dataset...' : 'AI dataset summary'}</Text>
-          </TouchableOpacity>
-        </AnimatedCard>
-
-        {/* ── Logout / Delete ────────────────────────────────────────────── */}
-        <AnimatedCard index={11}>
-          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
-            <Ionicons name="log-out-outline" size={20} color={COLORS.coral} />
-            <Text style={styles.logoutText}>Log out</Text>
-          </TouchableOpacity>
-        </AnimatedCard>
-
-        <AnimatedCard index={12}>
-          <TouchableOpacity
-            style={[styles.deleteBtn, deletingAccount && styles.deleteBtnDisabled]}
-            onPress={handleDeleteAccount}
-            activeOpacity={0.8}
-            disabled={deletingAccount}
-          >
-            {deletingAccount
-              ? <ActivityIndicator size="small" color={COLORS.textPrimary} />
-              : <Ionicons name="trash-outline" size={20} color={COLORS.textPrimary} />
-            }
-            <Text style={styles.deleteText}>{deletingAccount ? 'Deleting account...' : 'Delete my account'}</Text>
           </TouchableOpacity>
         </AnimatedCard>
 
