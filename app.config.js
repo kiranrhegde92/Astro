@@ -51,7 +51,6 @@ module.exports = {
       foregroundImage: './assets/adaptive-icon.png',
       backgroundColor: '#0a0a2e',
     },
-    edgeToEdgeEnabled: true,
     package: 'com.cosmicself.app',
   },
   web: {

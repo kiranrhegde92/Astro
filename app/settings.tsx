@@ -14,7 +14,6 @@ import { useAuthStore } from '../src/store/authStore';
 import { useSettingsStore } from '../src/store/settingsStore';
 import { useUserStore } from '../src/store/userStore';
 import { shareDataExport } from '../src/utils/exportData';
-import { hasPremiumEntitlement } from '../src/utils/subscription';
 import type { AstrologySystem } from '../src/types/user';
 
 const NOTIFICATION_TIMES = [
@@ -57,7 +56,6 @@ export default function SettingsScreen() {
   } = useSettingsStore();
   const user = useUserStore((s) => s.user);
   const setActiveSystems = useUserStore((s) => s.setActiveSystems);
-  const setSubscription = useUserStore((s) => s.setSubscription);
   const logout = useAuthStore((s) => s.logout);
   const deleteAccount = useAuthStore((s) => s.deleteAccount);
   const isAdmin = useAuthStore((s) => s.isAdmin);
@@ -66,18 +64,6 @@ export default function SettingsScreen() {
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [accountAction, setAccountAction] = useState<'logout' | 'delete' | null>(null);
   const [exportingData, setExportingData] = useState(false);
-  const isPremium = hasPremiumEntitlement(user?.subscription);
-
-  const toggleTestPremium = () => {
-    if (!user) return;
-    if (isPremium) {
-      setSubscription({ tier: 'free', status: 'expired' });
-    } else {
-      const expiresAt = new Date();
-      expiresAt.setFullYear(expiresAt.getFullYear() + 1);
-      setSubscription({ tier: 'premium', status: 'active', expiresAt });
-    }
-  };
 
   const toggleSystem = (system: AstrologySystem) => {
     if (!user) return;
@@ -383,26 +369,6 @@ export default function SettingsScreen() {
               <Text style={[styles.linkText, styles.destructiveText]}>Delete account</Text>
               {accountAction === 'delete' ? <ActivityIndicator size="small" color={COLORS.coral} /> : <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />}
             </TouchableOpacity>
-          </GradientCard>
-        ) : null}
-
-        {/* ── Dev Testing ──────────────────────────────────────────────── */}
-        {user ? (
-          <GradientCard style={styles.section} accentColor={COLORS.coral}>
-            <Text style={styles.sectionLabel}>Testing</Text>
-            <Text style={styles.sectionNote}>Toggle premium status for testing. This does not process real payments.</Text>
-            <View style={styles.switchRow}>
-              <View style={styles.systemLabelRow}>
-                <Ionicons name="star" size={16} color={isPremium ? COLORS.starGold : COLORS.textMuted} />
-                <Text style={styles.rowText}>{isPremium ? 'Premium active' : 'Free tier'}</Text>
-              </View>
-              <Switch
-                value={isPremium}
-                onValueChange={toggleTestPremium}
-                trackColor={{ false: 'rgba(40,49,73,0.16)', true: COLORS.starGold }}
-                thumbColor="#fffaf1"
-              />
-            </View>
           </GradientCard>
         ) : null}
 

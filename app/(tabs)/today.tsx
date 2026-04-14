@@ -399,7 +399,7 @@ export default function TodayScreen() {
   const timingNote = todayCopy.timingNoteText;
   const remedyText = todayCopy.remedyText;
   const focusArea = todayCopy.focusArea;
-  const handleToggleAudio = useCallback(async () => {
+  const handleToggleAudio = async () => {
     if (isSpeaking) {
       await stopReadingAudio();
       setIsSpeaking(false);
@@ -420,7 +420,7 @@ export default function TodayScreen() {
     }
 
     setIsSpeaking(true);
-  }, [bestUse, headline, heroBody, isSpeaking, reading?.unified?.affirmation, showAlert, watchFor]);
+  };
   const skyPreview = positions
     .filter((position) => ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn'].includes(position.planet))
     .slice(0, 6);

@@ -12,10 +12,13 @@ import { RevenueCatConfig } from '../config';
 const ENTITLEMENT_ID = 'premium';
 const IS_EXPO_GO = Constants.appOwnership === 'expo';
 
-export type RevenueCatSetupIssue = 'web' | 'expo-go' | 'missing-api-key';
+export type RevenueCatSetupIssue = 'web' | 'expo-go' | 'missing-api-key' | 'test-api-key';
 
 function getApiKey(): string | undefined {
   const key = Platform.OS === 'ios' ? RevenueCatConfig.iosApiKey : RevenueCatConfig.androidApiKey;
+  if (!__DEV__ && key.trim().toLowerCase().startsWith('test_')) {
+    return undefined;
+  }
   return key || undefined;
 }
 
@@ -41,7 +44,9 @@ export function isAvailable(): boolean {
 export function getSetupIssue(): RevenueCatSetupIssue | null {
   if (Platform.OS === 'web') return 'web';
   if (IS_EXPO_GO) return 'expo-go';
-  if (!getApiKey()) return 'missing-api-key';
+  const rawKey = Platform.OS === 'ios' ? RevenueCatConfig.iosApiKey : RevenueCatConfig.androidApiKey;
+  if (!rawKey) return 'missing-api-key';
+  if (!__DEV__ && rawKey.trim().toLowerCase().startsWith('test_')) return 'test-api-key';
   return null;
 }
 

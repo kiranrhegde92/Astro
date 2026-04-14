@@ -1,7 +1,7 @@
 import type { Subscription } from '../types/user';
 
 export type RCPackage = unknown;
-export type RevenueCatSetupIssue = 'web' | 'expo-go' | 'missing-api-key';
+export type RevenueCatSetupIssue = 'web' | 'expo-go' | 'missing-api-key' | 'test-api-key';
 
 export interface PremiumOfferings {
   monthlyPkg: RCPackage | null;

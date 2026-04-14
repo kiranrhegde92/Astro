@@ -72,6 +72,9 @@ function getRevenueCatFallbackMessage(action: 'subscribe' | 'restore'): string {
   if (issue === 'missing-api-key') {
     return `${actionText} is disabled because the RevenueCat API key for this platform is not configured in app.json.`;
   }
+  if (issue === 'test-api-key') {
+    return `${actionText} is disabled in release builds because this app is using a RevenueCat Test Store key. Add the production RevenueCat public SDK key before shipping subscriptions.`;
+  }
   return `${actionText} is not ready yet. Check the RevenueCat native build setup and try again.`;
 }
 
