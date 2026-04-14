@@ -363,10 +363,46 @@ export default function ProfileScreen() {
           </LinearGradient>
         </AnimatedCard>
 
-        {/* ── Badges & Streak ──────────────────────────────────────────── */}
+        <AnimatedCard index={3}>
+          <TouchableOpacity
+            style={styles.settingsBtn}
+            onPress={() => router.push('/profile/family-profiles')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="people-outline" size={20} color={COLORS.textSecondary} />
+            <Text style={styles.settingsLabel}>Profiles ({managedProfiles.length + 1}/5)</Text>
+            <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+          </TouchableOpacity>
+        </AnimatedCard>
+
+        <AnimatedCard index={4}>
+          <TouchableOpacity
+            style={styles.settingsBtn}
+            onPress={() => router.push('/settings')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="settings-outline" size={20} color={COLORS.textSecondary} />
+            <Text style={styles.settingsLabel}>Settings</Text>
+            <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+          </TouchableOpacity>
+        </AnimatedCard>
+
+        <AnimatedCard index={5}>
+          <TouchableOpacity
+            style={styles.settingsBtn}
+            onPress={() => setShowProfileDetails((value) => !value)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name={showProfileDetails ? 'chevron-up' : 'ellipsis-horizontal'} size={20} color={COLORS.textSecondary} />
+            <Text style={styles.settingsLabel}>{showProfileDetails ? 'Hide profile tools' : 'More profile tools'}</Text>
+            <Ionicons name={showProfileDetails ? 'chevron-up' : 'chevron-forward'} size={16} color={COLORS.textMuted} />
+          </TouchableOpacity>
+        </AnimatedCard>
+
         {showProfileDetails ? (
           <>
-        <AnimatedCard index={3}>
+        {/* ── Badges & Streak ──────────────────────────────────────────── */}
+        <AnimatedCard index={6}>
           <LinearGradient colors={COLORS.gradientInkSoft} style={styles.card}>
             <Text style={styles.sectionLabel}>Badges</Text>
             <View style={styles.badgeStreakRow}>
@@ -404,7 +440,7 @@ export default function ProfileScreen() {
 
         {/* ── Referral ──────────────────────────────────────────────────── */}
         {accountUser.referralCode ? (
-          <AnimatedCard index={4}>
+          <AnimatedCard index={7}>
             <LinearGradient colors={COLORS.gradientInkSoft} style={styles.card}>
               <Text style={styles.sectionLabel}>Invite Friends</Text>
               <Text style={styles.referralSubtitle}>Share your code — each friend who joins counts toward your 3 invites.</Text>
@@ -447,49 +483,7 @@ export default function ProfileScreen() {
           </AnimatedCard>
         ) : null}
 
-        {/* ── Settings link ──────────────────────────────────────────────── */}
-          </>
-        ) : null}
-
-        <AnimatedCard index={5}>
-          <TouchableOpacity
-            style={styles.settingsBtn}
-            onPress={() => router.push('/profile/family-profiles')}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="people-outline" size={20} color={COLORS.textSecondary} />
-            <Text style={styles.settingsLabel}>Profiles ({managedProfiles.length + 1}/5)</Text>
-            <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
-          </TouchableOpacity>
-        </AnimatedCard>
-
-        <AnimatedCard index={6}>
-          <TouchableOpacity
-            style={styles.settingsBtn}
-            onPress={() => router.push('/settings')}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="settings-outline" size={20} color={COLORS.textSecondary} />
-            <Text style={styles.settingsLabel}>Settings</Text>
-            <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
-          </TouchableOpacity>
-        </AnimatedCard>
-
         {/* ── Language ───────────────────────────────────────────────── */}
-        <AnimatedCard index={7}>
-          <TouchableOpacity
-            style={styles.settingsBtn}
-            onPress={() => setShowProfileDetails((value) => !value)}
-            activeOpacity={0.8}
-          >
-            <Ionicons name={showProfileDetails ? 'chevron-up' : 'ellipsis-horizontal'} size={20} color={COLORS.textSecondary} />
-            <Text style={styles.settingsLabel}>{showProfileDetails ? 'Hide profile tools' : 'More profile tools'}</Text>
-            <Ionicons name={showProfileDetails ? 'chevron-up' : 'chevron-forward'} size={16} color={COLORS.textMuted} />
-          </TouchableOpacity>
-        </AnimatedCard>
-
-        {showProfileDetails ? (
-          <>
         <AnimatedCard index={8}>
           <GradientCard style={styles.card} colors={COLORS.gradientSilver}>
             <Text style={styles.sectionLabel}>Language</Text>
@@ -513,7 +507,7 @@ export default function ProfileScreen() {
         </AnimatedCard>
 
         {/* ── Recalculate ───────────────────────────────────────────────── */}
-        <AnimatedCard index={8}>
+        <AnimatedCard index={9}>
           <View style={styles.profileActionStack}>
             <TouchableOpacity style={styles.recalcBtn} onPress={handleRecalculate} activeOpacity={0.8} disabled={recalculating}>
               {recalculating
@@ -539,8 +533,7 @@ export default function ProfileScreen() {
           </View>
         </AnimatedCard>
 
-        {/* ── Logout ────────────────────────────────────────────────────── */}
-        <AnimatedCard index={9}>
+        <AnimatedCard index={10}>
           <TouchableOpacity
             style={styles.datasetBtn}
             onPress={handleExportDataset}
@@ -555,14 +548,15 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </AnimatedCard>
 
-        <AnimatedCard index={10}>
+        {/* ── Logout / Delete ────────────────────────────────────────────── */}
+        <AnimatedCard index={11}>
           <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
             <Ionicons name="log-out-outline" size={20} color={COLORS.coral} />
             <Text style={styles.logoutText}>Log out</Text>
           </TouchableOpacity>
         </AnimatedCard>
 
-        <AnimatedCard index={11}>
+        <AnimatedCard index={12}>
           <TouchableOpacity
             style={[styles.deleteBtn, deletingAccount && styles.deleteBtnDisabled]}
             onPress={handleDeleteAccount}
