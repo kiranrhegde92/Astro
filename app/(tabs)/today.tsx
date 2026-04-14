@@ -1160,7 +1160,7 @@ const styles = StyleSheet.create({
   transitSummaryDivider: {
     width: 1,
     height: 28,
-    backgroundColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: 'rgba(36,40,74,0.12)',
   },
   transitDot: {
     width: 8,
@@ -1168,13 +1168,13 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   transitSummaryCount: {
-    color: '#fffaf1',
+    color: COLORS.textPrimary,
     fontSize: 22,
     fontFamily: FONTS.heading,
     lineHeight: 26,
   },
   transitSummaryLabel: {
-    color: 'rgba(255,250,241,0.75)',
+    color: COLORS.textMuted,
     fontSize: 11,
     fontFamily: FONTS.accent,
     letterSpacing: 0.5,
@@ -1195,7 +1195,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   transitBrief: {
-    color: 'rgba(255,250,241,0.90)',
+    color: COLORS.textSecondary,
     fontSize: 13,
     fontFamily: FONTS.body,
     lineHeight: 19,

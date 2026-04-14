@@ -20,6 +20,7 @@ import { useManagedProfilesStore } from '../../src/store/managedProfilesStore';
 import { useReadingStore } from '../../src/store/readingStore';
 import { useUserStore } from '../../src/store/userStore';
 import { useSettingsStore } from '../../src/store/settingsStore';
+import { createReferralCodeDoc, generateUniqueReferralCode } from '../../src/services/firestoreService';
 import { useCosmicAlert } from '../../src/components/ui/CosmicAlert';
 import { exportMyPredictionDataset } from '../../src/services/functionsService';
 import i18n from '../../src/i18n';
@@ -56,6 +57,20 @@ const [exportingDataset, setExportingDataset] = useState(false);
   useEffect(() => {
     setCurrentLang(normalizeLanguage(user?.language ?? i18n.language));
   }, [user?.language]);
+
+  // Auto-generate a referral code for users who pre-date the referral system
+  useEffect(() => {
+    if (!accountUser || accountUser.referralCode) return;
+    void (async () => {
+      try {
+        const code = await generateUniqueReferralCode();
+        await createReferralCodeDoc(code, accountUser.id);
+        setUser({ ...accountUser, referralCode: code, referralCount: 0 });
+      } catch {
+        // Non-critical — will retry on next profile visit
+      }
+    })();
+  }, [accountUser?.id, accountUser?.referralCode]);
 
   const cosmicDNA = useMemo(() => {
     if (!user?.western || !user?.vedic || !user?.chinese) return '';
@@ -303,49 +318,48 @@ const [exportingDataset, setExportingDataset] = useState(false);
         </AnimatedCard>
 
         {/* ── Invite / Referral ─────────────────────────────────────────── */}
-        {accountUser.referralCode ? (
-          <AnimatedCard index={3}>
-            <LinearGradient colors={COLORS.gradientInkSoft} style={styles.card}>
-              <Text style={styles.sectionLabel}>Invite Friends</Text>
-              <Text style={styles.referralSubtitle}>Share your code — each friend who joins counts toward your 3 invites.</Text>
-              <View style={styles.referralCodeRow}>
-                <Text style={styles.referralCode}>{accountUser.referralCode}</Text>
-                <TouchableOpacity
-                  style={styles.referralShareBtn}
-                  activeOpacity={0.75}
-                  onPress={() => {
-                    Share.share({
-                      message: `Join me on CosmicSelf — use my referral code ${accountUser.referralCode} to get started!`,
-                    }).catch(() => {});
-                  }}
+        <AnimatedCard index={3}>
+          <LinearGradient colors={COLORS.gradientInkSoft} style={styles.card}>
+            <Text style={styles.sectionLabel}>Invite Friends</Text>
+            <Text style={styles.referralSubtitle}>Share your code — each friend who joins counts toward your 3 invites.</Text>
+            <View style={styles.referralCodeRow}>
+              <Text style={styles.referralCode}>{accountUser.referralCode || '—'}</Text>
+              <TouchableOpacity
+                style={styles.referralShareBtn}
+                activeOpacity={accountUser.referralCode ? 0.75 : 1}
+                disabled={!accountUser.referralCode}
+                onPress={() => {
+                  Share.share({
+                    message: `Join me on CosmicSelf — use my referral code ${accountUser.referralCode} to get started!`,
+                  }).catch(() => {});
+                }}
+              >
+                <Ionicons name="share-outline" size={18} color={COLORS.western} />
+                <Text style={styles.referralShareText}>Share</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.referralSlots}>
+              {[0, 1, 2].map((i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.referralSlot,
+                    i < (accountUser.referralCount ?? 0) && styles.referralSlotUsed,
+                  ]}
                 >
-                  <Ionicons name="share-outline" size={18} color={COLORS.western} />
-                  <Text style={styles.referralShareText}>Share</Text>
-                </TouchableOpacity>
-              </View>
-              <View style={styles.referralSlots}>
-                {[0, 1, 2].map((i) => (
-                  <View
-                    key={i}
-                    style={[
-                      styles.referralSlot,
-                      i < (accountUser.referralCount ?? 0) && styles.referralSlotUsed,
-                    ]}
-                  >
-                    <Ionicons
-                      name={i < (accountUser.referralCount ?? 0) ? 'person' : 'person-outline'}
-                      size={16}
-                      color={i < (accountUser.referralCount ?? 0) ? COLORS.western : COLORS.textMuted}
-                    />
-                  </View>
-                ))}
-                <Text style={styles.referralSlotsLabel}>
-                  {accountUser.referralCount ?? 0}/3 invites used
-                </Text>
-              </View>
-            </LinearGradient>
-          </AnimatedCard>
-        ) : null}
+                  <Ionicons
+                    name={i < (accountUser.referralCount ?? 0) ? 'person' : 'person-outline'}
+                    size={16}
+                    color={i < (accountUser.referralCount ?? 0) ? COLORS.western : COLORS.textMuted}
+                  />
+                </View>
+              ))}
+              <Text style={styles.referralSlotsLabel}>
+                {accountUser.referralCount ?? 0}/3 invites used
+              </Text>
+            </View>
+          </LinearGradient>
+        </AnimatedCard>
 
         <AnimatedCard index={4}>
           <TouchableOpacity
