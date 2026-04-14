@@ -11,6 +11,7 @@ import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { StarField } from '../../src/components/ui/StarField';
 import { BORDER_RADIUS, COLORS, FONTS, SHADOWS, SPACING } from '../../src/constants/theme';
 import { createReferralCodeDoc, generateUniqueReferralCode } from '../../src/services/firestoreService';
+import { currentUser } from '../../src/services/authService';
 import { useReadingStore } from '../../src/store/readingStore';
 import { useUserStore } from '../../src/store/userStore';
 import { formatDisplayDate } from '../../src/utils/dateUtils';
@@ -27,13 +28,15 @@ export default function ShareScreen() {
   // Auto-generate referral code for users who pre-date the referral system
   useEffect(() => {
     if (!user || user.referralCode) return;
+    const fbUser = currentUser();
+    if (!fbUser) return;
     void (async () => {
       try {
         const code = await generateUniqueReferralCode();
-        await createReferralCodeDoc(code, user.id);
+        await createReferralCodeDoc(code, fbUser.uid);
         setUser({ ...user, referralCode: code, referralCount: 0 });
-      } catch {
-        // Non-critical — retries on next visit
+      } catch (e) {
+        console.warn('[Share] Failed to generate referral code:', e);
       }
     })();
   }, [user?.id, user?.referralCode]);
