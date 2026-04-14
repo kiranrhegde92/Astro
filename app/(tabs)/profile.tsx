@@ -363,84 +363,9 @@ export default function ProfileScreen() {
           </LinearGradient>
         </AnimatedCard>
 
-        <AnimatedCard index={3}>
-          <TouchableOpacity
-            style={styles.settingsBtn}
-            onPress={() => router.push('/profile/family-profiles')}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="people-outline" size={20} color={COLORS.textSecondary} />
-            <Text style={styles.settingsLabel}>Profiles ({managedProfiles.length + 1}/5)</Text>
-            <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
-          </TouchableOpacity>
-        </AnimatedCard>
-
-        <AnimatedCard index={4}>
-          <TouchableOpacity
-            style={styles.settingsBtn}
-            onPress={() => router.push('/settings')}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="settings-outline" size={20} color={COLORS.textSecondary} />
-            <Text style={styles.settingsLabel}>Settings</Text>
-            <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
-          </TouchableOpacity>
-        </AnimatedCard>
-
-        <AnimatedCard index={5}>
-          <TouchableOpacity
-            style={styles.settingsBtn}
-            onPress={() => setShowProfileDetails((value) => !value)}
-            activeOpacity={0.8}
-          >
-            <Ionicons name={showProfileDetails ? 'chevron-up' : 'ellipsis-horizontal'} size={20} color={COLORS.textSecondary} />
-            <Text style={styles.settingsLabel}>{showProfileDetails ? 'Hide profile tools' : 'More profile tools'}</Text>
-            <Ionicons name={showProfileDetails ? 'chevron-up' : 'chevron-forward'} size={16} color={COLORS.textMuted} />
-          </TouchableOpacity>
-        </AnimatedCard>
-
-        {showProfileDetails ? (
-          <>
-        {/* ── Badges & Streak ──────────────────────────────────────────── */}
-        <AnimatedCard index={6}>
-          <LinearGradient colors={COLORS.gradientInkSoft} style={styles.card}>
-            <Text style={styles.sectionLabel}>Badges</Text>
-            <View style={styles.badgeStreakRow}>
-              <ProgressRing
-                progress={streakProgress}
-                size={72}
-                strokeWidth={5}
-                color={COLORS.starGold}
-                value={`${accountUser.streak}`}
-                label="Streak"
-              />
-              <View style={styles.badgeGrid}>
-                {earnedBadges.slice(0, 6).map((badge) => (
-                  <View key={badge.id} style={styles.badgeChip}>
-                    <Text style={styles.badgeEmoji}>{badge.emoji}</Text>
-                    <Text style={styles.badgeName} numberOfLines={1}>{badge.name}</Text>
-                  </View>
-                ))}
-                {earnedBadges.length === 0 && (
-                  <Text style={styles.noBadgesText}>Keep checking in to unlock badges</Text>
-                )}
-              </View>
-            </View>
-            {earnedBadges.length > 6 && (
-              <Text style={styles.moreBadgesText}>+{earnedBadges.length - 6} more earned</Text>
-            )}
-            {nextBadge && (
-              <View style={styles.nextBadgeRow}>
-                <Text style={styles.nextBadgeLabel}>Next goal</Text>
-                <Text style={styles.nextBadgeText}>{nextBadge.emoji} {nextBadge.name} — {nextBadge.requirement}</Text>
-              </View>
-            )}
-          </LinearGradient>
-        </AnimatedCard>
-
-        {/* ── Referral ──────────────────────────────────────────────────── */}
+        {/* ── Invite / Referral ─────────────────────────────────────────── */}
         {accountUser.referralCode ? (
-          <AnimatedCard index={7}>
+          <AnimatedCard index={3}>
             <LinearGradient colors={COLORS.gradientInkSoft} style={styles.card}>
               <Text style={styles.sectionLabel}>Invite Friends</Text>
               <Text style={styles.referralSubtitle}>Share your code — each friend who joins counts toward your 3 invites.</Text>
@@ -482,6 +407,81 @@ export default function ProfileScreen() {
             </LinearGradient>
           </AnimatedCard>
         ) : null}
+
+        <AnimatedCard index={4}>
+          <TouchableOpacity
+            style={styles.settingsBtn}
+            onPress={() => router.push('/profile/family-profiles')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="people-outline" size={20} color={COLORS.textSecondary} />
+            <Text style={styles.settingsLabel}>Profiles ({managedProfiles.length + 1}/5)</Text>
+            <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+          </TouchableOpacity>
+        </AnimatedCard>
+
+        <AnimatedCard index={5}>
+          <TouchableOpacity
+            style={styles.settingsBtn}
+            onPress={() => router.push('/settings')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="settings-outline" size={20} color={COLORS.textSecondary} />
+            <Text style={styles.settingsLabel}>Settings</Text>
+            <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+          </TouchableOpacity>
+        </AnimatedCard>
+
+        <AnimatedCard index={6}>
+          <TouchableOpacity
+            style={styles.settingsBtn}
+            onPress={() => setShowProfileDetails((value) => !value)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name={showProfileDetails ? 'chevron-up' : 'ellipsis-horizontal'} size={20} color={COLORS.textSecondary} />
+            <Text style={styles.settingsLabel}>{showProfileDetails ? 'Hide profile tools' : 'More profile tools'}</Text>
+            <Ionicons name={showProfileDetails ? 'chevron-up' : 'chevron-forward'} size={16} color={COLORS.textMuted} />
+          </TouchableOpacity>
+        </AnimatedCard>
+
+        {showProfileDetails ? (
+          <>
+        {/* ── Badges & Streak ──────────────────────────────────────────── */}
+        <AnimatedCard index={7}>
+          <LinearGradient colors={COLORS.gradientInkSoft} style={styles.card}>
+            <Text style={styles.sectionLabel}>Badges</Text>
+            <View style={styles.badgeStreakRow}>
+              <ProgressRing
+                progress={streakProgress}
+                size={72}
+                strokeWidth={5}
+                color={COLORS.starGold}
+                value={`${accountUser.streak}`}
+                label="Streak"
+              />
+              <View style={styles.badgeGrid}>
+                {earnedBadges.slice(0, 6).map((badge) => (
+                  <View key={badge.id} style={styles.badgeChip}>
+                    <Text style={styles.badgeEmoji}>{badge.emoji}</Text>
+                    <Text style={styles.badgeName} numberOfLines={1}>{badge.name}</Text>
+                  </View>
+                ))}
+                {earnedBadges.length === 0 && (
+                  <Text style={styles.noBadgesText}>Keep checking in to unlock badges</Text>
+                )}
+              </View>
+            </View>
+            {earnedBadges.length > 6 && (
+              <Text style={styles.moreBadgesText}>+{earnedBadges.length - 6} more earned</Text>
+            )}
+            {nextBadge && (
+              <View style={styles.nextBadgeRow}>
+                <Text style={styles.nextBadgeLabel}>Next goal</Text>
+                <Text style={styles.nextBadgeText}>{nextBadge.emoji} {nextBadge.name} — {nextBadge.requirement}</Text>
+              </View>
+            )}
+          </LinearGradient>
+        </AnimatedCard>
 
         {/* ── Language ───────────────────────────────────────────────── */}
         <AnimatedCard index={8}>
