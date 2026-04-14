@@ -447,29 +447,13 @@ const [exportingDataset, setExportingDataset] = useState(false);
 
         {/* ── Recalculate ───────────────────────────────────────────────── */}
         <AnimatedCard index={9}>
-          <View style={styles.profileActionStack}>
-            <TouchableOpacity style={styles.recalcBtn} onPress={handleRecalculate} activeOpacity={0.8} disabled={recalculating}>
-              {recalculating
-                ? <ActivityIndicator size="small" color={COLORS.vedic} />
-                : <Ionicons name="refresh-outline" size={20} color={COLORS.vedic} />
-              }
-              <Text style={styles.recalcText}>{recalculating ? 'Recalculating...' : 'Recalculate my chart'}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.requestBirthBtn}
-              onPress={() => {
-                if (user.isManagedProfile) {
-                  showAlert('Birth details locked', 'Family profile birth details are locked after creation. Remove and add that profile again if those details were entered wrong.');
-                } else {
-                  router.push('/profile/birth-details');
-                }
-              }}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="mail-outline" size={20} color={COLORS.iris} />
-              <Text style={styles.requestBirthText}>Request birth detail correction</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity style={styles.recalcBtn} onPress={handleRecalculate} activeOpacity={0.8} disabled={recalculating}>
+            {recalculating
+              ? <ActivityIndicator size="small" color={COLORS.vedic} />
+              : <Ionicons name="refresh-outline" size={20} color={COLORS.vedic} />
+            }
+            <Text style={styles.recalcText}>{recalculating ? 'Recalculating...' : 'Recalculate my chart'}</Text>
+          </TouchableOpacity>
         </AnimatedCard>
 
         <AnimatedCard index={10}>
@@ -634,9 +618,6 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.heading,
   },
   langTextActive: { color: COLORS.textPrimary },
-  profileActionStack: {
-    gap: SPACING.sm,
-  },
   recalcBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -650,22 +631,6 @@ const styles = StyleSheet.create({
   },
   recalcText: {
     color: COLORS.vedic,
-    fontSize: 17,
-    fontFamily: FONTS.heading,
-  },
-  requestBirthBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.sm,
-    paddingVertical: 16,
-    borderRadius: BORDER_RADIUS.xl,
-    borderWidth: 1,
-    borderColor: `${COLORS.iris}44`,
-    backgroundColor: `${COLORS.iris}10`,
-  },
-  requestBirthText: {
-    color: COLORS.iris,
     fontSize: 17,
     fontFamily: FONTS.heading,
   },
