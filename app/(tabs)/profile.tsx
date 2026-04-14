@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,7 +20,6 @@ import { useManagedProfilesStore } from '../../src/store/managedProfilesStore';
 import { useReadingStore } from '../../src/store/readingStore';
 import { useUserStore } from '../../src/store/userStore';
 import { useSettingsStore } from '../../src/store/settingsStore';
-import { createReferralCodeDoc, generateUniqueReferralCode } from '../../src/services/firestoreService';
 import { useCosmicAlert } from '../../src/components/ui/CosmicAlert';
 import { exportMyPredictionDataset } from '../../src/services/functionsService';
 import i18n from '../../src/i18n';
@@ -58,19 +57,6 @@ const [exportingDataset, setExportingDataset] = useState(false);
     setCurrentLang(normalizeLanguage(user?.language ?? i18n.language));
   }, [user?.language]);
 
-  // Auto-generate a referral code for users who pre-date the referral system
-  useEffect(() => {
-    if (!accountUser || accountUser.referralCode) return;
-    void (async () => {
-      try {
-        const code = await generateUniqueReferralCode();
-        await createReferralCodeDoc(code, accountUser.id);
-        setUser({ ...accountUser, referralCode: code, referralCount: 0 });
-      } catch {
-        // Non-critical — will retry on next profile visit
-      }
-    })();
-  }, [accountUser?.id, accountUser?.referralCode]);
 
   const cosmicDNA = useMemo(() => {
     if (!user?.western || !user?.vedic || !user?.chinese) return '';
@@ -317,51 +303,7 @@ const [exportingDataset, setExportingDataset] = useState(false);
           </LinearGradient>
         </AnimatedCard>
 
-        {/* ── Invite / Referral ─────────────────────────────────────────── */}
         <AnimatedCard index={3}>
-          <LinearGradient colors={COLORS.gradientInkSoft} style={styles.card}>
-            <Text style={styles.sectionLabel}>Invite Friends</Text>
-            <Text style={styles.referralSubtitle}>Share your code — each friend who joins counts toward your 3 invites.</Text>
-            <View style={styles.referralCodeRow}>
-              <Text style={styles.referralCode}>{accountUser.referralCode || '—'}</Text>
-              <TouchableOpacity
-                style={styles.referralShareBtn}
-                activeOpacity={accountUser.referralCode ? 0.75 : 1}
-                disabled={!accountUser.referralCode}
-                onPress={() => {
-                  Share.share({
-                    message: `Join me on CosmicSelf — use my referral code ${accountUser.referralCode} to get started!`,
-                  }).catch(() => {});
-                }}
-              >
-                <Ionicons name="share-outline" size={18} color={COLORS.western} />
-                <Text style={styles.referralShareText}>Share</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.referralSlots}>
-              {[0, 1, 2].map((i) => (
-                <View
-                  key={i}
-                  style={[
-                    styles.referralSlot,
-                    i < (accountUser.referralCount ?? 0) && styles.referralSlotUsed,
-                  ]}
-                >
-                  <Ionicons
-                    name={i < (accountUser.referralCount ?? 0) ? 'person' : 'person-outline'}
-                    size={16}
-                    color={i < (accountUser.referralCount ?? 0) ? COLORS.western : COLORS.textMuted}
-                  />
-                </View>
-              ))}
-              <Text style={styles.referralSlotsLabel}>
-                {accountUser.referralCount ?? 0}/3 invites used
-              </Text>
-            </View>
-          </LinearGradient>
-        </AnimatedCard>
-
-        <AnimatedCard index={4}>
           <TouchableOpacity
             style={styles.settingsBtn}
             onPress={() => router.push('/profile/family-profiles')}
@@ -373,7 +315,7 @@ const [exportingDataset, setExportingDataset] = useState(false);
           </TouchableOpacity>
         </AnimatedCard>
 
-        <AnimatedCard index={5}>
+        <AnimatedCard index={4}>
           <TouchableOpacity
             style={styles.settingsBtn}
             onPress={() => router.push('/settings')}
@@ -385,7 +327,7 @@ const [exportingDataset, setExportingDataset] = useState(false);
           </TouchableOpacity>
         </AnimatedCard>
 
-        <AnimatedCard index={6}>
+        <AnimatedCard index={5}>
           <TouchableOpacity
             style={styles.settingsBtn}
             onPress={() => setShowProfileDetails((value) => !value)}
@@ -400,7 +342,7 @@ const [exportingDataset, setExportingDataset] = useState(false);
         {showProfileDetails ? (
           <>
         {/* ── Badges & Streak ──────────────────────────────────────────── */}
-        <AnimatedCard index={7}>
+        <AnimatedCard index={6}>
           <LinearGradient colors={COLORS.gradientInkSoft} style={styles.card}>
             <Text style={styles.sectionLabel}>Badges</Text>
             <View style={styles.badgeStreakRow}>
@@ -437,7 +379,7 @@ const [exportingDataset, setExportingDataset] = useState(false);
         </AnimatedCard>
 
         {/* ── Language ───────────────────────────────────────────────── */}
-        <AnimatedCard index={8}>
+        <AnimatedCard index={7}>
           <GradientCard style={styles.card} colors={COLORS.gradientSilver}>
             <Text style={styles.sectionLabel}>Language</Text>
             <Text style={styles.langNote}>Changes navigation and rewrites the Today reading in a natural spoken style where supported.</Text>
@@ -460,7 +402,7 @@ const [exportingDataset, setExportingDataset] = useState(false);
         </AnimatedCard>
 
         {/* ── Recalculate ───────────────────────────────────────────────── */}
-        <AnimatedCard index={9}>
+        <AnimatedCard index={8}>
           <TouchableOpacity style={styles.recalcBtn} onPress={handleRecalculate} activeOpacity={0.8} disabled={recalculating}>
             {recalculating
               ? <ActivityIndicator size="small" color={COLORS.vedic} />
@@ -470,7 +412,7 @@ const [exportingDataset, setExportingDataset] = useState(false);
           </TouchableOpacity>
         </AnimatedCard>
 
-        <AnimatedCard index={10}>
+        <AnimatedCard index={9}>
           <TouchableOpacity
             style={styles.datasetBtn}
             onPress={handleExportDataset}
@@ -755,63 +697,6 @@ const styles = StyleSheet.create({
     color: COLORS.starGold,
     fontSize: 13,
     fontFamily: FONTS.heading,
-  },
-  referralSubtitle: {
-    color: COLORS.textSecondary,
-    fontSize: 13,
-    marginBottom: SPACING.md,
-    lineHeight: 18,
-  },
-  referralCodeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: BORDER_RADIUS.md,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    marginBottom: SPACING.md,
-  },
-  referralCode: {
-    fontFamily: FONTS.heading,
-    fontSize: 20,
-    color: COLORS.textPrimary,
-    letterSpacing: 3,
-  },
-  referralShareBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 6,
-  },
-  referralShareText: {
-    color: COLORS.western,
-    fontSize: 14,
-    fontFamily: FONTS.heading,
-  },
-  referralSlots: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  referralSlot: {
-    width: 32,
-    height: 32,
-    borderRadius: BORDER_RADIUS.full,
-    borderWidth: 1.5,
-    borderColor: COLORS.textMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  referralSlotUsed: {
-    borderColor: COLORS.western,
-    backgroundColor: 'rgba(99,102,241,0.15)',
-  },
-  referralSlotsLabel: {
-    color: COLORS.textMuted,
-    fontSize: 13,
-    marginLeft: SPACING.xs,
   },
   nameRow: {
     flexDirection: 'row',

@@ -1,5 +1,5 @@
-import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect } from 'react';
+import { Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -10,6 +10,7 @@ import { OrbIcon } from '../../src/components/ui/OrbIcon';
 import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { StarField } from '../../src/components/ui/StarField';
 import { BORDER_RADIUS, COLORS, FONTS, SHADOWS, SPACING } from '../../src/constants/theme';
+import { createReferralCodeDoc, generateUniqueReferralCode } from '../../src/services/firestoreService';
 import { useReadingStore } from '../../src/store/readingStore';
 import { useUserStore } from '../../src/store/userStore';
 import { formatDisplayDate } from '../../src/utils/dateUtils';
@@ -18,9 +19,24 @@ import { hasPremiumEntitlement } from '../../src/utils/subscription';
 export default function ShareScreen() {
   const router = useRouter();
   const user = useUserStore((s) => s.user);
+  const setUser = useUserStore((s) => s.setUser);
   const getRecentReadings = useReadingStore((s) => s.getRecentReadings);
   const isPremium = hasPremiumEntitlement(user?.subscription);
   const archive = getRecentReadings(isPremium ? 30 : 3);
+
+  // Auto-generate referral code for users who pre-date the referral system
+  useEffect(() => {
+    if (!user || user.referralCode) return;
+    void (async () => {
+      try {
+        const code = await generateUniqueReferralCode();
+        await createReferralCodeDoc(code, user.id);
+        setUser({ ...user, referralCode: code, referralCount: 0 });
+      } catch {
+        // Non-critical — retries on next visit
+      }
+    })();
+  }, [user?.id, user?.referralCode]);
 
   if (!user) return null;
 
@@ -58,8 +74,54 @@ export default function ShareScreen() {
           </LinearGradient>
         </AnimatedCard>
 
-        {/* ── Share Today's Reading ────────────────────────────────── */}
+        {/* ── Invite Friends ───────────────────────────────────────── */}
         <AnimatedCard index={1}>
+          <LinearGradient colors={['#1e1b3a', '#2d2060']} style={styles.inviteCard}>
+            <View style={styles.inviteTop}>
+              <View style={styles.inviteIcon}>
+                <Ionicons name="people" size={28} color="#fffaf1" />
+              </View>
+              <View style={styles.inviteContent}>
+                <Text style={styles.inviteTitle}>Invite Friends</Text>
+                <Text style={styles.inviteSubtitle}>CosmicSelf is invite-only — you have 3 invites to share</Text>
+              </View>
+            </View>
+            <View style={styles.inviteCodeRow}>
+              <Text style={styles.inviteCode}>{user.referralCode || '—'}</Text>
+              <TouchableOpacity
+                style={[styles.inviteCopyBtn, !user.referralCode && styles.inviteBtnDisabled]}
+                activeOpacity={0.75}
+                disabled={!user.referralCode}
+                onPress={() => {
+                  Share.share({
+                    message: `Join me on CosmicSelf — use my referral code ${user.referralCode} to get started!`,
+                  }).catch(() => {});
+                }}
+              >
+                <Ionicons name="share-outline" size={18} color="#fffaf1" />
+                <Text style={styles.inviteCopyText}>Share</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.inviteSlots}>
+              {[0, 1, 2].map((i) => (
+                <View
+                  key={i}
+                  style={[styles.inviteSlot, i < (user.referralCount ?? 0) && styles.inviteSlotUsed]}
+                >
+                  <Ionicons
+                    name={i < (user.referralCount ?? 0) ? 'person' : 'person-outline'}
+                    size={16}
+                    color={i < (user.referralCount ?? 0) ? COLORS.tide : 'rgba(255,250,241,0.35)'}
+                  />
+                </View>
+              ))}
+              <Text style={styles.inviteSlotsLabel}>{user.referralCount ?? 0}/3 invites used</Text>
+            </View>
+          </LinearGradient>
+        </AnimatedCard>
+
+        {/* ── Share Today's Reading ────────────────────────────────── */}
+        <AnimatedCard index={2}>
           <TouchableOpacity activeOpacity={0.84} onPress={() => router.push('/share/card')}>
             <GradientCard accentColor={COLORS.sunOrange} colors={COLORS.gradientDawn}>
               <View style={styles.shareRow}>
@@ -75,7 +137,7 @@ export default function ShareScreen() {
         </AnimatedCard>
 
         {/* ── Reading Archive ──────────────────────────────────────── */}
-        <AnimatedCard index={2}>
+        <AnimatedCard index={3}>
           <View style={styles.archiveHeader}>
             <Text style={styles.archiveTitle}>Recent readings</Text>
             <Text style={styles.archiveSubtitle}>Your last few days at a glance</Text>
@@ -170,6 +232,98 @@ const styles = StyleSheet.create({
   },
   qrActions: {
     gap: SPACING.sm,
+  },
+  // Invite
+  inviteCard: {
+    borderRadius: BORDER_RADIUS.xxl,
+    padding: SPACING.lg,
+    gap: SPACING.md,
+    ...SHADOWS.deep,
+  },
+  inviteTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+  },
+  inviteIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inviteContent: {
+    flex: 1,
+  },
+  inviteTitle: {
+    color: '#fffaf1',
+    fontSize: 20,
+    fontFamily: FONTS.heading,
+  },
+  inviteSubtitle: {
+    color: 'rgba(255,250,241,0.65)',
+    fontSize: 13,
+    marginTop: 2,
+    lineHeight: 18,
+  },
+  inviteCodeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: BORDER_RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 12,
+  },
+  inviteCode: {
+    color: '#fffaf1',
+    fontSize: 24,
+    fontFamily: FONTS.heading,
+    letterSpacing: 3,
+  },
+  inviteCopyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: COLORS.western,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 8,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  inviteBtnDisabled: {
+    opacity: 0.4,
+  },
+  inviteCopyText: {
+    color: '#fff',
+    fontSize: 14,
+    fontFamily: FONTS.heading,
+  },
+  inviteSlots: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  inviteSlot: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,250,241,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inviteSlotUsed: {
+    backgroundColor: `${COLORS.tide}22`,
+    borderColor: COLORS.tide,
+  },
+  inviteSlotsLabel: {
+    color: 'rgba(255,250,241,0.50)',
+    fontSize: 12,
+    fontFamily: FONTS.accent,
+    letterSpacing: 0.5,
+    marginLeft: SPACING.xs,
   },
   // Share Reading
   shareRow: {
