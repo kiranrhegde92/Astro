@@ -163,7 +163,22 @@ export default function JournalScreen() {
     <StarField>
       <ScreenHeader title="Journal" accentColor={COLORS.iris} />
       <ResetScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        <Text style={styles.headline}>Reflect on your cosmic journey</Text>
+        <View style={styles.headlineRow}>
+          <Text style={styles.headline}>Reflect on your cosmic journey</Text>
+          {entries.length > 0 ? (
+            <TouchableOpacity
+              style={styles.insightsBtn}
+              onPress={() => router.push('/journal-insights')}
+              activeOpacity={0.84}
+              accessibilityRole="button"
+              accessibilityLabel="View journal insights"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="sparkles-outline" size={14} color={COLORS.iris} />
+              <Text style={styles.insightsBtnLabel}>Insights</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
 
         {composing ? (
           <AnimatedCard index={0}>
@@ -299,12 +314,37 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
     gap: SPACING.lg,
   },
+  headlineRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: SPACING.sm,
+  },
   headline: {
+    flex: 1,
     color: COLORS.textPrimary,
     fontSize: 30,
     lineHeight: 36,
     fontFamily: FONTS.display,
     letterSpacing: -0.5,
+  },
+  insightsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
+    borderColor: `${COLORS.iris}55`,
+    backgroundColor: `${COLORS.iris}18`,
+    marginTop: 6,
+  },
+  insightsBtnLabel: {
+    color: COLORS.iris,
+    fontSize: 11,
+    fontFamily: FONTS.accent,
+    letterSpacing: 0.8,
   },
   composeCard: {
     gap: SPACING.md,
