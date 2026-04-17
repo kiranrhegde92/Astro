@@ -8,6 +8,11 @@ export interface SpokenReadingPayload {
   affirmation?: string;
 }
 
+export interface SpeakReadingOptions {
+  onDone?: () => void;
+  onError?: () => void;
+}
+
 function buildSpokenScript(payload: SpokenReadingPayload) {
   const parts = [
     payload.headline,
@@ -20,7 +25,10 @@ function buildSpokenScript(payload: SpokenReadingPayload) {
   return parts.join('. ');
 }
 
-export async function speakReading(payload: SpokenReadingPayload): Promise<boolean> {
+export async function speakReading(
+  payload: SpokenReadingPayload,
+  options: SpeakReadingOptions = {}
+): Promise<boolean> {
   if (Platform.OS === 'web') return false;
   try {
     const Speech = await import('expo-speech');
@@ -29,6 +37,9 @@ export async function speakReading(payload: SpokenReadingPayload): Promise<boole
       language: 'en-US',
       rate: 0.96,
       pitch: 1.0,
+      onDone: options.onDone,
+      onStopped: options.onDone,
+      onError: options.onError,
     });
     return true;
   } catch {

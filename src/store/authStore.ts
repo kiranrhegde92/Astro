@@ -64,6 +64,9 @@ interface AuthState {
   /** True when a new Google user needs to supply a referral code before onboarding. */
   pendingReferral: boolean;
   setPendingReferral: (val: boolean) => void;
+  /** Referral code received via deep link — pre-fills the referral-entry screen. */
+  pendingReferralCode: string | null;
+  setPendingReferralCode: (code: string | null) => void;
   initialize: () => () => void;
   refreshClaims: () => Promise<void>;
   refreshEmailVerification: () => Promise<boolean>;
@@ -128,6 +131,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   isEmailVerified: false,
   pendingReferral: false,
   setPendingReferral: (val) => set({ pendingReferral: val }),
+  pendingReferralCode: null,
+  setPendingReferralCode: (code) => set({ pendingReferralCode: code }),
 
   initialize: () => {
     const timeout = setTimeout(() => {

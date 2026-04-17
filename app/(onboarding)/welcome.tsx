@@ -67,25 +67,25 @@ const SYSTEMS = [
     label: { en: 'Western psychology', hi: 'पश्चिमी मनोविज्ञान', zh: '西方心理', kn: 'ಪಾಶ್ಚಾತ್ಯ ಮನೋವಿಜ್ಞಾನ' },
     icon: 'sunny' as const,
     accent: COLORS.western,
-    secondary: '#ece6ff',
+    orbSecondary: COLORS.violetLight,
   },
   {
     label: { en: 'Vedic timing', hi: 'वैदिक समय', zh: '吠陀时机', kn: 'ವೇದಿಕ ಸಮಯ' },
     icon: 'moon' as const,
     accent: COLORS.vedic,
-    secondary: '#ffe6d8',
+    orbSecondary: COLORS.aurora,
   },
   {
     label: { en: 'Chinese cycles', hi: 'चीनी चक्र', zh: '中华周期', kn: 'ಚೀನಿ ಚಕ್ರಗಳು' },
     icon: 'leaf' as const,
     accent: COLORS.chinese,
-    secondary: '#ffe7db',
+    orbSecondary: COLORS.sunOrange,
   },
   {
     label: { en: 'KP precision', hi: 'केपी सटीकता', zh: 'KP 精准度', kn: 'ಕೆಪಿ ನಿಖರತೆ' },
     icon: 'sparkles' as const,
     accent: COLORS.kp,
-    secondary: '#e1f5ef',
+    orbSecondary: COLORS.tealLight,
   },
 ];
 
@@ -122,7 +122,14 @@ export default function WelcomeScreen() {
   return (
     <StarField>
       {/* Logout button — top-right corner */}
-      <TouchableOpacity style={styles.logoutCorner} onPress={handleLogout} activeOpacity={0.7}>
+      <TouchableOpacity
+        style={styles.logoutCorner}
+        onPress={handleLogout}
+        activeOpacity={0.7}
+        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        accessibilityRole="button"
+        accessibilityLabel="Log out"
+      >
         <Ionicons name="log-out-outline" size={22} color={COLORS.textMuted} />
       </TouchableOpacity>
 
@@ -136,6 +143,17 @@ export default function WelcomeScreen() {
 
               <View style={styles.ctaWrap}>
                 <CosmicButton title={copy.cta} onPress={() => router.push('/(onboarding)/birth-details')} />
+                <TouchableOpacity
+                  style={styles.sampleBtn}
+                  onPress={() => router.push('/(onboarding)/birth-details?sample=1')}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel="Preview the app with a sample chart"
+                  hitSlop={8}
+                >
+                  <Ionicons name="sparkles-outline" size={14} color={COLORS.textSecondary} />
+                  <Text style={styles.sampleText}>Peek with a sample chart</Text>
+                </TouchableOpacity>
               </View>
             </LinearGradient>
 
@@ -148,8 +166,8 @@ export default function WelcomeScreen() {
         <AnimatedCard index={1}>
           <View style={styles.systemGrid}>
             {SYSTEMS.map((system) => (
-              <View key={system.label.en} style={[styles.systemTile, { backgroundColor: system.secondary, borderColor: `${system.accent}33` }]}>
-                <OrbIcon icon={system.icon} size={34} accentColor={system.accent} secondaryColor={system.secondary} />
+              <View key={system.label.en} style={[styles.systemTile, { borderColor: `${system.accent}55` }]}>
+                <OrbIcon icon={system.icon} size={34} accentColor={system.accent} secondaryColor={system.orbSecondary} />
                 <Text style={styles.systemText}>{system.label[selectedLang]}</Text>
               </View>
             ))}
@@ -172,6 +190,9 @@ export default function WelcomeScreen() {
                     }}
                     style={[styles.languageChip, active && styles.languageChipActive]}
                     activeOpacity={0.8}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Choose ${lang.nativeName} language`}
+                    accessibilityState={{ selected: active }}
                   >
                     <Text style={[styles.languageText, active && styles.languageTextActive]}>{lang.nativeName}</Text>
                   </TouchableOpacity>
@@ -226,13 +247,13 @@ const styles = StyleSheet.create({
     bottom: 20,
   },
   brand: {
-    color: 'rgba(255,250,241,0.72)',
+    color: COLORS.textSecondary,
     fontSize: 12,
     fontFamily: FONTS.accent,
     letterSpacing: 2.4,
   },
   headline: {
-    color: '#fffaf1',
+    color: COLORS.textPrimary,
     fontSize: 44,
     lineHeight: 49,
     fontFamily: FONTS.display,
@@ -241,7 +262,7 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
   },
   copy: {
-    color: 'rgba(255,250,241,0.82)',
+    color: COLORS.inkMid,
     fontSize: 15,
     lineHeight: 23,
     maxWidth: 220,
@@ -249,7 +270,22 @@ const styles = StyleSheet.create({
   },
   ctaWrap: {
     marginTop: SPACING.lg,
-    maxWidth: 190,
+    maxWidth: 230,
+    gap: SPACING.sm,
+  },
+  sampleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
+  sampleText: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    fontFamily: FONTS.accent,
+    letterSpacing: 0.8,
+    textDecorationLine: 'underline',
   },
   systemGrid: {
     flexDirection: 'row',
@@ -262,6 +298,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: SPACING.md,
     gap: SPACING.sm,
+    backgroundColor: COLORS.glassBg,
     ...SHADOWS.glass,
   },
   systemText: {
@@ -285,12 +322,14 @@ const styles = StyleSheet.create({
   },
   languageChip: {
     minWidth: '47%',
+    minHeight: 48,
+    justifyContent: 'center',
     borderRadius: BORDER_RADIUS.sm,
     borderWidth: 1,
     borderColor: COLORS.glassBorder,
     paddingVertical: 14,
     paddingHorizontal: 12,
-    backgroundColor: 'rgba(255,255,255,0.74)',
+    backgroundColor: COLORS.glassBg,
   },
   languageChipActive: {
     borderColor: COLORS.glassBorderBright,
@@ -308,13 +347,13 @@ const styles = StyleSheet.create({
     gap: SPACING.xs,
   },
   promiseTitle: {
-    color: '#fffaf1',
+    color: COLORS.textPrimary,
     fontSize: 22,
     lineHeight: 28,
     fontFamily: FONTS.heading,
   },
   promiseCopy: {
-    color: 'rgba(255,250,241,0.82)',
+    color: COLORS.inkMid,
     fontSize: 14,
     lineHeight: 21,
   },

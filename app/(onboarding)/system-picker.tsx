@@ -18,7 +18,7 @@ const SYSTEMS: Array<{ key: AstrologySystem; titleKey: string; bodyKey: string; 
     titleKey: 'onboarding.systemPicker.western',
     bodyKey: 'onboarding.systemPicker.westernDesc',
     accent: COLORS.western,
-    secondary: '#ece6ff',
+    secondary: COLORS.violetLight,
     icon: 'sunny',
   },
   {
@@ -26,7 +26,7 @@ const SYSTEMS: Array<{ key: AstrologySystem; titleKey: string; bodyKey: string; 
     titleKey: 'onboarding.systemPicker.vedic',
     bodyKey: 'onboarding.systemPicker.vedicDesc',
     accent: COLORS.vedic,
-    secondary: '#ffe6d8',
+    secondary: COLORS.aurora,
     icon: 'moon',
   },
   {
@@ -34,7 +34,7 @@ const SYSTEMS: Array<{ key: AstrologySystem; titleKey: string; bodyKey: string; 
     titleKey: 'onboarding.systemPicker.chinese',
     bodyKey: 'onboarding.systemPicker.chineseDesc',
     accent: COLORS.chinese,
-    secondary: '#ffe7db',
+    secondary: COLORS.sunOrange,
     icon: 'leaf',
   },
   {
@@ -42,7 +42,7 @@ const SYSTEMS: Array<{ key: AstrologySystem; titleKey: string; bodyKey: string; 
     titleKey: 'onboarding.systemPicker.kp',
     bodyKey: 'onboarding.systemPicker.kpDesc',
     accent: COLORS.kp,
-    secondary: '#e1f5ef',
+    secondary: COLORS.tealLight,
     icon: 'sparkles',
   },
 ];
@@ -74,7 +74,14 @@ export default function SystemPickerScreen() {
         {SYSTEMS.map((system) => {
           const active = selected.has(system.key);
           return (
-            <TouchableOpacity key={system.key} onPress={() => toggle(system.key)} activeOpacity={0.84}>
+            <TouchableOpacity
+              key={system.key}
+              onPress={() => toggle(system.key)}
+              activeOpacity={0.84}
+              accessibilityRole="switch"
+              accessibilityLabel={t(system.titleKey)}
+              accessibilityState={{ checked: active }}
+            >
               <GradientCard style={[styles.row, active && styles.rowActive]} accentColor={system.accent}>
                 <View style={styles.rowTop}>
                   <View style={styles.rowTitleWrap}>
@@ -166,7 +173,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.56)',
+    backgroundColor: COLORS.glassBg,
   },
   rowMarkActive: {
     backgroundColor: COLORS.bgMuted,

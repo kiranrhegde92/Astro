@@ -47,6 +47,9 @@ export interface JournalEntry {
   body: string;
   mood: 'clear' | 'curious' | 'tender' | 'restless' | 'hopeful';
   linkedReadingDate?: string;
+  moonPhaseKey?: 'new' | 'waxing-crescent' | 'first-quarter' | 'waxing-gibbous' | 'full' | 'waning-gibbous' | 'last-quarter' | 'waning-crescent';
+  moonPhaseLabel?: string;
+  moonPhaseEmoji?: string;
   createdAt: string;
   updatedAt: string;
 }

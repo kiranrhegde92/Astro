@@ -11,8 +11,9 @@ import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { StarField } from '../../src/components/ui/StarField';
 import { BORDER_RADIUS, COLORS, FONTS, SHADOWS, SPACING } from '../../src/constants/theme';
 import { createReferralCodeDoc, generateUniqueReferralCode } from '../../src/services/firestoreService';
-import { currentUser } from '../../src/services/authService';
+import { generateReferralLink } from '../../src/utils/qrCodeUtils';
 import { useReadingStore } from '../../src/store/readingStore';
+import { useAuthStore } from '../../src/store/authStore';
 import { useUserStore } from '../../src/store/userStore';
 import { formatDisplayDate } from '../../src/utils/dateUtils';
 import { hasPremiumEntitlement } from '../../src/utils/subscription';
@@ -21,6 +22,7 @@ export default function ShareScreen() {
   const router = useRouter();
   const user = useUserStore((s) => s.user);
   const setUser = useUserStore((s) => s.setUser);
+  const fbUser = useAuthStore((s) => s.firebaseUser);
   const getRecentReadings = useReadingStore((s) => s.getRecentReadings);
   const isPremium = hasPremiumEntitlement(user?.subscription);
   const archive = getRecentReadings(isPremium ? 30 : 3);
@@ -28,7 +30,6 @@ export default function ShareScreen() {
   // Auto-generate referral code for users who pre-date the referral system
   useEffect(() => {
     if (!user || user.referralCode) return;
-    const fbUser = currentUser();
     if (!fbUser) return;
     void (async () => {
       try {
@@ -39,7 +40,7 @@ export default function ShareScreen() {
         console.warn('[Share] Failed to generate referral code:', e);
       }
     })();
-  }, [user?.id, user?.referralCode]);
+  }, [user?.id, user?.referralCode, fbUser?.uid]);
 
   if (!user) return null;
 
@@ -54,7 +55,7 @@ export default function ShareScreen() {
           <LinearGradient colors={COLORS.gradientInk} style={styles.qrCard}>
             <View style={styles.qrTop}>
               <View style={styles.qrIcon}>
-                <Ionicons name="qr-code" size={32} color="#fffaf1" />
+                <Ionicons name="qr-code" size={32} color={COLORS.textPrimary} />
               </View>
               <View style={styles.qrContent}>
                 <Text style={styles.qrTitle}>My Cosmic QR</Text>
@@ -79,10 +80,10 @@ export default function ShareScreen() {
 
         {/* ── Invite Friends ───────────────────────────────────────── */}
         <AnimatedCard index={1}>
-          <LinearGradient colors={['#1e1b3a', '#2d2060']} style={styles.inviteCard}>
+          <LinearGradient colors={COLORS.gradientSunset} style={styles.inviteCard}>
             <View style={styles.inviteTop}>
               <View style={styles.inviteIcon}>
-                <Ionicons name="people" size={28} color="#fffaf1" />
+                <Ionicons name="people" size={28} color={COLORS.textPrimary} />
               </View>
               <View style={styles.inviteContent}>
                 <Text style={styles.inviteTitle}>Invite Friends</Text>
@@ -95,13 +96,19 @@ export default function ShareScreen() {
                 style={[styles.inviteCopyBtn, !user.referralCode && styles.inviteBtnDisabled]}
                 activeOpacity={0.75}
                 disabled={!user.referralCode}
+                accessibilityRole="button"
+                accessibilityLabel="Share your CosmicSelf invite link"
+                accessibilityState={{ disabled: !user.referralCode }}
                 onPress={() => {
+                  const link = generateReferralLink(user.referralCode);
                   Share.share({
-                    message: `Join me on CosmicSelf — use my referral code ${user.referralCode} to get started!`,
+                    title: 'Join me on CosmicSelf',
+                    message: `Join me on CosmicSelf — an invite-only astrology app!\n\nTap my link to get started:\n${link}`,
+                    url: link,
                   }).catch(() => {});
                 }}
               >
-                <Ionicons name="share-outline" size={18} color="#fffaf1" />
+                <Ionicons name="share-outline" size={18} color={COLORS.white} />
                 <Text style={styles.inviteCopyText}>Share</Text>
               </TouchableOpacity>
             </View>
@@ -114,7 +121,7 @@ export default function ShareScreen() {
                   <Ionicons
                     name={i < (user.referralCount ?? 0) ? 'person' : 'person-outline'}
                     size={16}
-                    color={i < (user.referralCount ?? 0) ? COLORS.tide : 'rgba(255,250,241,0.35)'}
+                    color={i < (user.referralCount ?? 0) ? COLORS.tide : COLORS.textMuted}
                   />
                 </View>
               ))}
@@ -125,7 +132,12 @@ export default function ShareScreen() {
 
         {/* ── Share Today's Reading ────────────────────────────────── */}
         <AnimatedCard index={2}>
-          <TouchableOpacity activeOpacity={0.84} onPress={() => router.push('/share/card')}>
+          <TouchableOpacity
+            activeOpacity={0.84}
+            onPress={() => router.push('/share/card')}
+            accessibilityRole="button"
+            accessibilityLabel="Share today's reading as a card"
+          >
             <GradientCard accentColor={COLORS.sunOrange} colors={COLORS.gradientDawn}>
               <View style={styles.shareRow}>
                 <OrbIcon icon="sunny" size={42} accentColor={COLORS.sunOrange} secondaryColor="#ffe9c7" />
@@ -145,7 +157,13 @@ export default function ShareScreen() {
             <Text style={styles.archiveTitle}>Recent readings</Text>
             <Text style={styles.archiveSubtitle}>Your last few days at a glance</Text>
             {!isPremium ? (
-              <TouchableOpacity style={styles.archiveUpgrade} onPress={() => router.push('/subscription')} activeOpacity={0.84}>
+              <TouchableOpacity
+                style={styles.archiveUpgrade}
+                onPress={() => router.push('/subscription')}
+                activeOpacity={0.84}
+                accessibilityRole="button"
+                accessibilityLabel="Upgrade to Premium for the full reading archive"
+              >
                 <Text style={styles.archiveUpgradeText}>Free archive shows 3 readings. Premium opens the full archive.</Text>
                 <Ionicons name="chevron-forward" size={16} color={COLORS.starGold} />
               </TouchableOpacity>
@@ -158,6 +176,8 @@ export default function ShareScreen() {
                   key={reading.date}
                   activeOpacity={0.84}
                   onPress={() => router.push({ pathname: '/reading/archive', params: { date: reading.date } })}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open reading from ${formatDisplayDate(reading.date)}`}
                 >
                   <GradientCard accentColor={COLORS.gold} style={styles.archiveItem}>
                     <Text style={styles.archiveDate}>{formatDisplayDate(reading.date)}</Text>
@@ -216,7 +236,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: COLORS.glassHighlight,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -224,12 +244,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   qrTitle: {
-    color: '#fffaf1',
+    color: COLORS.textPrimary,
     fontSize: 20,
     fontFamily: FONTS.heading,
   },
   qrSubtitle: {
-    color: 'rgba(255,250,241,0.72)',
+    color: COLORS.textSecondary,
     fontSize: 13,
     marginTop: 2,
   },
@@ -252,7 +272,7 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: COLORS.bgElevated,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -260,12 +280,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   inviteTitle: {
-    color: '#fffaf1',
+    color: COLORS.textPrimary,
     fontSize: 20,
     fontFamily: FONTS.heading,
   },
   inviteSubtitle: {
-    color: 'rgba(255,250,241,0.65)',
+    color: COLORS.textSecondary,
     fontSize: 13,
     marginTop: 2,
     lineHeight: 18,
@@ -274,13 +294,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: COLORS.glassHighlight,
     borderRadius: BORDER_RADIUS.md,
     paddingHorizontal: SPACING.md,
     paddingVertical: 12,
   },
   inviteCode: {
-    color: '#fffaf1',
+    color: COLORS.textPrimary,
     fontSize: 24,
     fontFamily: FONTS.heading,
     letterSpacing: 3,
@@ -291,14 +311,15 @@ const styles = StyleSheet.create({
     gap: 6,
     backgroundColor: COLORS.western,
     paddingHorizontal: SPACING.md,
-    paddingVertical: 8,
+    paddingVertical: 10,
+    minHeight: 44,
     borderRadius: BORDER_RADIUS.full,
   },
   inviteBtnDisabled: {
     opacity: 0.4,
   },
   inviteCopyText: {
-    color: '#fff',
+    color: COLORS.white,
     fontSize: 14,
     fontFamily: FONTS.heading,
   },
@@ -311,9 +332,9 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: COLORS.glassHighlight,
     borderWidth: 1,
-    borderColor: 'rgba(255,250,241,0.15)',
+    borderColor: COLORS.glassBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -322,7 +343,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.tide,
   },
   inviteSlotsLabel: {
-    color: 'rgba(255,250,241,0.50)',
+    color: COLORS.textMuted,
     fontSize: 12,
     fontFamily: FONTS.accent,
     letterSpacing: 0.5,

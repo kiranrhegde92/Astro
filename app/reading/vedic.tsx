@@ -325,14 +325,14 @@ const styles = StyleSheet.create({
   padaBar: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.md },
   padaDot: {
     width: 16, height: 16, borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: COLORS.bgElevated,
     borderWidth: 1, borderColor: COLORS.vedic,
   },
   padaDotActive: { backgroundColor: COLORS.vedic },
   muhurtaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, marginBottom: SPACING.sm },
   muhurtaChip: {
     width: '47%',
-    backgroundColor: 'rgba(255,255,255,0.58)',
+    backgroundColor: COLORS.glassHighlight,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.sm,
     gap: 2,
@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
   dashaYears: { color: COLORS.textMuted, fontSize: 10 },
   dashaBarBg: {
     flex: 1, height: 8, borderRadius: 4,
-    backgroundColor: 'rgba(40,49,73,0.10)',
+    backgroundColor: COLORS.glassHighlight,
     overflow: 'hidden',
   },
   dashaBarFill: { height: '100%', borderRadius: 4 },
@@ -380,13 +380,13 @@ const styles = StyleSheet.create({
   // Planet table
   planetTableHeader: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: COLORS.glassBorder, paddingBottom: 6, marginBottom: 4 },
   planetCol: { flex: 1, color: COLORS.textMuted, fontSize: 10, fontWeight: '700', letterSpacing: 1 },
-  planetRow: { flexDirection: 'row', paddingVertical: 5, borderBottomWidth: 0.5, borderBottomColor: 'rgba(36,40,74,0.06)' },
+  planetRow: { flexDirection: 'row', paddingVertical: 5, borderBottomWidth: 0.5, borderBottomColor: COLORS.ruleLight },
   planetName: { flex: 1, color: COLORS.textPrimary, fontSize: 13, fontWeight: '600' },
   planetSign: { flex: 1, color: COLORS.textSecondary, fontSize: 13 },
   planetDeg: { flex: 1, color: COLORS.textMuted, fontSize: 13, textAlign: 'right' },
   // Transit rows
   transitRow: { paddingVertical: SPACING.sm, borderBottomWidth: 0.5, borderBottomColor: COLORS.glassBorder },
-  transitBadge: { backgroundColor: 'rgba(130,120,220,0.10)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, alignSelf: 'flex-start', marginBottom: 4 },
+  transitBadge: { backgroundColor: `${COLORS.vedic}22`, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, alignSelf: 'flex-start', marginBottom: 4 },
   transitBadgeText: { color: COLORS.vedic, fontSize: 11, fontWeight: '700' },
   transitText: { color: COLORS.textSecondary, fontSize: 13, lineHeight: 19 },
 });

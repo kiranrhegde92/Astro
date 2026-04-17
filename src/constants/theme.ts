@@ -1,61 +1,75 @@
-const PAPER = {
-  50: '#fff8f2',
-  100: '#f4ebf8',
-  200: '#e6d8f2',
-  300: '#f8c892',
+/**
+ * Midnight Observatory — cosmic dark palette.
+ * Token names preserved for backwards compatibility across the app;
+ * resolved values tuned for a night-sky editorial aesthetic.
+ */
+
+const COSMOS = {
+  void: '#05060f',
+  deep: '#07081a',
+  base: '#0a0b1f',
+  mid: '#151736',
+  horizon: '#2b1d52',
 };
 
-const INK = {
-  900: '#17182d',
-  800: '#24284a',
-  700: '#46507b',
-  600: '#6872a0',
-  500: '#959aba',
+const CREAM = {
+  100: '#fff8ea',
+  200: '#fff5e6',
+  300: '#f6ead4',
+  400: '#cfc3a8',
+  500: '#8c836d',
 };
 
 const ACCENT = {
-  dawn: '#ff8a5b',
-  iris: '#7367ff',
-  tide: '#12c8b2',
-  plum: '#b04ec7',
   gold: '#f1b74f',
-  coral: '#ff5e7e',
-  mint: '#7de7da',
+  goldDeep: '#bc8331',
+  iris: '#9b91ff',
+  irisBright: '#b8b0ff',
+  tide: '#3ee0c8',
+  tideLight: '#7de7da',
+  plum: '#c77ad8',
+  coral: '#ff7896',
+  dawn: '#ff9e72',
 };
 
 export const COLORS = {
-  bg: PAPER[100],
-  bgDeep: PAPER[50],
-  bgCard: 'rgba(255,248,252,0.72)',
-  bgElevated: 'rgba(255,255,255,0.86)',
-  bgMuted: 'rgba(230,216,242,0.52)',
-  bgInkCard: 'rgba(23,24,45,0.94)',
-  bgInkCardSoft: 'rgba(36,40,74,0.90)',
+  // Backgrounds
+  bg: COSMOS.base,
+  bgDeep: COSMOS.deep,
+  bgCard: 'rgba(255,255,255,0.06)',
+  bgElevated: 'rgba(255,255,255,0.10)',
+  bgMuted: 'rgba(255,255,255,0.04)',
+  bgInkCard: 'rgba(10,11,31,0.82)',
+  bgInkCardSoft: 'rgba(21,23,54,0.74)',
 
-  glassBg: 'rgba(255,248,252,0.76)',
-  glassBgMid: 'rgba(255,255,255,0.86)',
-  glassBorder: 'rgba(36,40,74,0.12)',
-  glassBorderBright: 'rgba(115,103,255,0.28)',
-  glassHighlight: 'rgba(255,255,255,0.65)',
-  rule: 'rgba(36,40,74,0.14)',
-  ruleLight: 'rgba(255,250,241,0.16)',
+  // Glass surfaces — always translucent-white on a dark base
+  glassBg: 'rgba(255,255,255,0.06)',
+  glassBgMid: 'rgba(255,255,255,0.10)',
+  glassBorder: 'rgba(255,255,255,0.12)',
+  glassBorderBright: 'rgba(241,183,79,0.38)',
+  glassHighlight: 'rgba(255,255,255,0.08)',
+  rule: 'rgba(255,255,255,0.10)',
+  ruleLight: 'rgba(255,255,255,0.06)',
 
-  textPrimary: INK[900],
-  textSecondary: INK[700],
-  textMuted: INK[500],
-  ink: INK[900],
-  inkMid: INK[800],
-  inkSoft: INK[700],
+  // Text on dark
+  textPrimary: CREAM[200],
+  textSecondary: 'rgba(255,245,230,0.72)',
+  textMuted: 'rgba(255,245,230,0.48)',
+  ink: CREAM[200],
+  inkMid: 'rgba(255,245,230,0.82)',
+  inkSoft: 'rgba(255,245,230,0.60)',
 
+  // Neutrals
   white: '#ffffff',
   silver: '#f3edf7',
   silverMid: '#cec4da',
   silverDim: '#8f87a1',
   gold: ACCENT.gold,
-  goldMid: '#bc8331',
+  goldMid: ACCENT.goldDeep,
   starGold: ACCENT.gold,
-  starGoldDeep: '#bc8331',
+  starGoldDeep: ACCENT.goldDeep,
 
+  // System accents — brightened for dark backgrounds
   western: ACCENT.iris,
   vedic: ACCENT.dawn,
   chinese: ACCENT.coral,
@@ -66,56 +80,68 @@ export const COLORS = {
   coral: ACCENT.coral,
 
   violet: ACCENT.iris,
-  violetLight: '#a59dff',
-  violetBright: '#b8b0ff',
+  violetLight: ACCENT.irisBright,
+  violetBright: '#d1cbff',
   teal: ACCENT.tide,
-  tealLight: ACCENT.mint,
-  deepSpace: PAPER[50],
-  nebula: PAPER[100],
-  cosmic: PAPER[200],
+  tealLight: ACCENT.tideLight,
+  deepSpace: COSMOS.deep,
+  nebula: COSMOS.base,
+  cosmic: COSMOS.mid,
   aurora: '#ffc888',
 
-  success: '#58ad7c',
+  // Feedback
+  success: '#6fd596',
   warning: ACCENT.gold,
-  error: '#d75c5c',
+  error: '#ff7878',
 
   sunOrange: ACCENT.dawn,
   moonSilver: '#f4efe6',
 
-  gradientBg: ['#fff8f2', '#f4ebf8', '#ddd5ff'] as const,
-  gradientCard: ['rgba(255,255,255,0.80)', 'rgba(244,235,248,0.58)'] as const,
-  gradientInk: ['#17182d', '#24284a', '#46306b'] as const,
-  gradientInkSoft: ['#24284a', '#3c366d'] as const,
-  gradientDawn: ['#ffe0a4', '#ff9a68', '#ff5e7e'] as const,
-  gradientSunset: ['#ffd0b3', '#ff7e63', '#8c56ff'] as const,
-  gradientPrimary: ['#ff7b5b', '#ffbf63'] as const,
-  gradientGold: ['#ffe0a2', '#f1b74f'] as const,
-  gradientSilver: ['rgba(255,255,255,0.96)', 'rgba(230,216,242,0.76)'] as const,
-  gradientChrome: ['rgba(255,255,255,0.82)', 'rgba(230,216,242,0.52)'] as const,
-  gradientWestern: ['rgba(115,103,255,0.26)', 'rgba(115,103,255,0.08)'] as const,
-  gradientVedic: ['rgba(255,138,91,0.24)', 'rgba(255,138,91,0.08)'] as const,
-  gradientChinese: ['rgba(255,94,126,0.24)', 'rgba(255,94,126,0.08)'] as const,
-  gradientKP: ['rgba(18,200,178,0.24)', 'rgba(18,200,178,0.08)'] as const,
-  gradientMystic: ['rgba(255,255,255,0.72)', 'rgba(230,216,242,0.32)'] as const,
-  gradientCompatibility: ['rgba(255,94,126,0.16)', 'rgba(255,138,91,0.16)', 'rgba(115,103,255,0.14)'] as const,
+  // Gradients
+  gradientBg: [COSMOS.deep, COSMOS.base, COSMOS.mid] as const,
+  gradientCard: ['rgba(255,255,255,0.09)', 'rgba(255,255,255,0.03)'] as const,
+  gradientInk: [COSMOS.base, COSMOS.mid, COSMOS.horizon] as const,
+  gradientInkSoft: [COSMOS.mid, COSMOS.horizon] as const,
+  gradientDawn: ['#3b1f4a', '#662848', '#9a4450'] as const,
+  gradientSunset: ['#2d1338', '#4a1760', '#1a2d60'] as const,
+  gradientPrimary: [ACCENT.gold, ACCENT.dawn] as const,
+  gradientGold: ['#ffe0a2', ACCENT.gold] as const,
+  gradientSilver: ['rgba(255,255,255,0.14)', 'rgba(255,255,255,0.04)'] as const,
+  gradientChrome: ['rgba(255,255,255,0.10)', 'rgba(255,255,255,0.03)'] as const,
+  gradientWestern: ['rgba(155,145,255,0.32)', 'rgba(155,145,255,0.08)'] as const,
+  gradientVedic: ['rgba(255,158,114,0.30)', 'rgba(255,158,114,0.08)'] as const,
+  gradientChinese: ['rgba(255,120,150,0.30)', 'rgba(255,120,150,0.08)'] as const,
+  gradientKP: ['rgba(62,224,200,0.28)', 'rgba(62,224,200,0.08)'] as const,
+  gradientMystic: ['rgba(155,145,255,0.14)', 'rgba(62,224,200,0.10)'] as const,
+  gradientCompatibility: [
+    'rgba(255,120,150,0.20)',
+    'rgba(255,158,114,0.20)',
+    'rgba(155,145,255,0.18)',
+  ] as const,
 };
 
 export const FONTS = {
   display: 'PlayfairDisplay_900Black',
   heading: 'PlayfairDisplay_700Bold',
   accent: 'Cinzel_400Regular',
+  accentBold: 'Cinzel_700Bold',
   body: 'System',
 };
 
+/**
+ * Type scale — editorial rhythm.
+ * Use these exclusively; avoid one-off fontSize values.
+ */
 export const TYPE = {
-  hero: { fontSize: 40, letterSpacing: -0.8 },
-  title: { fontSize: 30, letterSpacing: -0.4 },
-  heading: { fontSize: 22, letterSpacing: -0.2 },
-  subhead: { fontSize: 16, letterSpacing: 0 },
-  body: { fontSize: 15, letterSpacing: 0 },
-  caption: { fontSize: 13, letterSpacing: 0.1 },
-  label: { fontSize: 11, letterSpacing: 1.2 },
-  micro: { fontSize: 11, letterSpacing: 0.2 },
+  hero: { fontSize: 42, lineHeight: 48, letterSpacing: -0.8 },
+  title: { fontSize: 30, lineHeight: 36, letterSpacing: -0.4 },
+  heading: { fontSize: 22, lineHeight: 28, letterSpacing: -0.2 },
+  subhead: { fontSize: 17, lineHeight: 24, letterSpacing: 0 },
+  body: { fontSize: 15, lineHeight: 22, letterSpacing: 0 },
+  bodySmall: { fontSize: 14, lineHeight: 20, letterSpacing: 0 },
+  caption: { fontSize: 13, lineHeight: 18, letterSpacing: 0.1 },
+  label: { fontSize: 11, lineHeight: 14, letterSpacing: 1.6 },
+  micro: { fontSize: 11, lineHeight: 14, letterSpacing: 0.2 },
 };
 
 export const SPACING = {
@@ -138,38 +164,38 @@ export const BORDER_RADIUS = {
 
 export const SHADOWS = {
   card: {
-    shadowColor: 'rgba(41,24,79,0.26)',
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.14,
-    shadowRadius: 26,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.36,
+    shadowRadius: 22,
     elevation: 8,
   },
   glass: {
-    shadowColor: 'rgba(41,24,79,0.18)',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.10,
-    shadowRadius: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.28,
+    shadowRadius: 16,
     elevation: 6,
   },
   deep: {
-    shadowColor: 'rgba(23,24,45,0.32)',
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.16,
-    shadowRadius: 32,
-    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.44,
+    shadowRadius: 30,
+    elevation: 12,
   },
   glow: {
-    shadowColor: 'rgba(255,94,126,0.30)',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.14,
-    shadowRadius: 20,
-    elevation: 5,
+    shadowColor: ACCENT.iris,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.42,
+    shadowRadius: 22,
+    elevation: 6,
   },
   glowGold: {
-    shadowColor: 'rgba(255,138,91,0.28)',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.14,
+    shadowColor: ACCENT.gold,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.38,
     shadowRadius: 20,
-    elevation: 5,
+    elevation: 6,
   },
 };

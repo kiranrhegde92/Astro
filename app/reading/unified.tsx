@@ -28,7 +28,7 @@ import { getCosmicDNASummary } from '../../src/engines/unified';
 import { getDateKey } from '../../src/utils/dateUtils';
 import { hasPremiumEntitlement } from '../../src/utils/subscription';
 
-const READING_VERSION = 3;
+const READING_VERSION = 5;
 
 export default function UnifiedReadingScreen() {
   const router = useRouter();
@@ -100,9 +100,12 @@ export default function UnifiedReadingScreen() {
   const vedic = forecastProfile.vedic;
   const chinese = forecastProfile.chinese;
   const currentDashaPlanet = vedic.currentDasha?.planet ?? vedic.dashas[0]?.planet ?? 'Sun';
-  const profile = { western, vedic, chinese, kp: forecastProfile.kp };
+  const profile = useMemo(
+    () => ({ western, vedic, chinese, kp: forecastProfile.kp }),
+    [western, vedic, chinese, forecastProfile.kp],
+  );
   const cosmicDNA = getCosmicDNASummary(profile);
-  const today = new Date();
+  const today = useMemo(() => new Date(), []);
   const todayKey = getDateKey(today);
   const reading = useMemo(
     () => {
@@ -313,7 +316,13 @@ function TimingItem({ label, value }: { label: string; value: string }) {
 
 function DeepDiveButton({ emoji, label, color, onPress }: { emoji: string; label: string; color: string; onPress: () => void }) {
   return (
-    <TouchableOpacity style={[styles.deepDiveBtn, { borderColor: color }]} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity
+      style={[styles.deepDiveBtn, { borderColor: color }]}
+      onPress={onPress}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={`Open ${label} reading deep-dive`}
+    >
       <Text style={styles.deepDiveEmoji}>{emoji}</Text>
       <Text style={[styles.deepDiveLabel, { color }]}>{label}</Text>
     </TouchableOpacity>
@@ -342,23 +351,23 @@ const styles = StyleSheet.create({
   alignLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 2 },
   alignLabel: { color: COLORS.textSecondary, fontSize: 12 },
   alignScore: { fontSize: 12, fontWeight: '700' },
-  alignBarBg: { height: 6, backgroundColor: 'rgba(40,49,73,0.10)', borderRadius: 3, overflow: 'hidden' },
+  alignBarBg: { height: 6, backgroundColor: COLORS.glassHighlight, borderRadius: 3, overflow: 'hidden' },
   alignBarFill: { height: '100%', borderRadius: 3 },
   insightText: { color: COLORS.textSecondary, fontSize: 14, lineHeight: 21 },
   blendList: { gap: SPACING.sm, marginTop: SPACING.md },
   blendItem: { flexDirection: 'row', gap: SPACING.sm, alignItems: 'flex-start' },
   blendEmoji: { fontSize: 20 },
   blendText: { color: COLORS.textPrimary, fontSize: 13, lineHeight: 19, flex: 1 },
-  vibeText: { color: '#fffaf1', fontSize: 17, fontWeight: '600', lineHeight: 25 },
+  vibeText: { color: COLORS.bgDeep, fontSize: 17, fontWeight: '600', lineHeight: 25 },
   affirmationBox: {
-    backgroundColor: 'rgba(255,250,241,0.18)', borderRadius: BORDER_RADIUS.md,
+    backgroundColor: 'rgba(10,11,31,0.18)', borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md, marginTop: SPACING.md, alignItems: 'center',
   },
-  affirmationLabel: { color: '#fffaf1', fontSize: 10, fontWeight: '700', letterSpacing: 1.6, marginBottom: 4 },
-  affirmationText: { color: '#fffaf1', fontSize: 14, fontStyle: 'italic', textAlign: 'center' },
+  affirmationLabel: { color: COLORS.bgDeep, fontSize: 10, fontWeight: '700', letterSpacing: 1.6, marginBottom: 4 },
+  affirmationText: { color: COLORS.bgDeep, fontSize: 14, fontStyle: 'italic', textAlign: 'center' },
   timingList: { gap: SPACING.sm, marginTop: SPACING.md },
   timingItem: {
-    backgroundColor: 'rgba(255,255,255,0.55)', borderRadius: BORDER_RADIUS.sm, padding: SPACING.sm,
+    backgroundColor: COLORS.glassHighlight, borderRadius: BORDER_RADIUS.sm, padding: SPACING.sm,
   },
   timingLabel: { color: COLORS.goldMid, fontSize: 11, fontWeight: '700', textTransform: 'uppercase' },
   timingValue: { color: COLORS.textPrimary, fontSize: 13, marginTop: 2 },
@@ -366,7 +375,9 @@ const styles = StyleSheet.create({
   deepDiveBtn: {
     flex: 1, alignItems: 'center', borderWidth: 1,
     borderRadius: BORDER_RADIUS.md, padding: SPACING.md,
-    backgroundColor: 'rgba(255,255,255,0.55)',
+    minHeight: 72,
+    justifyContent: 'center',
+    backgroundColor: COLORS.glassBg,
   },
   deepDiveEmoji: { fontSize: 28 },
   deepDiveLabel: { fontSize: 12, fontWeight: '700', marginTop: 4 },

@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
   },
   outlineButton: {
-    backgroundColor: 'rgba(255,255,255,0.74)',
+    backgroundColor: COLORS.glassBg,
     borderColor: COLORS.glassBorderBright,
   },
   outlineText: {

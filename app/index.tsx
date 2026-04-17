@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     flex: 1,
     minHeight: '100%',
-    backgroundColor: COLORS.ink,
+    backgroundColor: COLORS.bgDeep,
     overflow: 'hidden',
   },
   sceneVeil: {

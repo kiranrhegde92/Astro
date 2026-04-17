@@ -69,7 +69,13 @@ function SavedProfileRow({
   onRemove: () => void;
 }) {
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.84}>
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.84}
+      accessibilityRole="button"
+      accessibilityLabel={`Compare with ${profile.name}`}
+      accessibilityState={{ selected: active }}
+    >
       <View style={[styles.savedRow, active && styles.savedRowActive]}>
         <View style={styles.savedMeta}>
           <Text style={styles.savedName}>{profile.name}</Text>
@@ -77,7 +83,14 @@ function SavedProfileRow({
             {profile.relation} - {profile.cosmicDNA}
           </Text>
         </View>
-        <TouchableOpacity onPress={onRemove} activeOpacity={0.84} style={styles.removeChip}>
+        <TouchableOpacity
+          onPress={onRemove}
+          activeOpacity={0.84}
+          style={styles.removeChip}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel={`Remove ${profile.name} from saved people`}
+        >
           <Text style={styles.removeText}>Remove</Text>
         </TouchableOpacity>
       </View>
@@ -415,7 +428,15 @@ export default function CompatibilityScreen() {
                 {MODES.map((item) => {
                   const active = item.value === mode;
                   return (
-                    <TouchableOpacity key={item.value} onPress={() => setMode(item.value)} style={[styles.modeChip, active && styles.modeChipActive]} activeOpacity={0.84}>
+                    <TouchableOpacity
+                      key={item.value}
+                      onPress={() => setMode(item.value)}
+                      style={[styles.modeChip, active && styles.modeChipActive]}
+                      activeOpacity={0.84}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${item.label} compatibility mode`}
+                      accessibilityState={{ selected: active }}
+                    >
                       <Text style={[styles.modeText, active && styles.modeTextActive]}>{item.label}</Text>
                     </TouchableOpacity>
                   );
@@ -516,7 +537,14 @@ export default function CompatibilityScreen() {
               {timeValidation.error ? (
                 <Text style={styles.validationError}>{timeValidation.error}</Text>
               ) : null}
-              <TouchableOpacity onPress={() => setSavePartner((value) => !value)} activeOpacity={0.84} style={[styles.saveToggle, savePartner && styles.saveToggleActive]}>
+              <TouchableOpacity
+                onPress={() => setSavePartner((value) => !value)}
+                activeOpacity={0.84}
+                style={[styles.saveToggle, savePartner && styles.saveToggleActive]}
+                accessibilityRole="switch"
+                accessibilityLabel="Save partner after comparing"
+                accessibilityState={{ checked: savePartner }}
+              >
                 <Text style={[styles.saveToggleText, savePartner && styles.saveToggleTextActive]}>
                   {savePartner ? 'Saved after compare' : 'Compare once only'}
                 </Text>
@@ -685,8 +713,10 @@ const styles = StyleSheet.create({
     borderColor: COLORS.glassBorder,
     borderRadius: BORDER_RADIUS.full,
     paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: 'rgba(255,255,255,0.68)',
+    paddingHorizontal: 14,
+    minHeight: 36,
+    justifyContent: 'center',
+    backgroundColor: COLORS.glassBg,
   },
   modeChipActive: {
     backgroundColor: COLORS.bgMuted,
@@ -725,7 +755,7 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    backgroundColor: 'rgba(255,255,255,0.74)',
+    backgroundColor: COLORS.glassBg,
     fontSize: 16,
     fontWeight: '700',
   },
@@ -749,9 +779,11 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.full,
     borderWidth: 1,
     borderColor: COLORS.glassBorder,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: 'rgba(255,255,255,0.62)',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    minHeight: 40,
+    justifyContent: 'center',
+    backgroundColor: COLORS.glassBg,
   },
   saveToggleActive: {
     backgroundColor: COLORS.bgMuted,
@@ -778,7 +810,7 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.glassBorder,
   },
   savedRowActive: {
-    backgroundColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: COLORS.glassHighlight,
     borderRadius: BORDER_RADIUS.md,
     paddingHorizontal: 10,
   },

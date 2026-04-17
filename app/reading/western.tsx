@@ -154,7 +154,7 @@ export default function WesternReadingScreen() {
                 </Text>
                 {transits.map((t, i) => (
                   <View key={i} style={styles.aspectRow}>
-                    <View style={[styles.aspectBadge, { backgroundColor: 'rgba(115,103,255,0.10)' }]}>
+                    <View style={[styles.aspectBadge, { backgroundColor: `${COLORS.western}22` }]}>
                       <Text style={[styles.aspectBadgeText, { color: COLORS.western }]}>
                         {t.transitPlanet} {'\u2192'} {t.natalPlanet}
                       </Text>
@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
   signDesc: { color: COLORS.textSecondary, fontSize: 14, lineHeight: 21, marginTop: SPACING.sm },
   traitsRow: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.md, flexWrap: 'wrap' },
   traitBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.55)',
+    backgroundColor: COLORS.glassHighlight,
     borderRadius: BORDER_RADIUS.full,
     paddingVertical: 4,
     paddingHorizontal: SPACING.sm,
@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
   infoRow: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.md },
   infoChip: {
     flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.55)',
+    backgroundColor: COLORS.glassHighlight,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.sm,
   },
@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
   blueprintItem: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.55)',
+    backgroundColor: COLORS.glassHighlight,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
   },
@@ -314,7 +314,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
     marginLeft: SPACING.xs,
-    backgroundColor: 'rgba(255, 140, 0, 0.2)',
+    backgroundColor: `${COLORS.sunOrange}33`,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
@@ -337,7 +337,7 @@ const styles = StyleSheet.create({
   bottomPad: { height: 20 },
   // Aspect styles
   aspectRow: { paddingVertical: SPACING.sm, borderBottomWidth: 0.5, borderBottomColor: COLORS.glassBorder },
-  aspectBadge: { backgroundColor: 'rgba(200,180,100,0.12)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, alignSelf: 'flex-start', marginBottom: 4 },
+  aspectBadge: { backgroundColor: `${COLORS.starGold}22`, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, alignSelf: 'flex-start', marginBottom: 4 },
   aspectBadgeText: { color: COLORS.starGold, fontSize: 11, fontWeight: '700' },
   aspectType: { color: COLORS.textMuted, fontSize: 11, marginBottom: 2 },
   aspectInterp: { color: COLORS.textSecondary, fontSize: 13, lineHeight: 19 },

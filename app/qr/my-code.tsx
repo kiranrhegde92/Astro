@@ -141,6 +141,9 @@ export default function MyQRCodeScreen() {
                 styles.themeOption,
                 selectedTheme === theme.name && styles.themeOptionSelected,
               ]}
+              accessibilityRole="button"
+              accessibilityLabel={`${theme.name} QR theme`}
+              accessibilityState={{ selected: selectedTheme === theme.name }}
             >
               <View
                 style={[
@@ -230,10 +233,11 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.md,
     borderWidth: 1,
     borderColor: 'transparent',
+    minHeight: 72,
   },
   themeOptionSelected: {
     borderColor: COLORS.starGold,
-    backgroundColor: 'rgba(255,255,255,0.68)',
+    backgroundColor: COLORS.glassHighlight,
   },
   themePreview: {
     width: 40,
@@ -255,7 +259,7 @@ const styles = StyleSheet.create({
   },
   tips: {
     marginTop: SPACING.xl,
-    backgroundColor: 'rgba(255,255,255,0.68)',
+    backgroundColor: COLORS.glassBg,
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.lg,
     borderWidth: 1,

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { GradientCard } from '../src/components/ui/GradientCard';
@@ -10,6 +11,7 @@ import { StarField } from '../src/components/ui/StarField';
 import { useCosmicAlert } from '../src/components/ui/CosmicAlert';
 import { BORDER_RADIUS, COLORS, FONTS, SPACING } from '../src/constants/theme';
 import { exportMyData } from '../src/services/functionsService';
+import { getPendingBirthCorrectionRequest } from '../src/services/firestoreService';
 import { useAuthStore } from '../src/store/authStore';
 import { useSettingsStore } from '../src/store/settingsStore';
 import { useUserStore } from '../src/store/userStore';
@@ -35,7 +37,14 @@ const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
 
 function PickerRow({ label, value, onPress }: { label: string; value: string; onPress: () => void }) {
   return (
-    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.84}>
+    <TouchableOpacity
+      style={styles.row}
+      onPress={onPress}
+      activeOpacity={0.84}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}: ${value}`}
+      accessibilityHint="Opens picker"
+    >
       <Text style={styles.rowText}>{label}</Text>
       <Text style={styles.rowValue}>{value}</Text>
     </TouchableOpacity>
@@ -49,10 +58,12 @@ export default function SettingsScreen() {
     dailyNotificationTime,
     transitAlertsEnabled,
     darkMode,
+    journalLockEnabled,
     setNotifications,
     setNotificationTime,
     setTransitAlerts,
     setDarkMode,
+    setJournalLock,
   } = useSettingsStore();
   const user = useUserStore((s) => s.user);
   const setActiveSystems = useUserStore((s) => s.setActiveSystems);
@@ -64,6 +75,25 @@ export default function SettingsScreen() {
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [accountAction, setAccountAction] = useState<'logout' | 'delete' | null>(null);
   const [exportingData, setExportingData] = useState(false);
+  const [hasPendingCorrection, setHasPendingCorrection] = useState(false);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      let cancelled = false;
+      if (!user?.id) {
+        setHasPendingCorrection(false);
+        return;
+      }
+      getPendingBirthCorrectionRequest(user.id)
+        .then((req) => {
+          if (!cancelled) setHasPendingCorrection(!!req);
+        })
+        .catch(() => {});
+      return () => {
+        cancelled = true;
+      };
+    }, [user?.id])
+  );
 
   const toggleSystem = (system: AstrologySystem) => {
     if (!user) return;
@@ -172,8 +202,8 @@ export default function SettingsScreen() {
             <Switch
               value={notificationsEnabled}
               onValueChange={setNotifications}
-              trackColor={{ false: 'rgba(40,49,73,0.16)', true: COLORS.sunOrange }}
-              thumbColor="#fffaf1"
+              trackColor={{ false: COLORS.glassHighlight, true: COLORS.sunOrange }}
+              thumbColor={COLORS.textPrimary}
             />
           </View>
           {notificationsEnabled ? (
@@ -191,6 +221,9 @@ export default function SettingsScreen() {
                       onPress={() => { setNotificationTime(item.value); setShowTimePicker(false); }}
                       style={styles.inlineItem}
                       activeOpacity={0.84}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Set reminder time to ${item.label}`}
+                      accessibilityState={{ selected: item.value === dailyNotificationTime }}
                     >
                       <Text style={[styles.inlineText, item.value === dailyNotificationTime && styles.inlineTextActive]}>
                         {item.label}
@@ -218,11 +251,17 @@ export default function SettingsScreen() {
             <Switch
               value={transitAlertsEnabled}
               onValueChange={setTransitAlerts}
-              trackColor={{ false: 'rgba(40,49,73,0.16)', true: COLORS.starGold }}
-              thumbColor="#fffaf1"
+              trackColor={{ false: COLORS.glassHighlight, true: COLORS.starGold }}
+              thumbColor={COLORS.textPrimary}
             />
           </View>
-          <TouchableOpacity style={styles.linkRow} onPress={() => router.push('/reading/transits')} activeOpacity={0.84}>
+          <TouchableOpacity
+            style={styles.linkRow}
+            onPress={() => router.push('/reading/transits')}
+            activeOpacity={0.84}
+            accessibilityRole="link"
+            accessibilityLabel="Open transit center"
+          >
             <Ionicons name="planet-outline" size={18} color={COLORS.kp} />
             <Text style={styles.linkText}>Open transit center</Text>
             <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
@@ -245,8 +284,8 @@ export default function SettingsScreen() {
                   <Switch
                     value={active}
                     onValueChange={() => toggleSystem(system.value)}
-                    trackColor={{ false: 'rgba(40,49,73,0.16)', true: system.color }}
-                    thumbColor="#fffaf1"
+                    trackColor={{ false: COLORS.glassHighlight, true: system.color }}
+                    thumbColor={COLORS.textPrimary}
                   />
                 </View>
               );
@@ -276,10 +315,32 @@ export default function SettingsScreen() {
                 <Text style={styles.detailValue}>{user.birthDetails.place.name}</Text>
               </View>
             ) : null}
-            <TouchableOpacity style={styles.linkRow} onPress={() => router.push('/profile/birth-details')} activeOpacity={0.84}>
-              <Ionicons name="mail-outline" size={18} color={COLORS.iris} />
-              <Text style={styles.linkText}>Request a birth detail correction</Text>
-              <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+            <TouchableOpacity
+              style={styles.linkRow}
+              onPress={() => router.push('/profile/birth-details')}
+              activeOpacity={0.84}
+              accessibilityRole="link"
+              accessibilityLabel={
+                hasPendingCorrection
+                  ? 'View pending birth detail correction'
+                  : 'Request a birth detail correction'
+              }
+            >
+              <Ionicons
+                name={hasPendingCorrection ? 'hourglass-outline' : 'document-text-outline'}
+                size={18}
+                color={hasPendingCorrection ? COLORS.starGold : COLORS.iris}
+              />
+              <Text style={styles.linkText}>
+                {hasPendingCorrection ? 'Correction pending review' : 'Request a birth detail correction'}
+              </Text>
+              {hasPendingCorrection ? (
+                <View style={styles.pendingBadge}>
+                  <Text style={styles.pendingBadgeText}>PENDING</Text>
+                </View>
+              ) : (
+                <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+              )}
             </TouchableOpacity>
             <Text style={styles.sectionNote}>Birth details are locked after setup. Send a correction request if something is wrong.</Text>
           </GradientCard>
@@ -296,38 +357,86 @@ export default function SettingsScreen() {
             <Switch
               value={darkMode}
               onValueChange={setDarkMode}
-              trackColor={{ false: 'rgba(40,49,73,0.16)', true: COLORS.iris }}
-              thumbColor="#fffaf1"
+              trackColor={{ false: COLORS.glassHighlight, true: COLORS.iris }}
+              thumbColor={COLORS.textPrimary}
             />
           </View>
+        </GradientCard>
+
+        {/* ── Privacy ─────────────────────────────────────────────── */}
+        <GradientCard style={styles.section}>
+          <Text style={styles.sectionLabel}>Privacy</Text>
+          <View style={styles.switchRow}>
+            <View style={styles.systemLabelRow}>
+              <Ionicons name="lock-closed-outline" size={16} color={COLORS.iris} />
+              <Text style={styles.rowText}>Require biometrics for Journal</Text>
+            </View>
+            <Switch
+              value={journalLockEnabled}
+              onValueChange={setJournalLock}
+              trackColor={{ false: COLORS.glassHighlight, true: COLORS.iris }}
+              thumbColor={COLORS.textPrimary}
+            />
+          </View>
+          <Text style={styles.sectionNote}>Unlocks with Face ID, Touch ID, or device passcode when supported. Falls back to open access on devices without biometrics.</Text>
         </GradientCard>
 
         {/* ── Quick links ────────────────────────────────────────────── */}
         <GradientCard style={styles.section}>
           <Text style={styles.sectionLabel}>More</Text>
-          <TouchableOpacity style={styles.linkRow} onPress={() => router.push('/journal')} activeOpacity={0.84}>
+          <TouchableOpacity
+            style={styles.linkRow}
+            onPress={() => router.push('/journal')}
+            activeOpacity={0.84}
+            accessibilityRole="link"
+            accessibilityLabel="Open journal"
+          >
             <Ionicons name="book-outline" size={18} color={COLORS.iris} />
             <Text style={styles.linkText}>Journal</Text>
             <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.linkRow} onPress={() => router.push('/subscription')} activeOpacity={0.84}>
+          <TouchableOpacity
+            style={styles.linkRow}
+            onPress={() => router.push('/subscription')}
+            activeOpacity={0.84}
+            accessibilityRole="link"
+            accessibilityLabel="Open subscription settings"
+          >
             <Ionicons name="star-outline" size={18} color={COLORS.starGold} />
             <Text style={styles.linkText}>Subscription</Text>
             <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.linkRow} onPress={() => router.push('/legal/privacy')} activeOpacity={0.84}>
+          <TouchableOpacity
+            style={styles.linkRow}
+            onPress={() => router.push('/legal/privacy')}
+            activeOpacity={0.84}
+            accessibilityRole="link"
+            accessibilityLabel="Open privacy policy"
+          >
             <Ionicons name="shield-checkmark-outline" size={18} color={COLORS.tide} />
             <Text style={styles.linkText}>Privacy Policy</Text>
             <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
           </TouchableOpacity>
           {isAdmin ? (
-            <TouchableOpacity style={styles.linkRow} onPress={() => void handleAdminAccess()} activeOpacity={0.84}>
+            <TouchableOpacity
+              style={styles.linkRow}
+              onPress={() => void handleAdminAccess()}
+              activeOpacity={0.84}
+              accessibilityRole="link"
+              accessibilityLabel="Open admin console"
+            >
               <Ionicons name="settings-outline" size={18} color={COLORS.starGold} />
               <Text style={styles.linkText}>Admin console</Text>
               <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
             </TouchableOpacity>
           ) : null}
-          <TouchableOpacity style={styles.linkRowNoBorder} onPress={() => router.push('/legal/terms')} activeOpacity={0.84}>
+          <TouchableOpacity
+            style={styles.linkRowNoBorder}
+            onPress={() => router.push('/legal/terms')}
+            activeOpacity={0.84}
+            accessibilityRole="link"
+            accessibilityLabel="Open terms of service"
+          >
             <Ionicons name="document-text-outline" size={18} color={COLORS.plum} />
             <Text style={styles.linkText}>Terms of Service</Text>
             <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
@@ -344,6 +453,9 @@ export default function SettingsScreen() {
               onPress={handleExportMyData}
               activeOpacity={0.84}
               disabled={exportingData || accountAction !== null}
+              accessibilityRole="button"
+              accessibilityLabel="Export my data"
+              accessibilityState={{ disabled: exportingData || accountAction !== null, busy: exportingData }}
             >
               <Ionicons name="download-outline" size={18} color={COLORS.tide} />
               <Text style={styles.linkText}>{exportingData ? 'Exporting data...' : 'Export my data'}</Text>
@@ -354,6 +466,9 @@ export default function SettingsScreen() {
               onPress={handleSignOut}
               activeOpacity={0.84}
               disabled={accountAction !== null || exportingData}
+              accessibilityRole="button"
+              accessibilityLabel="Sign out"
+              accessibilityState={{ disabled: accountAction !== null || exportingData, busy: accountAction === 'logout' }}
             >
               <Ionicons name="log-out-outline" size={18} color={COLORS.iris} />
               <Text style={styles.linkText}>Sign out</Text>
@@ -364,6 +479,10 @@ export default function SettingsScreen() {
               onPress={handleDeleteAccount}
               activeOpacity={0.84}
               disabled={accountAction !== null || exportingData}
+              accessibilityRole="button"
+              accessibilityLabel="Delete account"
+              accessibilityHint="Permanently removes your CosmicSelf account"
+              accessibilityState={{ disabled: accountAction !== null || exportingData, busy: accountAction === 'delete' }}
             >
               <Ionicons name="trash-outline" size={18} color={COLORS.coral} />
               <Text style={[styles.linkText, styles.destructiveText]}>Delete account</Text>
@@ -450,7 +569,9 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.md,
     paddingVertical: 12,
     paddingHorizontal: 12,
-    backgroundColor: 'rgba(255,255,255,0.72)',
+    minHeight: 44,
+    justifyContent: 'center',
+    backgroundColor: COLORS.glassBg,
   },
   inlineText: {
     color: COLORS.textSecondary,
@@ -511,6 +632,20 @@ const styles = StyleSheet.create({
   },
   destructiveText: {
     color: COLORS.coral,
+  },
+  pendingBadge: {
+    borderRadius: BORDER_RADIUS.full,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    backgroundColor: `${COLORS.starGold}22`,
+    borderWidth: 1,
+    borderColor: `${COLORS.starGold}66`,
+  },
+  pendingBadgeText: {
+    color: COLORS.starGold,
+    fontSize: 9,
+    fontFamily: FONTS.accent,
+    letterSpacing: 1.2,
   },
   appInfo: {
     alignItems: 'center',

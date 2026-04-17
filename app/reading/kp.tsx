@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
   subtitleText: { color: COLORS.textMuted, fontSize: 13, marginBottom: SPACING.md },
   detailText: { color: COLORS.textSecondary, fontSize: 14, lineHeight: 21, marginBottom: SPACING.sm },
   predictionCard: {
-    backgroundColor: 'rgba(255,255,255,0.55)', borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.glassHighlight, borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md, marginBottom: SPACING.sm,
   },
   predHeader: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.xs },
@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
   predArea: { color: COLORS.textPrimary, fontSize: 15, fontWeight: '700' },
   predTiming: { color: COLORS.kp, fontSize: 12, fontWeight: '600' },
   confidenceBadge: {
-    backgroundColor: 'rgba(255,255,255,0.64)', borderRadius: BORDER_RADIUS.full,
+    backgroundColor: COLORS.bgElevated, borderRadius: BORDER_RADIUS.full,
     paddingVertical: 2, paddingHorizontal: SPACING.sm,
   },
   confidenceText: { color: COLORS.kp, fontSize: 12, fontWeight: '700' },
@@ -246,7 +246,7 @@ const styles = StyleSheet.create({
   sigPlanet: { color: COLORS.textPrimary, fontSize: 14, fontWeight: '600', width: 70 },
   sigHouses: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
   sigHouseBadge: {
-    backgroundColor: 'rgba(255,255,255,0.58)', borderRadius: 4,
+    backgroundColor: COLORS.glassHighlight, borderRadius: 4,
     paddingVertical: 2, paddingHorizontal: 6,
   },
   sigHouseText: { color: COLORS.kp, fontSize: 11, fontWeight: '700' },
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
   rulingGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
   rulingCard: {
     width: '47%',
-    backgroundColor: 'rgba(255,255,255,0.58)',
+    backgroundColor: COLORS.glassHighlight,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     gap: 4,

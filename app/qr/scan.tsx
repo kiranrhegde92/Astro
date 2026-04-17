@@ -65,6 +65,9 @@ export default function QRScanScreen() {
                 onPress={() => setMode(item)}
                 activeOpacity={0.84}
                 style={[styles.modeChip, active && styles.modeChipActive]}
+                accessibilityRole="button"
+                accessibilityLabel={item === 'camera' ? 'Scan with camera mode' : 'Paste link mode'}
+                accessibilityState={{ selected: active }}
               >
                 <Text style={[styles.modeText, active && styles.modeTextActive]}>
                   {item === 'camera' ? 'Scan with camera' : 'Paste link'}
@@ -120,6 +123,8 @@ export default function QRScanScreen() {
                     }}
                     activeOpacity={0.84}
                     style={styles.rescanButton}
+                    accessibilityRole="button"
+                    accessibilityLabel="Scan another QR code"
                   >
                     <Text style={styles.rescanText}>Scan again</Text>
                   </TouchableOpacity>
@@ -145,6 +150,7 @@ export default function QRScanScreen() {
             multiline
             scrollEnabled
             textAlignVertical="top"
+            accessibilityLabel="Shared profile link"
           />
 
           {parsed.payload ? (
@@ -167,7 +173,13 @@ export default function QRScanScreen() {
             onPress={() => void handleImport()}
             disabled={!parsed.payload}
           />
-          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.84} style={styles.backButton}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            activeOpacity={0.84}
+            style={styles.backButton}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
             <Text style={styles.backText}>Back</Text>
           </TouchableOpacity>
         </View>
@@ -194,13 +206,15 @@ const styles = StyleSheet.create({
   },
   modeChip: {
     flex: 1,
+    minHeight: 44,
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: BORDER_RADIUS.full,
     borderWidth: 1,
     borderColor: COLORS.glassBorder,
-    backgroundColor: 'rgba(255,255,255,0.68)',
+    backgroundColor: COLORS.glassBg,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   modeChipActive: {
     borderColor: COLORS.glassBorderBright,
@@ -241,14 +255,14 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(23,24,45,0.18)',
+    backgroundColor: 'rgba(10,11,31,0.35)',
   },
   scanWindow: {
     width: 210,
     height: 210,
     borderRadius: BORDER_RADIUS.lg,
     borderWidth: 2,
-    borderColor: 'rgba(255,250,241,0.92)',
+    borderColor: COLORS.starGold,
     backgroundColor: 'transparent',
   },
   cameraHint: {
@@ -269,7 +283,7 @@ const styles = StyleSheet.create({
   input: {
     minHeight: 120,
     maxHeight: 150,
-    backgroundColor: 'rgba(255,255,255,0.74)',
+    backgroundColor: COLORS.glassBg,
     borderWidth: 1,
     borderColor: COLORS.glassBorder,
     borderRadius: BORDER_RADIUS.md,
@@ -283,7 +297,7 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.md,
     borderWidth: 1,
     borderColor: COLORS.glassBorder,
-    backgroundColor: 'rgba(255,255,255,0.62)',
+    backgroundColor: COLORS.glassHighlight,
     padding: SPACING.md,
   },
   previewLabel: {

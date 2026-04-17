@@ -52,8 +52,8 @@ const styles = StyleSheet.create({
   },
   glowLayer: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255,255,255,0.16)',
-    opacity: 0.28,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    opacity: 0.6,
   },
   accent: {
     position: 'absolute',

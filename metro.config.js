@@ -20,4 +20,13 @@ config.resolver.blockList = [
   blockPath('ios/build'),
 ];
 
+// Fix OkHttp chunked-encoding issue on Android emulator (RN New Architecture)
+config.server = {
+  ...config.server,
+  enhanceMiddleware: (middleware) => (req, res, next) => {
+    res.setHeader('Transfer-Encoding', 'identity');
+    return middleware(req, res, next);
+  },
+};
+
 module.exports = config;

@@ -6,6 +6,7 @@ import { GlowText } from '../src/components/ui/GlowText';
 import { ScreenHeader } from '../src/components/ui/ScreenHeader';
 import { GradientCard } from '../src/components/ui/GradientCard';
 import { CosmicButton } from '../src/components/ui/CosmicButton';
+import { NetworkBanner } from '../src/components/ui/NetworkBanner';
 import { ResetScrollView } from '../src/components/ui/ResetScrollView';
 import { useCosmicAlert } from '../src/components/ui/CosmicAlert';
 import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../src/constants/theme';
@@ -281,7 +282,11 @@ export default function SubscriptionScreen() {
               Store billing is handled by App Store or Play Store via RevenueCat. Trial availability follows the store product setup.
             </Text>
             {getRevenueCatSetupIssue() ? (
-              <Text style={styles.billingNote}>{getRevenueCatFallbackMessage('subscribe')}</Text>
+              <NetworkBanner
+                variant="failure"
+                title="Store billing unavailable"
+                body={getRevenueCatFallbackMessage('subscribe')}
+              />
             ) : null}
           </>
         )}
@@ -329,6 +334,9 @@ export default function SubscriptionScreen() {
           onPress={() => void handleRestore()}
           style={[styles.restoreBtn, (purchaseLoading || restoreLoading) && styles.restoreBtnDisabled]}
           disabled={purchaseLoading || restoreLoading}
+          accessibilityRole="button"
+          accessibilityLabel="Restore purchases"
+          accessibilityState={{ disabled: purchaseLoading || restoreLoading, busy: restoreLoading }}
         >
           {restoreLoading ? (
             <ActivityIndicator size="small" color={COLORS.textMuted} />
@@ -342,11 +350,23 @@ export default function SubscriptionScreen() {
           Subscriptions renew automatically unless canceled in your device settings.
         </Text>
         <View style={styles.legalLinksRow}>
-          <TouchableOpacity onPress={() => router.push('/legal/privacy')} activeOpacity={0.84}>
+          <TouchableOpacity
+            onPress={() => router.push('/legal/privacy')}
+            activeOpacity={0.84}
+            accessibilityRole="link"
+            accessibilityLabel="Privacy Policy"
+            hitSlop={8}
+          >
             <Text style={styles.legalLink}>Privacy Policy</Text>
           </TouchableOpacity>
           <Text style={styles.legalDivider}>•</Text>
-          <TouchableOpacity onPress={() => router.push('/legal/terms')} activeOpacity={0.84}>
+          <TouchableOpacity
+            onPress={() => router.push('/legal/terms')}
+            activeOpacity={0.84}
+            accessibilityRole="link"
+            accessibilityLabel="Terms of Service"
+            hitSlop={8}
+          >
             <Text style={styles.legalLink}>Terms of Service</Text>
           </TouchableOpacity>
         </View>
@@ -374,7 +394,14 @@ function PlanCard({
   onPress: () => void;
 }) {
   return (
-    <TouchableOpacity style={[styles.planCard, active && styles.planCardActive]} onPress={onPress} activeOpacity={0.84}>
+    <TouchableOpacity
+      style={[styles.planCard, active && styles.planCardActive]}
+      onPress={onPress}
+      activeOpacity={0.84}
+      accessibilityRole="button"
+      accessibilityLabel={`${title} plan, ${price} ${period}, ${detail}`}
+      accessibilityState={{ selected: active }}
+    >
       {title === 'Yearly' ? (
         <View style={styles.saveBadge}>
           <Text style={styles.saveText}>Save $10</Text>
@@ -412,6 +439,9 @@ function AdUnlockRow({
         onPress={onPress}
         activeOpacity={0.84}
         disabled={disabled}
+        accessibilityRole="button"
+        accessibilityLabel={`Watch rewarded ad to unlock ${title}`}
+        accessibilityState={{ disabled, busy: loading }}
       >
         {loading ? <ActivityIndicator size="small" color={COLORS.tide} /> : <Text style={styles.passBuyText}>Watch ad</Text>}
       </TouchableOpacity>
@@ -429,7 +459,7 @@ const styles = StyleSheet.create({
   planCard: {
     flex: 1,
     minHeight: 148,
-    backgroundColor: 'rgba(255,255,255,0.68)',
+    backgroundColor: COLORS.glassBg,
     borderWidth: 2,
     borderColor: COLORS.glassBorder,
     borderRadius: BORDER_RADIUS.lg,
@@ -437,7 +467,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  planCardActive: { borderColor: COLORS.starGold, backgroundColor: 'rgba(255,255,255,0.84)' },
+  planCardActive: { borderColor: COLORS.starGold, backgroundColor: COLORS.bgElevated },
   saveBadge: {
     backgroundColor: COLORS.starGold,
     borderRadius: BORDER_RADIUS.full,
@@ -445,7 +475,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.sm,
     marginBottom: SPACING.sm,
   },
-  saveText: { color: COLORS.textPrimary, fontSize: 11, fontWeight: '800' },
+  saveText: { color: COLORS.bgDeep, fontSize: 11, fontWeight: '800' },
   planTitle: { color: COLORS.textMuted, fontSize: 12, fontFamily: FONTS.accent, letterSpacing: 0.8 },
   planPrice: { color: COLORS.textPrimary, fontSize: 28, fontWeight: '800', marginTop: 2 },
   planPeriod: { color: COLORS.textSecondary, fontSize: 13, marginTop: 2 },
@@ -483,7 +513,7 @@ const styles = StyleSheet.create({
     minHeight: 34,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.74)',
+    backgroundColor: COLORS.glassHighlight,
     borderRadius: BORDER_RADIUS.full,
     paddingVertical: 6,
     paddingHorizontal: SPACING.md,

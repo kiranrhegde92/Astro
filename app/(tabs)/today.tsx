@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -7,36 +7,40 @@ import { Ionicons } from '@expo/vector-icons';
 import type { DailyReading } from '../../src/types/astrology';
 import { CosmicButton } from '../../src/components/ui/CosmicButton';
 import { useCosmicAlert } from '../../src/components/ui/CosmicAlert';
-import { CosmicOrb } from '../../src/components/ui/CosmicOrb';
-import { GradientCard } from '../../src/components/ui/GradientCard';
+import { GlassCard } from '../../src/components/ui/GlassCard';
+import { SectionLabel } from '../../src/components/ui/SectionLabel';
 import { OrbIcon } from '../../src/components/ui/OrbIcon';
 import { AnimatedCard } from '../../src/components/ui/AnimatedScreen';
 import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
-import { SectionTabs } from '../../src/components/ui/SectionTabs';
 import { StarField } from '../../src/components/ui/StarField';
+import { EmptyState } from '../../src/components/ui/EmptyState';
+import { NetworkBanner } from '../../src/components/ui/NetworkBanner';
 import { TutorialOverlay } from '../../src/components/ui/TutorialOverlay';
-import { BORDER_RADIUS, COLORS, FONTS, SHADOWS, SPACING } from '../../src/constants/theme';
+import {
+  BORDER_RADIUS,
+  COLORS,
+  FONTS,
+  SHADOWS,
+  SPACING,
+  TYPE,
+} from '../../src/constants/theme';
 import { generateDailyReading } from '../../src/content/dailyTemplates';
-import { generatePeriodForecast, type ForecastWindow } from '../../src/content/forecastTemplates';
-import { ForecastPanel } from '../../src/components/ui/ForecastPanel';
-import { PredictionFeedbackCard } from '../../src/components/ui/PredictionFeedbackCard';
 import { buildForecastProfile } from '../../src/content/predictionSignals';
 import { fetchDailyReading } from '../../src/services/functionsService';
-import { showRewardedAd } from '../../src/services/rewardedAds';
 import { speakReading, stopReadingAudio } from '../../src/services/ttsService';
-import { scheduleHighImpactTransitAlert, cancelTransitAlerts } from '../../src/utils/notifications';
+import {
+  cancelTransitAlerts,
+  scheduleHighImpactTransitAlert,
+} from '../../src/utils/notifications';
 import { useActiveProfile } from '../../src/hooks/useActiveProfile';
-import { useAdUnlockStore } from '../../src/store/adUnlockStore';
 import { useReadingStore } from '../../src/store/readingStore';
 import { useSettingsStore } from '../../src/store/settingsStore';
 import { useUserStore } from '../../src/store/userStore';
 import { getDateKey } from '../../src/utils/dateUtils';
 import { normalizeUserProfile } from '../../src/utils/normalizeUserProfile';
 import { normalizeLanguage } from '../../src/i18n/language';
-import { getMoonPhase } from '../../src/utils/moonPhase';
 import {
   formatSignature,
-  formatSkyChip,
   getGreetingLabel,
   getSpokenTodayCopy,
   getSystemPreviewCopy,
@@ -47,9 +51,9 @@ import { hasPremiumEntitlement } from '../../src/utils/subscription';
 const READING_VERSION = 5;
 
 const TONE_GRADIENTS: Record<'Opening' | 'Mixed' | 'Pressurized', readonly [string, string, string]> = {
-  Opening: ['#16223c', '#25496a', '#217063'],
-  Mixed: ['#17182d', '#342a5b', '#7a3f60'],
-  Pressurized: ['#23172d', '#5b2448', '#94494f'],
+  Opening: ['#0f2739', '#13576b', '#1e8a76'],
+  Mixed: ['#1b1535', '#3b256f', '#7a3f60'],
+  Pressurized: ['#220d2c', '#5a1d4a', '#a4414b'],
 };
 
 const TONE_ACCENTS: Record<'Opening' | 'Mixed' | 'Pressurized', string> = {
@@ -58,8 +62,10 @@ const TONE_ACCENTS: Record<'Opening' | 'Mixed' | 'Pressurized', string> = {
   Pressurized: COLORS.coral,
 };
 
+type SystemKey = 'western' | 'vedic' | 'chinese' | 'kp';
+
 type SystemPreview = {
-  key: string;
+  key: SystemKey;
   label: string;
   route: string;
   text: string;
@@ -68,78 +74,10 @@ type SystemPreview = {
   secondary: string;
 };
 
-type TransitItem = NonNullable<DailyReading['activeTransits']>[number];
-type TransitPosition = NonNullable<DailyReading['transitPositions']>[number];
-
 function getToneFallback(supportCount: number, tensionCount: number): 'Opening' | 'Mixed' | 'Pressurized' {
   if (supportCount >= tensionCount + 2) return 'Opening';
   if (tensionCount > supportCount) return 'Pressurized';
   return 'Mixed';
-}
-
-function ProofRow({
-  icon,
-  label,
-  text,
-  color,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  text: string;
-  color: string;
-}) {
-  return (
-    <View style={styles.proofRow}>
-      <View style={[styles.proofIconWrap, { backgroundColor: `${color}1f` }]}>
-        <Ionicons name={icon} size={16} color={color} />
-      </View>
-      <View style={styles.proofBody}>
-        <Text style={styles.proofLabel}>{label}</Text>
-        <Text style={styles.proofText}>{text}</Text>
-      </View>
-    </View>
-  );
-}
-
-function SkyChip({ position, language }: { position: TransitPosition; language: string }) {
-  return (
-    <View style={styles.skyChip}>
-      <Text style={styles.skyChipText}>{formatSkyChip(position, language)}</Text>
-    </View>
-  );
-}
-
-function SystemStrip({
-  label,
-  text,
-  accent,
-  icon,
-  secondary,
-  onPress,
-}: {
-  label: string;
-  text: string;
-  accent: string;
-  icon: React.ComponentProps<typeof OrbIcon>['icon'];
-  secondary: string;
-  onPress: () => void;
-}) {
-  return (
-    <TouchableOpacity activeOpacity={0.84} onPress={onPress}>
-      <LinearGradient colors={COLORS.gradientInkSoft} style={[styles.systemStrip, { borderColor: accent }]}>
-        <View style={styles.systemTop}>
-          <View style={styles.systemHeading}>
-            <OrbIcon icon={icon} size={34} accentColor={accent} secondaryColor={secondary} />
-            <Text style={styles.systemLabel}>{label}</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={16} color="rgba(255,250,241,0.54)" />
-        </View>
-        <Text style={styles.systemText} numberOfLines={3}>
-          {text}
-        </Text>
-      </LinearGradient>
-    </TouchableOpacity>
-  );
 }
 
 export default function TodayScreen() {
@@ -150,31 +88,29 @@ export default function TodayScreen() {
   const transitAlertsEnabled = useSettingsStore((state) => state.transitAlertsEnabled);
   const hasSeenTutorial = useSettingsStore((state) => state.hasSeenTutorial);
   const incrementStreak = useUserStore((state) => state.incrementStreak);
-  const tokens = useAdUnlockStore((state) => state.tokens);
-  const grantUnlock = useAdUnlockStore((state) => state.grantUnlock);
-  const consumeUnlock = useAdUnlockStore((state) => state.consumeUnlock);
   const todayReading = useReadingStore((state) => state.todayReading);
   const getCachedReading = useReadingStore((state) => state.getCachedReading);
   const setTodayReading = useReadingStore((state) => state.setTodayReading);
   const [retryKey, setRetryKey] = useState(0);
-  const [activeSection, setActiveSection] = useState('brief');
-  const [forecastWindow, setForecastWindow] = useState<ForecastWindow>('week');
   const [loadingTimedOut, setLoadingTimedOut] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [forecastAdLoading, setForecastAdLoading] = useState(false);
-  const [forecastUnlocked, setForecastUnlocked] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [usedLocalFallback, setUsedLocalFallback] = useState(false);
+  const [fallbackDismissed, setFallbackDismissed] = useState(false);
   const { showAlert, alertModal } = useCosmicAlert();
+
   const today = useMemo(() => new Date(), []);
   const language = normalizeLanguage(user?.language ?? i18n.language);
   const shellCopy = useMemo(() => getTodayShellCopy(language), [language]);
   const todayKey = getDateKey(today);
   const safeUser = useMemo(() => (user ? normalizeUserProfile(user) : null), [user]);
-  const forecastProfile = useMemo(() => (safeUser ? buildForecastProfile(safeUser) : null), [safeUser]);
+  const forecastProfile = useMemo(
+    () => (safeUser ? buildForecastProfile(safeUser) : null),
+    [safeUser],
+  );
   const isManagedProfile = Boolean(user?.isManagedProfile);
   const isPremium = hasPremiumEntitlement(accountUser?.subscription);
-  const hasForecastUnlock = tokens.some((token) => token.feature === 'period_forecast' && !token.consumedAt);
-  const canViewForecast = isPremium || forecastUnlocked || hasForecastUnlock;
+
   const profile = useMemo(() => {
     if (!forecastProfile?.western || !forecastProfile?.vedic || !forecastProfile?.chinese) return null;
     return {
@@ -184,6 +120,7 @@ export default function TodayScreen() {
       kp: forecastProfile.kp,
     };
   }, [forecastProfile]);
+
   const reading = useMemo(() => {
     if (!profile) return null;
     if (isManagedProfile && forecastProfile) return generateDailyReading(today, forecastProfile);
@@ -191,7 +128,6 @@ export default function TodayScreen() {
     return null;
   }, [forecastProfile, isManagedProfile, profile, today, todayKey, todayReading]);
 
-  // Show retry if the reading fetch does not settle quickly.
   useEffect(() => {
     if (reading) {
       setLoadingTimedOut(false);
@@ -209,21 +145,17 @@ export default function TodayScreen() {
 
   useEffect(() => {
     let cancelled = false;
-
     if (isManagedProfile) {
       if (refreshing) setRefreshing(false);
       return;
     }
-
     if (!forecastProfile?.western?.sun || !forecastProfile?.vedic?.rashi || !forecastProfile?.chinese?.animal) {
       if (refreshing) setRefreshing(false);
       return;
     }
-
     const finish = () => {
       if (!cancelled) setRefreshing(false);
     };
-
     const cached = refreshing ? null : getCachedReading(todayKey);
     if (cached?.unified?.shareText && cached.references?.length && (cached.version ?? 0) >= READING_VERSION) {
       setTodayReading(cached);
@@ -231,17 +163,18 @@ export default function TodayScreen() {
       finish();
       return;
     }
-
     fetchDailyReading()
       .then(({ reading }) => {
         if (cancelled) return;
         if ((reading?.version ?? 0) < READING_VERSION) {
           const generated = generateDailyReading(today, forecastProfile);
           setTodayReading(generated);
+          setUsedLocalFallback(true);
           incrementStreak().catch(() => {});
           return;
         }
-
+        setUsedLocalFallback(false);
+        setFallbackDismissed(false);
         const merged = {
           version: typeof reading.version === 'number' ? reading.version : READING_VERSION,
           date: todayKey,
@@ -266,13 +199,13 @@ export default function TodayScreen() {
         try {
           const generated = generateDailyReading(today, forecastProfile);
           setTodayReading(generated);
+          setUsedLocalFallback(true);
           incrementStreak().catch(() => {});
         } catch {
           setRetryKey((value) => value + 1);
         }
       })
       .finally(finish);
-
     return () => {
       cancelled = true;
     };
@@ -289,94 +222,43 @@ export default function TodayScreen() {
   ]);
 
   useEffect(() => {
-    let cancelled = false;
-
     if (!reading || !accountUser || !isPremium || !transitAlertsEnabled) {
       cancelTransitAlerts().catch(() => {});
-      return () => {
-        cancelled = true;
-      };
+      return;
     }
-
-    scheduleHighImpactTransitAlert(reading, accountUser)
-      .catch(() => {
-        if (!cancelled) {
-          // ignore scheduling errors to avoid blocking the reading UI
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
+    scheduleHighImpactTransitAlert(reading, accountUser).catch(() => {});
   }, [accountUser, isPremium, reading, transitAlertsEnabled]);
 
-  useEffect(() => {
-    return () => {
-      stopReadingAudio().catch(() => {});
-    };
-  }, []);
-
-  const periodForecast = useMemo(() => {
-    if (!profile) return null;
-    return generatePeriodForecast(today, profile, forecastWindow);
-  }, [profile, today, forecastWindow]);
-
-  const handleUseForecastUnlock = useCallback(async () => {
-    const consumed = await consumeUnlock('period_forecast');
-    if (consumed) setForecastUnlocked(true);
-  }, [consumeUnlock]);
-
-  const handleWatchForecastAd = useCallback(async () => {
-    if (forecastAdLoading) return;
-    setForecastAdLoading(true);
-    try {
-      const earned = await showRewardedAd('period_forecast');
-      if (!earned) {
-        showAlert('Ad not completed', 'The forecast was not unlocked. Try again when a rewarded ad is available.');
-        return;
-      }
-      await grantUnlock('period_forecast');
-      await consumeUnlock('period_forecast');
-      setForecastUnlocked(true);
-    } finally {
-      setForecastAdLoading(false);
-    }
-  }, [consumeUnlock, forecastAdLoading, grantUnlock, showAlert]);
+  useEffect(() => () => { stopReadingAudio().catch(() => {}); }, []);
 
   const greeting = useMemo(() => getGreetingLabel(today, language), [language, today]);
-  const moonPhase = useMemo(() => getMoonPhase(today), [today]);
   const firstName = safeUser?.name?.split(' ')[0] ?? user?.name?.split(' ')[0] ?? 'you';
-  const transits = reading?.activeTransits ?? [];
-  const positions = reading?.transitPositions ?? [];
-  const supportCount = transits.filter((transit) => transit.nature === 'support').length;
-  const tensionCount = transits.filter((transit) => transit.nature === 'tension').length;
-  const tone = (reading?.unified?.tone ?? getToneFallback(supportCount, tensionCount)) as 'Opening' | 'Mixed' | 'Pressurized';
-  const alignmentScore = Math.round((reading?.positivityScore ?? 0.78) * 100);
-  const heroGradient = TONE_GRADIENTS[tone];
-  const toneAccent = TONE_ACCENTS[tone];
-  const topSupport = transits.find((transit) => transit.nature === 'support') ?? transits[0];
-  const topTension = transits.find((transit) => transit.nature === 'tension');
+
   if (!user || !reading) {
     return (
       <StarField>
         <View style={styles.emptyWrap}>
-          <CosmicOrb size={176} />
-          <Text style={styles.emptyTitle}>{shellCopy.loadingTitle}</Text>
-          <Text style={styles.emptyCopy}>{shellCopy.loadingCopy}</Text>
-          {loadingTimedOut && (
-            <TouchableOpacity
-              style={styles.retryBtn}
-              onPress={() => { setLoadingTimedOut(false); setRetryKey((v) => v + 1); }}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="refresh-outline" size={18} color={COLORS.tide} />
-              <Text style={styles.retryText}>{shellCopy.retry}</Text>
-            </TouchableOpacity>
-          )}
+          <EmptyState
+            variant="loading"
+            title={shellCopy.loadingTitle}
+            body={shellCopy.loadingCopy}
+            ctaLabel={loadingTimedOut ? shellCopy.retry : undefined}
+            onCta={loadingTimedOut ? () => { setLoadingTimedOut(false); setRetryKey((v) => v + 1); } : undefined}
+          />
         </View>
       </StarField>
     );
   }
+
+  const transits = reading.activeTransits ?? [];
+  const supportCount = transits.filter((transit) => transit.nature === 'support').length;
+  const tensionCount = transits.filter((transit) => transit.nature === 'tension').length;
+  const tone = (reading.unified?.tone ?? getToneFallback(supportCount, tensionCount)) as 'Opening' | 'Mixed' | 'Pressurized';
+  const alignmentScore = Math.round((reading.positivityScore ?? 0.78) * 100);
+  const heroGradient = TONE_GRADIENTS[tone];
+  const toneAccent = TONE_ACCENTS[tone];
+  const topSupport = transits.find((transit) => transit.nature === 'support') ?? transits[0];
+  const topTension = transits.find((transit) => transit.nature === 'tension');
 
   const todayCopy = getSpokenTodayCopy({
     language,
@@ -399,53 +281,53 @@ export default function TodayScreen() {
   const timingNote = todayCopy.timingNoteText;
   const remedyText = todayCopy.remedyText;
   const focusArea = todayCopy.focusArea;
+
   const handleToggleAudio = async () => {
     if (isSpeaking) {
       await stopReadingAudio();
       setIsSpeaking(false);
       return;
     }
-
-    const started = await speakReading({
-      headline,
-      heroBody,
-      bestUse,
-      watchFor,
-      affirmation: reading?.unified?.affirmation,
-    });
-
+    const started = await speakReading(
+      {
+        headline,
+        heroBody,
+        bestUse,
+        watchFor,
+        affirmation: reading?.unified?.affirmation,
+      },
+      {
+        onDone: () => setIsSpeaking(false),
+        onError: () => setIsSpeaking(false),
+      }
+    );
     if (!started) {
-      showAlert('Audio unavailable', 'Spoken playback is available in the native app once expo-speech is installed in the build.');
+      showAlert('Audio unavailable', 'Spoken playback is not supported on this device.');
       return;
     }
-
     setIsSpeaking(true);
   };
-  const skyPreview = positions
-    .filter((position) => ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn'].includes(position.planet))
-    .slice(0, 6);
+
+  const signatureChips = [
+    formatSignature(profile?.western?.sun, 'sun', language),
+    formatSignature(profile?.vedic?.rashi, 'rashi', language),
+    formatSignature(profile?.chinese?.animal, 'year', language),
+  ].filter(Boolean) as string[];
 
   const systems = [
     user.activeSystems.includes('western') && reading.western
-      ? { key: 'western', label: t('systems.western'), route: '/reading/western', text: getSystemPreviewCopy('western', language, reading.western.overall), accent: COLORS.western, icon: 'sunny', secondary: '#ece6ff' }
+      ? { key: 'western', label: t('systems.western'), route: '/reading/western', text: getSystemPreviewCopy('western', language, reading.western.overall), accent: COLORS.western, icon: 'sunny', secondary: '#d6d1ff' }
       : null,
     user.activeSystems.includes('vedic') && reading.vedic
-      ? { key: 'vedic', label: t('systems.vedic'), route: '/reading/vedic', text: getSystemPreviewCopy('vedic', language, reading.vedic.dasha), accent: COLORS.vedic, icon: 'moon', secondary: '#ffe6d8' }
+      ? { key: 'vedic', label: t('systems.vedic'), route: '/reading/vedic', text: getSystemPreviewCopy('vedic', language, reading.vedic.dasha), accent: COLORS.vedic, icon: 'moon', secondary: '#ffd9c2' }
       : null,
     user.activeSystems.includes('chinese') && reading.chinese
-      ? { key: 'chinese', label: t('systems.chinese'), route: '/reading/chinese', text: getSystemPreviewCopy('chinese', language, reading.chinese.element), accent: COLORS.chinese, icon: 'leaf', secondary: '#ffe7db' }
+      ? { key: 'chinese', label: t('systems.chinese'), route: '/reading/chinese', text: getSystemPreviewCopy('chinese', language, reading.chinese.element), accent: COLORS.chinese, icon: 'leaf', secondary: '#ffd3e0' }
       : null,
     user.activeSystems.includes('kp') && reading.kp
-      ? { key: 'kp', label: t('systems.kp'), route: '/reading/kp', text: getSystemPreviewCopy('kp', language, reading.kp.eventTiming), accent: COLORS.kp, icon: 'sparkles', secondary: '#e1f5ef' }
+      ? { key: 'kp', label: t('systems.kp'), route: '/reading/kp', text: getSystemPreviewCopy('kp', language, reading.kp.eventTiming), accent: COLORS.kp, icon: 'sparkles', secondary: '#c6f5ea' }
       : null,
   ].filter(Boolean) as SystemPreview[];
-
-  const tabs = [
-    { key: 'brief', label: todayCopy.tabs.brief },
-    { key: 'proof', label: todayCopy.tabs.proof },
-    { key: 'forecast', label: todayCopy.tabs.forecast },
-    { key: 'systems', label: todayCopy.tabs.systems },
-  ];
 
   return (
     <StarField>
@@ -456,307 +338,236 @@ export default function TodayScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor={COLORS.tide}
-            colors={[COLORS.tide]}
+            tintColor={COLORS.gold}
+            colors={[COLORS.gold]}
           />
         }
       >
+        {usedLocalFallback && !fallbackDismissed ? (
+          <NetworkBanner
+            variant="info"
+            title="Using offline reading"
+            body="We couldn't reach the server, so today's reading was generated locally. Pull down to retry."
+            ctaLabel="Retry"
+            onCta={handleRefresh}
+            onDismiss={() => setFallbackDismissed(true)}
+          />
+        ) : null}
+
+        {refreshing ? (
+          <View style={styles.refreshPill} accessibilityRole="progressbar" accessibilityLabel="Regenerating today's reading">
+            <Ionicons name="sync" size={12} color={COLORS.gold} />
+            <Text style={styles.refreshPillText}>Regenerating reading</Text>
+          </View>
+        ) : null}
+
         <View style={styles.header}>
           <View style={styles.datePremiumRow}>
             <Text style={styles.dateLabel}>
-              {today.toLocaleDateString(todayCopy.dateLocale, { weekday: 'long', month: 'long', day: 'numeric' })}
+              {today.toLocaleDateString(todayCopy.dateLocale, { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase()}
             </Text>
             {isPremium ? (
               <View style={styles.premiumBadge}>
-                <Ionicons name="star" size={11} color={COLORS.starGold} />
+                <Ionicons name="star" size={10} color={COLORS.starGold} />
                 <Text style={styles.premiumBadgeText}>PREMIUM</Text>
               </View>
             ) : null}
           </View>
-          <Text style={styles.greetingText}>{greeting}, {firstName}</Text>
+          <Text style={styles.greetingText}>
+            {greeting}, <Text style={styles.greetingName}>{firstName}</Text>
+          </Text>
           <Text style={styles.headerCopy}>{todayCopy.headerCopy}</Text>
         </View>
 
-        <SectionTabs tabs={tabs} activeKey={activeSection} onChange={setActiveSection} />
+        <AnimatedCard index={0}>
+          <View style={[styles.hero, { shadowColor: toneAccent }]}>
+            <LinearGradient colors={heroGradient} style={StyleSheet.absoluteFillObject} />
+            <View style={styles.heroTopHighlight} pointerEvents="none" />
 
-        {activeSection === 'brief' && (
-          <>
-            <AnimatedCard index={0}>
-              <LinearGradient colors={heroGradient} style={[styles.hero, isPremium && styles.heroPremium]}>
-                <View style={styles.heroTopRow}>
-                  <View style={[styles.heroBadge, isPremium && styles.heroBadgePremium]}>
-                    {isPremium ? <Ionicons name="star" size={10} color={COLORS.starGold} style={{ marginRight: 4 }} /> : null}
-                    <Text style={[styles.heroBadgeText, isPremium && styles.heroBadgeTextPremium]}>{todayCopy.heroBadge}</Text>
-                  </View>
-                  <View style={styles.heroActionsRow}>
-                    <TouchableOpacity style={styles.heroAudioButton} onPress={() => void handleToggleAudio()} activeOpacity={0.84}>
-                      <Ionicons name={isSpeaking ? 'pause-circle-outline' : 'volume-high-outline'} size={16} color="#fffaf1" />
-                      <Text style={styles.heroAudioText}>{isSpeaking ? 'Stop audio' : 'Play audio'}</Text>
-                    </TouchableOpacity>
-                    <View style={[styles.scorePill, { borderColor: `${toneAccent}55`, backgroundColor: `${toneAccent}22` }]}>
-                      <Text style={[styles.scoreText, { color: toneAccent }]}>{todayCopy.alignedText}</Text>
-                    </View>
-                  </View>
-                </View>
-
-                <Text style={styles.heroHeadline}>{headline}</Text>
-                <Text style={styles.heroBody}>{heroBody}</Text>
-                <Text style={styles.heroEvidence}>{evidenceLine}</Text>
-
-                <View style={styles.metricRow}>
-                  <View style={styles.metricPill}>
-                    <Text style={styles.metricLabel}>{todayCopy.tone}</Text>
-                    <Text style={styles.metricValue}>{todayCopy.toneLabel}</Text>
-                  </View>
-                  <View style={styles.metricPill}>
-                    <Text style={styles.metricLabel}>{todayCopy.focus}</Text>
-                    <Text style={styles.metricValue}>{focusArea}</Text>
-                  </View>
-                  <View style={styles.metricPill}>
-                    <Text style={styles.metricLabel}>{todayCopy.liveSignals}</Text>
-                    <Text style={styles.metricValue}>{transits.length}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.signatureRow}>
-                  {[
-                    formatSignature(profile?.western?.sun, 'sun', language),
-                    formatSignature(profile?.vedic?.rashi, 'rashi', language),
-                    formatSignature(profile?.chinese?.animal, 'year', language),
-                  ].filter(Boolean).map((item) => (
-                    <View key={item} style={styles.signatureChip}>
-                      <Text style={styles.signatureChipText}>{item}</Text>
-                    </View>
-                  ))}
-                </View>
-              </LinearGradient>
-            </AnimatedCard>
-
-            <AnimatedCard index={1}>
-              <View style={styles.duoGrid}>
-                <GradientCard accentColor={COLORS.tide} style={styles.duoCard}>
-                  <Text style={styles.cardEyebrow}>{todayCopy.leanInto}</Text>
-                  <Text style={styles.cardTitle}>{focusArea}</Text>
-                  <Text style={styles.cardBody}>{bestUse}</Text>
-                </GradientCard>
-
-                <GradientCard accentColor={COLORS.coral} style={styles.duoCard}>
-                  <Text style={styles.cardEyebrow}>{todayCopy.watchFor}</Text>
-                  <Text style={styles.cardTitle}>{todayCopy.watchForTitle}</Text>
-                  <Text style={styles.cardBody}>{watchFor}</Text>
-                </GradientCard>
+            <View style={styles.heroTopRow}>
+              <View style={styles.heroBadgeRow}>
+                <View style={[styles.toneDot, { backgroundColor: toneAccent }]} />
+                <Text style={styles.heroBadgeText}>{todayCopy.heroBadge}</Text>
               </View>
-            </AnimatedCard>
+              <View style={[styles.scorePill, { borderColor: `${toneAccent}66`, backgroundColor: `${toneAccent}1a` }]}>
+                <Text style={[styles.scoreText, { color: toneAccent }]}>{todayCopy.alignedText}</Text>
+              </View>
+            </View>
 
-            <AnimatedCard index={2}>
-              <GradientCard accentColor={COLORS.gold}>
-                <Text style={styles.cardEyebrow}>{todayCopy.timingNote}</Text>
-                <Text style={styles.timingText}>{timingNote}</Text>
-                {remedyText ? <Text style={styles.timingSupport}>{todayCopy.remedyPrefix}: {remedyText}</Text> : null}
-              </GradientCard>
-            </AnimatedCard>
+            <Text style={styles.heroHeadline}>{headline}</Text>
+            <Text style={styles.heroBody}>{heroBody}</Text>
+            <Text style={styles.heroEvidence}>{evidenceLine}</Text>
 
-            <AnimatedCard index={3}>
-              <GradientCard accentColor={COLORS.gold}>
-                <Text style={styles.cardEyebrow}>MOON PHASE</Text>
-                <Text style={styles.cardTitle}>{moonPhase.emoji} {moonPhase.label}</Text>
-                <Text style={styles.cardBody}>
-                  {moonPhase.ritual}
-                </Text>
-                <Text style={styles.cardSupport}>Illumination {Math.round(moonPhase.illumination * 100)}% · Moon age {moonPhase.ageDays} days</Text>
-                <View style={styles.actions}>
-                  <CosmicButton title="Open moon calendar" onPress={() => router.push('/moon-calendar')} />
-                </View>
-              </GradientCard>
-            </AnimatedCard>
+            <Pressable
+              onPress={handleToggleAudio}
+              style={({ pressed }) => [styles.heroAudioButton, pressed && { opacity: 0.8 }]}
+              accessibilityRole="button"
+              accessibilityLabel={isSpeaking ? 'Stop audio playback' : 'Play reading audio'}
+            >
+              <Ionicons name={isSpeaking ? 'pause-circle' : 'play-circle'} size={18} color={COLORS.textPrimary} />
+              <Text style={styles.heroAudioText}>{isSpeaking ? 'Stop' : todayCopy.alignedText ? 'Listen' : 'Play'}</Text>
+            </Pressable>
 
-            <AnimatedCard index={4}>
-              <GradientCard accentColor={COLORS.coral}>
-                <Text style={styles.cardEyebrow}>RETROGRADE WATCH</Text>
-                <Text style={styles.cardTitle}>Check which planets are currently retrograde.</Text>
-                <Text style={styles.cardBody}>
-                  Use the tracker to see which live transit positions may feel slower, more reflective, or more revision-heavy today.
-                </Text>
-                <View style={styles.actions}>
-                  <CosmicButton title="Open retrogrades" onPress={() => router.push('/retrograde')} />
-                </View>
-              </GradientCard>
-            </AnimatedCard>
+            <View style={styles.metricRow}>
+              <MetricPill label={todayCopy.tone} value={todayCopy.toneLabel} />
+              <MetricPill label={todayCopy.focus} value={focusArea} />
+              <MetricPill label={todayCopy.liveSignals} value={String(transits.length)} />
+            </View>
 
-            <AnimatedCard index={5}>
-              <GradientCard accentColor={COLORS.kp}>
-                <Text style={styles.cardEyebrow}>LIVE TRANSITS</Text>
-                <View style={styles.transitSummaryRow}>
-                  <View style={styles.transitSummaryItem}>
-                    <View style={[styles.transitDot, { backgroundColor: COLORS.tide }]} />
-                    <Text style={styles.transitSummaryCount}>{supportCount}</Text>
-                    <Text style={styles.transitSummaryLabel}>Support</Text>
-                  </View>
-                  <View style={styles.transitSummaryDivider} />
-                  <View style={styles.transitSummaryItem}>
-                    <View style={[styles.transitDot, { backgroundColor: COLORS.coral }]} />
-                    <Text style={styles.transitSummaryCount}>{tensionCount}</Text>
-                    <Text style={styles.transitSummaryLabel}>Tension</Text>
-                  </View>
-                  <View style={styles.transitSummaryDivider} />
-                  <View style={styles.transitSummaryItem}>
-                    <View style={[styles.transitDot, { backgroundColor: COLORS.textSecondary }]} />
-                    <Text style={styles.transitSummaryCount}>{transits.length - supportCount - tensionCount}</Text>
-                    <Text style={styles.transitSummaryLabel}>Neutral</Text>
-                  </View>
-                </View>
-                {transits.slice(0, 3).map((transit, i) => (
-                  <View key={`${transit.transitPlanet}-${transit.natalPlanet}-${i}`} style={styles.transitRow}>
-                    <View style={[styles.transitNature, {
-                      backgroundColor: transit.nature === 'support'
-                        ? `${COLORS.tide}22`
-                        : transit.nature === 'tension'
-                        ? `${COLORS.coral}22`
-                        : 'rgba(255,255,255,0.06)',
-                    }]}>
-                      <Text style={[styles.transitAspect, {
-                        color: transit.nature === 'support'
-                          ? COLORS.tide
-                          : transit.nature === 'tension'
-                          ? COLORS.coral
-                          : COLORS.textSecondary,
-                      }]}>
-                        {transit.transitPlanet} {transit.aspect} {transit.natalPlanet}
-                      </Text>
-                    </View>
-                    <Text style={styles.transitBrief} numberOfLines={2}>{transit.brief}</Text>
+            {signatureChips.length > 0 ? (
+              <View style={styles.signatureRow}>
+                {signatureChips.map((item) => (
+                  <View key={item} style={styles.signatureChip}>
+                    <Text style={styles.signatureChipText}>{item}</Text>
                   </View>
                 ))}
-                {transits.length === 0 && (
-                  <Text style={styles.cardBody}>No major transits active right now. A quiet sky today.</Text>
-                )}
-                <View style={styles.actions}>
-                  <CosmicButton title="View all transits" onPress={() => router.push('/reading/transits')} />
-                </View>
-              </GradientCard>
-            </AnimatedCard>
-
-            <AnimatedCard index={6}>
-              <View style={styles.actions}>
-                {user.activeSystems.length >= 2 ? (
-                  <CosmicButton title={todayCopy.openFull} onPress={() => router.push('/reading/unified')} />
-                ) : null}
-                <CosmicButton title={todayCopy.shareReading} onPress={() => router.push('/share/card')} variant="outline" />
               </View>
-            </AnimatedCard>
-          </>
-        )}
+            ) : null}
+          </View>
+        </AnimatedCard>
 
-        {activeSection === 'proof' && (
-          <>
-            <AnimatedCard index={0}>
-              <GradientCard accentColor={COLORS.iris}>
-                <Text style={styles.cardEyebrow}>{todayCopy.why}</Text>
-                <Text style={styles.proofLead}>{todayCopy.proofLead}</Text>
-                <View style={styles.proofList}>
-                  <ProofRow
-                    icon="pulse-outline"
-                    label={todayCopy.mainDriver}
-                    text={todayCopy.mainDriverText}
-                    color={COLORS.tide}
-                  />
-                  <ProofRow
-                    icon="alert-circle-outline"
-                    label={todayCopy.pressureLine}
-                    text={todayCopy.pressureText}
-                    color={COLORS.coral}
-                  />
-                  <ProofRow
-                    icon="time-outline"
-                    label={todayCopy.timingLayer}
-                    text={timingNote}
-                    color={COLORS.gold}
-                  />
-                </View>
-              </GradientCard>
-            </AnimatedCard>
+        <AnimatedCard index={1}>
+          <View style={styles.duoGrid}>
+            <GlassCard accentColor={COLORS.tide} style={styles.duoCard}>
+              <SectionLabel accent={COLORS.tide}>{todayCopy.leanInto}</SectionLabel>
+              <Text style={styles.cardTitle}>{focusArea}</Text>
+              <Text style={styles.cardBody}>{bestUse}</Text>
+            </GlassCard>
+            <GlassCard accentColor={COLORS.coral} style={styles.duoCard}>
+              <SectionLabel accent={COLORS.coral}>{todayCopy.watchFor}</SectionLabel>
+              <Text style={styles.cardTitle}>{todayCopy.watchForTitle}</Text>
+              <Text style={styles.cardBody}>{watchFor}</Text>
+            </GlassCard>
+          </View>
+        </AnimatedCard>
 
-            {skyPreview.length > 0 && (
-              <AnimatedCard index={1}>
-                <GradientCard accentColor={COLORS.tide}>
-                  <Text style={styles.cardEyebrow}>{todayCopy.skyNow}</Text>
-                  <Text style={styles.skyIntro}>{todayCopy.skyIntro}</Text>
-                  <View style={styles.skyWrap}>
-                    {skyPreview.map((position) => (
-                      <SkyChip key={`${position.planet}-${position.sign}`} position={position} language={language} />
-                    ))}
-                  </View>
-                </GradientCard>
-              </AnimatedCard>
-            )}
-          </>
-        )}
+        <AnimatedCard index={2}>
+          <GlassCard accentColor={COLORS.gold}>
+            <SectionLabel accent={COLORS.gold}>{todayCopy.timingNote}</SectionLabel>
+            <Text style={styles.timingText}>{timingNote}</Text>
+            {remedyText ? (
+              <Text style={styles.timingSupport}>
+                <Text style={styles.timingSupportStrong}>{todayCopy.remedyPrefix}: </Text>
+                {remedyText}
+              </Text>
+            ) : null}
+          </GlassCard>
+        </AnimatedCard>
 
-        {activeSection === 'forecast' && periodForecast && (
-          <>
-            <AnimatedCard index={0}>
-              {canViewForecast ? (
-                <ForecastPanel
-                  forecast={periodForecast}
-                  window={forecastWindow}
-                  onChange={setForecastWindow}
-                  language={language}
+        {transits.length > 0 ? (
+          <AnimatedCard index={3}>
+            <GlassCard accentColor={COLORS.iris}>
+              <SectionLabel accent={COLORS.iris}>LIVE TRANSITS</SectionLabel>
+              <View style={styles.transitSummaryRow}>
+                <SummaryCell count={supportCount} label="Support" color={COLORS.tide} />
+                <View style={styles.transitSummaryDivider} />
+                <SummaryCell count={tensionCount} label="Tension" color={COLORS.coral} />
+                <View style={styles.transitSummaryDivider} />
+                <SummaryCell
+                  count={Math.max(0, transits.length - supportCount - tensionCount)}
+                  label="Neutral"
+                  color={COLORS.textSecondary}
                 />
-              ) : (
-                <GradientCard accentColor={COLORS.starGold}>
-                  <Text style={styles.cardEyebrow}>PREMIUM FORECAST</Text>
-                  <Text style={styles.cardTitle}>The longer view is a premium reading.</Text>
-                  <Text style={styles.cardBody}>
-                    Watch one rewarded ad for this forecast, or go Premium for weekly and monthly forecasts without ads.
-                  </Text>
-                  <View style={styles.actions}>
-                    {hasForecastUnlock ? (
-                      <CosmicButton title="Use ad unlock" onPress={() => void handleUseForecastUnlock()} />
-                    ) : (
-                      <CosmicButton
-                        title={forecastAdLoading ? 'Loading ad' : 'Watch ad to unlock'}
-                        onPress={() => void handleWatchForecastAd()}
-                        loading={forecastAdLoading}
-                      />
-                    )}
-                    <CosmicButton title="See Premium" onPress={() => router.push('/subscription')} variant="outline" />
+              </View>
+              {transits.slice(0, 2).map((transit, i) => (
+                <View
+                  key={`${transit.transitPlanet}-${transit.natalPlanet}-${i}`}
+                  style={styles.transitRow}
+                >
+                  <View
+                    style={[
+                      styles.transitNature,
+                      {
+                        backgroundColor:
+                          transit.nature === 'support'
+                            ? `${COLORS.tide}22`
+                            : transit.nature === 'tension'
+                            ? `${COLORS.coral}22`
+                            : 'rgba(255,255,255,0.06)',
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.transitAspect,
+                        {
+                          color:
+                            transit.nature === 'support'
+                              ? COLORS.tide
+                              : transit.nature === 'tension'
+                              ? COLORS.coral
+                              : COLORS.textSecondary,
+                        },
+                      ]}
+                    >
+                      {transit.transitPlanet} {transit.aspect} {transit.natalPlanet}
+                    </Text>
                   </View>
-                </GradientCard>
-              )}
-            </AnimatedCard>
+                  <Text style={styles.transitBrief} numberOfLines={2}>{transit.brief}</Text>
+                </View>
+              ))}
+            </GlassCard>
+          </AnimatedCard>
+        ) : null}
 
-            <AnimatedCard index={1}>
-              <PredictionFeedbackCard window="week" title="Did the short-term model resonate?" />
-            </AnimatedCard>
-          </>
-        )}
+        {systems.length > 0 ? (
+          <AnimatedCard index={4}>
+            <View style={styles.systemsHeader}>
+              <SectionLabel>{todayCopy.bySystem}</SectionLabel>
+            </View>
+            <View style={styles.systemList}>
+              {systems.map((system) => (
+                <Pressable
+                  key={system.key}
+                  onPress={() => router.push(system.route as never)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open ${system.label} reading`}
+                  style={({ pressed }) => [
+                    styles.systemRow,
+                    { borderColor: `${system.accent}55` },
+                    pressed && { opacity: 0.9 },
+                  ]}
+                >
+                  <OrbIcon icon={system.icon} size={36} accentColor={system.accent} secondaryColor={system.secondary} />
+                  <View style={styles.systemBody}>
+                    <Text style={styles.systemLabel}>{system.label}</Text>
+                    <Text style={styles.systemText} numberOfLines={2}>{system.text}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+                </Pressable>
+              ))}
+            </View>
+          </AnimatedCard>
+        ) : null}
 
-        {activeSection === 'systems' && (
-          <>
-            <AnimatedCard index={0}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>{todayCopy.bySystem}</Text>
-                <Text style={styles.sectionCopy}>{todayCopy.bySystemCopy}</Text>
-              </View>
-            </AnimatedCard>
+        <AnimatedCard index={5}>
+          <View style={styles.actions}>
+            {user.activeSystems.length >= 2 ? (
+              <CosmicButton title={todayCopy.openFull} onPress={() => router.push('/reading/unified')} />
+            ) : null}
+            <CosmicButton title={todayCopy.shareReading} onPress={() => router.push('/share/card')} variant="outline" />
+          </View>
+        </AnimatedCard>
 
-            <AnimatedCard index={1}>
-              <View style={styles.systemList}>
-                {systems.map((system) => (
-                  <SystemStrip
-                    key={system.key}
-                    label={system.label}
-                    text={system.text}
-                    accent={system.accent}
-                    icon={system.icon}
-                    secondary={system.secondary}
-                    onPress={() => router.push(system.route as never)}
-                  />
-                ))}
-              </View>
-            </AnimatedCard>
-          </>
-        )}
+        <AnimatedCard index={6}>
+          <View style={styles.quickLinks}>
+            <QuickLink
+              icon="moon-outline"
+              label="Moon calendar"
+              onPress={() => router.push('/moon-calendar')}
+            />
+            <QuickLink
+              icon="refresh-outline"
+              label="Retrograde"
+              onPress={() => router.push('/retrograde')}
+            />
+            <QuickLink
+              icon="sparkles-outline"
+              label="Archive"
+              onPress={() => router.push('/reading/archive')}
+            />
+          </View>
+        </AnimatedCard>
 
         <View style={styles.bottomPad} />
       </ResetScrollView>
@@ -766,10 +577,51 @@ export default function TodayScreen() {
   );
 }
 
+function MetricPill({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.metricPill}>
+      <Text style={styles.metricLabel}>{label.toUpperCase()}</Text>
+      <Text style={styles.metricValue}>{value}</Text>
+    </View>
+  );
+}
+
+function SummaryCell({ count, label, color }: { count: number; label: string; color: string }) {
+  return (
+    <View style={styles.transitSummaryItem}>
+      <View style={[styles.transitDot, { backgroundColor: color }]} />
+      <Text style={styles.transitSummaryCount}>{count}</Text>
+      <Text style={styles.transitSummaryLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function QuickLink({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={({ pressed }) => [styles.quickLink, pressed && { opacity: 0.8 }]}
+    >
+      <Ionicons name={icon} size={18} color={COLORS.gold} />
+      <Text style={styles.quickLinkText}>{label}</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: SPACING.lg,
-    paddingTop: 56,
+    paddingTop: Platform.OS === 'ios' ? 64 : 48,
     paddingBottom: 120,
     gap: SPACING.lg,
   },
@@ -777,154 +629,153 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: SPACING.lg,
-    gap: SPACING.md,
-  },
-  emptyTitle: {
-    color: COLORS.textPrimary,
-    fontSize: 26,
-    lineHeight: 32,
-    fontFamily: FONTS.heading,
-    textAlign: 'center',
-  },
-  emptyCopy: {
-    color: COLORS.textSecondary,
-    fontSize: 14,
-    lineHeight: 22,
-    maxWidth: 280,
-    textAlign: 'center',
   },
   header: {
-    gap: 4,
+    gap: 6,
   },
   datePremiumRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
   },
+  dateLabel: {
+    ...TYPE.label,
+    color: COLORS.textMuted,
+    fontFamily: FONTS.accent,
+  },
   premiumBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    gap: 4,
     borderRadius: BORDER_RADIUS.full,
     borderWidth: 1,
-    borderColor: `${COLORS.starGold}55`,
-    backgroundColor: `${COLORS.starGold}18`,
+    borderColor: `${COLORS.starGold}66`,
+    backgroundColor: `${COLORS.starGold}1f`,
     paddingHorizontal: 8,
     paddingVertical: 3,
+  },
+  refreshPill: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
+    borderColor: `${COLORS.gold}55`,
+    backgroundColor: `${COLORS.gold}14`,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  refreshPillText: {
+    color: COLORS.gold,
+    fontSize: 10,
+    fontFamily: FONTS.accent,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   premiumBadgeText: {
     color: COLORS.starGold,
     fontSize: 9,
     fontFamily: FONTS.accent,
-    letterSpacing: 1,
-  },
-  dateLabel: {
-    color: COLORS.textMuted,
-    fontSize: 11,
-    fontFamily: FONTS.accent,
     letterSpacing: 1.2,
   },
   greetingText: {
+    ...TYPE.hero,
     color: COLORS.textPrimary,
-    fontSize: 28,
-    lineHeight: 32,
-    fontFamily: FONTS.heading,
+    fontFamily: FONTS.display,
+  },
+  greetingName: {
+    color: COLORS.gold,
   },
   headerCopy: {
+    ...TYPE.body,
     color: COLORS.textSecondary,
-    fontSize: 13,
-    lineHeight: 20,
-    maxWidth: 320,
+    maxWidth: 360,
   },
   hero: {
     borderRadius: BORDER_RADIUS.xxl,
     padding: SPACING.lg,
     gap: SPACING.md,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
     ...SHADOWS.deep,
   },
-  heroPremium: {
-    borderWidth: 1,
-    borderColor: `${COLORS.starGold}40`,
+  heroTopHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.28)',
   },
   heroTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: SPACING.sm,
   },
-  heroActionsRow: {
+  heroBadgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.sm,
+    gap: 8,
   },
-  heroBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: BORDER_RADIUS.full,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
-  },
-  heroBadgePremium: {
-    backgroundColor: `${COLORS.starGold}20`,
-    borderColor: `${COLORS.starGold}44`,
+  toneDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   heroBadgeText: {
-    color: '#fffaf1',
-    fontSize: 9,
+    color: 'rgba(255,250,241,0.84)',
+    fontSize: 10,
     fontFamily: FONTS.accent,
-    letterSpacing: 1.2,
+    letterSpacing: 1.6,
+    textTransform: 'uppercase',
   },
-  heroBadgeTextPremium: {
-    color: COLORS.starGold,
+  scorePill: {
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  scoreText: {
+    fontSize: 10,
+    fontFamily: FONTS.accent,
+    letterSpacing: 1,
+  },
+  heroHeadline: {
+    color: '#fff8ea',
+    ...TYPE.title,
+    fontFamily: FONTS.display,
+  },
+  heroBody: {
+    color: 'rgba(255,248,234,0.88)',
+    ...TYPE.body,
+    fontFamily: FONTS.body,
+  },
+  heroEvidence: {
+    color: 'rgba(255,248,234,0.68)',
+    ...TYPE.caption,
+    fontFamily: FONTS.body,
+    fontStyle: 'italic',
   },
   heroAudioButton: {
+    alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     borderRadius: BORDER_RADIUS.full,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
-    backgroundColor: 'rgba(255,255,255,0.10)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    borderColor: 'rgba(255,255,255,0.22)',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
   },
   heroAudioText: {
-    color: '#fffaf1',
-    fontSize: 11,
-    fontFamily: FONTS.heading,
-  },
-  scorePill: {
-    borderRadius: BORDER_RADIUS.full,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  scoreText: {
-    fontSize: 11,
-    fontFamily: FONTS.accent,
-    letterSpacing: 0.7,
-  },
-  heroHeadline: {
-    color: '#fffaf1',
-    fontSize: 29,
-    lineHeight: 35,
-    fontFamily: FONTS.display,
-    letterSpacing: -0.4,
-  },
-  heroBody: {
-    color: 'rgba(255,250,241,0.88)',
-    fontSize: 14,
-    lineHeight: 21,
-  },
-  heroEvidence: {
-    color: 'rgba(255,250,241,0.72)',
+    color: COLORS.textPrimary,
     fontSize: 12,
-    lineHeight: 18,
+    fontFamily: FONTS.accent,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
   },
   metricRow: {
     flexDirection: 'row',
@@ -937,40 +788,40 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     backgroundColor: 'rgba(255,255,255,0.10)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    minWidth: 92,
-    gap: 2,
+    borderColor: 'rgba(255,255,255,0.14)',
+    minWidth: 96,
+    gap: 3,
   },
   metricLabel: {
-    color: 'rgba(255,250,241,0.6)',
+    color: 'rgba(255,248,234,0.56)',
     fontSize: 9,
     fontFamily: FONTS.accent,
-    letterSpacing: 1,
+    letterSpacing: 1.3,
   },
   metricValue: {
-    color: '#fffaf1',
-    fontSize: 13,
-    lineHeight: 16,
+    color: '#fff8ea',
+    ...TYPE.subhead,
     fontFamily: FONTS.heading,
   },
   signatureRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: SPACING.sm,
+    marginTop: SPACING.xs,
   },
   signatureChip: {
     borderRadius: BORDER_RADIUS.full,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    paddingVertical: 7,
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
+    borderColor: 'rgba(255,255,255,0.14)',
   },
   signatureChipText: {
-    color: '#fffaf1',
+    color: '#fff8ea',
     fontSize: 11,
     fontFamily: FONTS.accent,
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
   },
   duoGrid: {
     flexDirection: 'row',
@@ -981,177 +832,39 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     flexBasis: 150,
   },
-  cardEyebrow: {
-    color: COLORS.textMuted,
-    fontSize: 10,
-    fontFamily: FONTS.accent,
-    letterSpacing: 1.2,
-  },
   cardTitle: {
     color: COLORS.textPrimary,
-    fontSize: 21,
-    lineHeight: 25,
+    ...TYPE.heading,
     fontFamily: FONTS.heading,
   },
   cardBody: {
     color: COLORS.textSecondary,
-    fontSize: 14,
-    lineHeight: 21,
-  },
-  cardSupport: {
-    color: COLORS.textMuted,
-    fontSize: 12,
-    lineHeight: 18,
+    ...TYPE.body,
+    fontFamily: FONTS.body,
   },
   timingText: {
     color: COLORS.textPrimary,
-    fontSize: 18,
-    lineHeight: 25,
+    ...TYPE.subhead,
     fontFamily: FONTS.heading,
   },
   timingSupport: {
     color: COLORS.textSecondary,
-    fontSize: 13,
-    lineHeight: 20,
+    ...TYPE.bodySmall,
+    fontFamily: FONTS.body,
   },
-  proofLead: {
-    color: COLORS.textPrimary,
-    fontSize: 17,
-    lineHeight: 24,
-    fontFamily: FONTS.heading,
-  },
-  proofList: {
-    gap: SPACING.md,
-  },
-  proofRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: SPACING.sm,
-  },
-  proofIconWrap: {
-    width: 30,
-    height: 30,
-    borderRadius: BORDER_RADIUS.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 2,
-  },
-  proofBody: {
-    flex: 1,
-    gap: 2,
-  },
-  proofLabel: {
-    color: COLORS.textMuted,
-    fontSize: 10,
-    fontFamily: FONTS.accent,
+  timingSupportStrong: {
+    color: COLORS.gold,
+    fontFamily: FONTS.accentBold,
     letterSpacing: 1,
-  },
-  proofText: {
-    color: COLORS.textPrimary,
-    fontSize: 14,
-    lineHeight: 21,
-  },
-  skyIntro: {
-    color: COLORS.textSecondary,
-    fontSize: 13,
-    lineHeight: 19,
-  },
-  skyWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.sm,
-  },
-  skyChip: {
-    borderRadius: BORDER_RADIUS.full,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: COLORS.bgElevated,
-    borderWidth: 1,
-    borderColor: COLORS.glassBorder,
-  },
-  skyChipText: {
-    color: COLORS.textPrimary,
+    textTransform: 'uppercase',
     fontSize: 11,
-    fontFamily: FONTS.accent,
-    letterSpacing: 0.3,
-  },
-  sectionHeader: {
-    gap: 4,
-  },
-  sectionTitle: {
-    color: COLORS.textPrimary,
-    fontSize: 23,
-    lineHeight: 28,
-    fontFamily: FONTS.heading,
-  },
-  sectionCopy: {
-    color: COLORS.textSecondary,
-    fontSize: 14,
-    lineHeight: 21,
-    maxWidth: 320,
-  },
-  systemList: {
-    gap: SPACING.sm,
-  },
-  systemStrip: {
-    borderWidth: 1,
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.md,
-    gap: SPACING.sm,
-    overflow: 'hidden',
-    ...SHADOWS.deep,
-  },
-  systemTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: SPACING.md,
-  },
-  systemHeading: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  systemLabel: {
-    color: '#fffaf1',
-    fontSize: 16,
-    fontFamily: FONTS.heading,
-  },
-  systemText: {
-    color: 'rgba(255,250,241,0.8)',
-    fontSize: 13,
-    lineHeight: 19,
-  },
-  actions: {
-    gap: SPACING.md,
-  },
-  retryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-    marginTop: SPACING.md,
-    paddingVertical: 12,
-    paddingHorizontal: SPACING.lg,
-    borderRadius: BORDER_RADIUS.full,
-    borderWidth: 1,
-    borderColor: `${COLORS.tide}44`,
-    backgroundColor: `${COLORS.tide}10`,
-  },
-  retryText: {
-    color: COLORS.tide,
-    fontSize: 15,
-    fontFamily: FONTS.heading,
-  },
-  bottomPad: {
-    height: 40,
   },
   transitSummaryRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: SPACING.md,
-    gap: SPACING.md,
+    gap: SPACING.lg,
+    paddingVertical: SPACING.sm,
   },
   transitSummaryItem: {
     alignItems: 'center',
@@ -1159,8 +872,8 @@ const styles = StyleSheet.create({
   },
   transitSummaryDivider: {
     width: 1,
-    height: 28,
-    backgroundColor: 'rgba(36,40,74,0.12)',
+    height: 32,
+    backgroundColor: COLORS.rule,
   },
   transitDot: {
     width: 8,
@@ -1175,13 +888,13 @@ const styles = StyleSheet.create({
   },
   transitSummaryLabel: {
     color: COLORS.textMuted,
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: FONTS.accent,
-    letterSpacing: 0.5,
+    letterSpacing: 1.2,
   },
   transitRow: {
     gap: 4,
-    marginBottom: SPACING.sm,
+    marginTop: SPACING.xs,
   },
   transitNature: {
     alignSelf: 'flex-start',
@@ -1191,13 +904,69 @@ const styles = StyleSheet.create({
   },
   transitAspect: {
     fontSize: 12,
-    fontFamily: FONTS.heading,
-    letterSpacing: 0.3,
+    fontFamily: FONTS.accentBold,
+    letterSpacing: 0.6,
   },
   transitBrief: {
     color: COLORS.textSecondary,
-    fontSize: 13,
+    ...TYPE.bodySmall,
     fontFamily: FONTS.body,
-    lineHeight: 19,
+  },
+  systemsHeader: {
+    marginBottom: SPACING.sm,
+  },
+  systemList: {
+    gap: SPACING.sm,
+  },
+  systemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    backgroundColor: COLORS.glassBg,
+  },
+  systemBody: {
+    flex: 1,
+    gap: 2,
+  },
+  systemLabel: {
+    color: COLORS.textPrimary,
+    ...TYPE.subhead,
+    fontFamily: FONTS.heading,
+  },
+  systemText: {
+    color: COLORS.textSecondary,
+    ...TYPE.bodySmall,
+    fontFamily: FONTS.body,
+  },
+  actions: {
+    gap: SPACING.md,
+  },
+  quickLinks: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+  },
+  quickLink: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
+    backgroundColor: COLORS.glassBg,
+  },
+  quickLinkText: {
+    color: COLORS.textPrimary,
+    fontSize: 12,
+    fontFamily: FONTS.accent,
+    letterSpacing: 0.8,
+  },
+  bottomPad: {
+    height: 20,
   },
 });

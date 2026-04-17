@@ -6,6 +6,11 @@ import {
   deleteDoc,
   collection,
   getDocs,
+  query,
+  where,
+  orderBy,
+  limit,
+  addDoc,
   serverTimestamp,
   runTransaction,
   increment,
@@ -158,6 +163,68 @@ export async function applyReferralTransaction(
       'Failed to apply referral. Please try again.';
     return { success: false, error };
   }
+}
+
+// ─── Birth correction requests ────────────────────────────────────────────────
+
+export interface BirthCorrectionRequest {
+  id: string;
+  uid: string;
+  userName: string;
+  userEmail: string | null;
+  currentDetails: {
+    date: string;
+    time: string | null;
+    place: string | null;
+  };
+  requestedDetails: {
+    date: string;
+    time: string | null;
+    place: string | null;
+  };
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+  reviewedAt: string | null;
+  reviewerNote: string | null;
+}
+
+export async function createBirthCorrectionRequest(
+  payload: Omit<BirthCorrectionRequest, 'id' | 'status' | 'createdAt' | 'reviewedAt' | 'reviewerNote'>
+): Promise<string> {
+  const col = collection(db, 'birthCorrectionRequests');
+  const docRef = await addDoc(col, {
+    ...payload,
+    status: 'pending',
+    createdAt: serverTimestamp(),
+    reviewedAt: null,
+    reviewerNote: null,
+  });
+  return docRef.id;
+}
+
+export async function getPendingBirthCorrectionRequest(
+  uid: string
+): Promise<BirthCorrectionRequest | null> {
+  const col = collection(db, 'birthCorrectionRequests');
+  const q = query(
+    col,
+    where('uid', '==', uid),
+    where('status', '==', 'pending'),
+    orderBy('createdAt', 'desc'),
+    limit(1)
+  );
+  const snap = await getDocs(q);
+  if (snap.empty) return null;
+  const d = snap.docs[0];
+  const data = d.data() as Omit<BirthCorrectionRequest, 'id' | 'createdAt'> & {
+    createdAt?: { toDate: () => Date };
+  };
+  return {
+    ...data,
+    id: d.id,
+    createdAt: data.createdAt?.toDate?.().toISOString() ?? new Date().toISOString(),
+  } as BirthCorrectionRequest;
 }
 
 // ─── Account deletion ─────────────────────────────────────────────────────────

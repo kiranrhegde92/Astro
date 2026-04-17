@@ -1,7 +1,8 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as LocalAuthentication from 'expo-local-authentication';
 import { AnimatedCard } from '../src/components/ui/AnimatedScreen';
 import { CosmicButton } from '../src/components/ui/CosmicButton';
 import { GradientCard } from '../src/components/ui/GradientCard';
@@ -9,9 +10,12 @@ import { ScreenHeader } from '../src/components/ui/ScreenHeader';
 import { ResetScrollView } from '../src/components/ui/ResetScrollView';
 import { StarField } from '../src/components/ui/StarField';
 import { BORDER_RADIUS, COLORS, FONTS, SPACING } from '../src/constants/theme';
+import { EmptyState } from '../src/components/ui/EmptyState';
 import { useJournalStore } from '../src/store/journalStore';
 import { useReadingStore } from '../src/store/readingStore';
-import { getDateKey, formatDisplayDate } from '../src/utils/dateUtils';
+import { useSettingsStore } from '../src/store/settingsStore';
+import { getDateKey, formatDisplayDate, parseDateKey } from '../src/utils/dateUtils';
+import { getMoonPhase } from '../src/utils/moonPhase';
 import type { JournalEntry } from '../src/types/appData';
 
 const MOODS: Array<{ value: JournalEntry['mood']; label: string; emoji: string }> = [
@@ -41,6 +45,39 @@ export default function JournalScreen() {
   const upsertEntry = useJournalStore((s) => s.upsertEntry);
   const removeEntry = useJournalStore((s) => s.removeEntry);
   const todayReading = useReadingStore((s) => s.todayReading);
+  const journalLockEnabled = useSettingsStore((s) => s.journalLockEnabled);
+  const [unlocked, setUnlocked] = useState(!journalLockEnabled);
+  const [unlockError, setUnlockError] = useState<string | null>(null);
+
+  const requestUnlock = useCallback(async () => {
+    setUnlockError(null);
+    try {
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const enrolled = await LocalAuthentication.isEnrolledAsync();
+      if (!hasHardware || !enrolled) {
+        setUnlocked(true);
+        return;
+      }
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Unlock Journal',
+        cancelLabel: 'Cancel',
+        disableDeviceFallback: false,
+      });
+      if (result.success) {
+        setUnlocked(true);
+      } else {
+        setUnlockError('Authentication failed. Try again.');
+      }
+    } catch {
+      setUnlockError('Biometric check is unavailable right now.');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (journalLockEnabled && !unlocked) {
+      void requestUnlock();
+    }
+  }, [journalLockEnabled, unlocked, requestUnlock]);
 
   const todayKey = getDateKey(new Date());
   const todayEntry = useJournalStore((s) => s.getEntryForDate(todayKey));
@@ -55,6 +92,7 @@ export default function JournalScreen() {
   const [draftLinkedReadingDate, setDraftLinkedReadingDate] = useState<string | undefined>(todayEntry?.linkedReadingDate);
 
   const prompt = useMemo(() => getPromptForDate(draftDate), [draftDate]);
+  const draftMoonPhase = useMemo(() => getMoonPhase(parseDateKey(draftDate)), [draftDate]);
 
   const handleSave = useCallback(async () => {
     if (!body.trim()) return;
@@ -67,13 +105,16 @@ export default function JournalScreen() {
       body: body.trim(),
       mood,
       linkedReadingDate: draftLinkedReadingDate ?? (draftDate === todayKey ? todayReading?.date : undefined),
+      moonPhaseKey: draftMoonPhase.key,
+      moonPhaseLabel: draftMoonPhase.label,
+      moonPhaseEmoji: draftMoonPhase.emoji,
       createdAt: draftCreatedAt ?? now,
       updatedAt: now,
     };
     await upsertEntry(entry);
     setComposing(false);
     setEditId(null);
-  }, [body, draftCreatedAt, draftDate, draftLinkedReadingDate, editId, mood, prompt, title, todayKey, todayReading, upsertEntry]);
+  }, [body, draftCreatedAt, draftDate, draftLinkedReadingDate, draftMoonPhase, editId, mood, prompt, title, todayKey, todayReading, upsertEntry]);
 
   const handleEdit = useCallback((entry: JournalEntry) => {
     setEditId(entry.id);
@@ -101,6 +142,23 @@ export default function JournalScreen() {
     }
   }, [handleEdit, todayEntry, todayKey, todayReading?.date]);
 
+  if (journalLockEnabled && !unlocked) {
+    return (
+      <StarField>
+        <ScreenHeader title="Journal" accentColor={COLORS.iris} />
+        <View style={styles.lockWrap}>
+          <EmptyState
+            icon="lock-closed-outline"
+            title="Journal locked"
+            body={unlockError ?? 'Use biometrics to open your private reflections.'}
+            ctaLabel="Unlock"
+            onCta={() => void requestUnlock()}
+          />
+        </View>
+      </StarField>
+    );
+  }
+
   return (
     <StarField>
       <ScreenHeader title="Journal" accentColor={COLORS.iris} />
@@ -110,7 +168,13 @@ export default function JournalScreen() {
         {composing ? (
           <AnimatedCard index={0}>
             <GradientCard accentColor={COLORS.iris} style={styles.composeCard}>
-              <Text style={styles.composeDate}>{formatDisplayDate(draftDate)}</Text>
+              <View style={styles.composeHeader}>
+                <Text style={styles.composeDate}>{formatDisplayDate(draftDate)}</Text>
+                <View style={styles.moonChip}>
+                  <Text style={styles.moonChipEmoji}>{draftMoonPhase.emoji}</Text>
+                  <Text style={styles.moonChipLabel}>{draftMoonPhase.label}</Text>
+                </View>
+              </View>
               <Text style={styles.prompt}>{prompt}</Text>
 
               <Text style={styles.fieldLabel}>How are you feeling?</Text>
@@ -121,6 +185,9 @@ export default function JournalScreen() {
                     style={[styles.moodChip, mood === m.value && styles.moodChipActive]}
                     onPress={() => setMood(m.value)}
                     activeOpacity={0.84}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Mood: ${m.label}`}
+                    accessibilityState={{ selected: mood === m.value }}
                   >
                     <Text style={styles.moodEmoji}>{m.emoji}</Text>
                     <Text style={[styles.moodLabel, mood === m.value && styles.moodLabelActive]}>{m.label}</Text>
@@ -134,6 +201,7 @@ export default function JournalScreen() {
                 onChangeText={setTitle}
                 placeholder="Title (optional)"
                 placeholderTextColor={COLORS.textMuted}
+                accessibilityLabel="Entry title"
               />
 
               <TextInput
@@ -144,6 +212,7 @@ export default function JournalScreen() {
                 placeholderTextColor={COLORS.textMuted}
                 multiline
                 textAlignVertical="top"
+                accessibilityLabel="Entry body"
               />
 
               <View style={styles.composeActions}>
@@ -170,13 +239,20 @@ export default function JournalScreen() {
                   key={entry.id}
                   activeOpacity={0.84}
                   onPress={() => handleEdit(entry)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Edit journal entry from ${formatDisplayDate(entry.date)}`}
                 >
                   <GradientCard style={styles.entryCard}>
                     <View style={styles.entryTop}>
                       <Text style={styles.entryDate}>{formatDisplayDate(entry.date)}</Text>
-                      <Text style={styles.entryMood}>
-                        {MOODS.find((m) => m.value === entry.mood)?.emoji ?? ''}
-                      </Text>
+                      <View style={styles.entryBadges}>
+                        {entry.moonPhaseEmoji ? (
+                          <Text style={styles.entryMoon} accessibilityLabel={entry.moonPhaseLabel}>{entry.moonPhaseEmoji}</Text>
+                        ) : null}
+                        <Text style={styles.entryMood}>
+                          {MOODS.find((m) => m.value === entry.mood)?.emoji ?? ''}
+                        </Text>
+                      </View>
                     </View>
                     {entry.title ? (
                       <Text style={styles.entryTitle}>{entry.title}</Text>
@@ -186,6 +262,9 @@ export default function JournalScreen() {
                       style={styles.deleteBtn}
                       onPress={() => removeEntry(entry.id)}
                       activeOpacity={0.84}
+                      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Delete journal entry from ${formatDisplayDate(entry.date)}`}
                     >
                       <Ionicons name="trash-outline" size={14} color={COLORS.textMuted} />
                     </TouchableOpacity>
@@ -198,11 +277,13 @@ export default function JournalScreen() {
 
         {entries.length === 0 && !composing ? (
           <AnimatedCard index={1}>
-            <GradientCard>
-              <Text style={styles.emptyText}>
-                Your journal is empty. Start by reflecting on today's cosmic reading.
-              </Text>
-            </GradientCard>
+            <EmptyState
+              icon="journal-outline"
+              title="Your journal is empty"
+              body="Start by reflecting on today's cosmic reading."
+              ctaLabel="Write today's reflection"
+              onCta={handleNew}
+            />
           </AnimatedCard>
         ) : null}
 
@@ -227,6 +308,40 @@ const styles = StyleSheet.create({
   },
   composeCard: {
     gap: SPACING.md,
+  },
+  composeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: SPACING.sm,
+  },
+  moonChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
+    borderColor: `${COLORS.iris}55`,
+    backgroundColor: `${COLORS.iris}18`,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  moonChipEmoji: {
+    fontSize: 14,
+  },
+  moonChipLabel: {
+    color: COLORS.textPrimary,
+    fontSize: 11,
+    fontFamily: FONTS.accent,
+    letterSpacing: 0.6,
+  },
+  entryBadges: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  entryMoon: {
+    fontSize: 14,
   },
   composeDate: {
     color: COLORS.textMuted,
@@ -259,9 +374,10 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.full,
     borderWidth: 1,
     borderColor: COLORS.glassBorder,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    minHeight: 36,
+    backgroundColor: COLORS.glassBg,
   },
   moodChipActive: {
     borderColor: COLORS.iris,
@@ -279,7 +395,7 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
   },
   titleInput: {
-    minHeight: 44,
+    minHeight: 48,
     borderRadius: BORDER_RADIUS.md,
     borderWidth: 1,
     borderColor: COLORS.glassBorder,
@@ -288,10 +404,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 16,
     fontFamily: FONTS.heading,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: COLORS.glassBg,
   },
   bodyInput: {
-    minHeight: 120,
+    minHeight: 140,
     borderRadius: BORDER_RADIUS.md,
     borderWidth: 1,
     borderColor: COLORS.glassBorder,
@@ -300,7 +416,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 15,
     lineHeight: 22,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: COLORS.glassBg,
   },
   composeActions: {
     gap: SPACING.sm,
@@ -351,5 +467,10 @@ const styles = StyleSheet.create({
   },
   bottomPad: {
     height: 40,
+  },
+  lockWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.lg,
   },
 });

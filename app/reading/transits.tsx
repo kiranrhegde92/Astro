@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.glassBorder,
     borderRadius: BORDER_RADIUS.lg,
-    backgroundColor: 'rgba(255,255,255,0.58)',
+    backgroundColor: COLORS.glassHighlight,
   },
   transitBadge: {
     alignSelf: 'flex-start',
@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: BORDER_RADIUS.lg,
-    backgroundColor: 'rgba(255,255,255,0.62)',
+    backgroundColor: COLORS.glassBg,
     borderWidth: 1,
     borderColor: COLORS.glassBorder,
     gap: 4,

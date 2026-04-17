@@ -1,7 +1,7 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
-import * as Linking from 'expo-linking';
 import { CosmicButton } from '../../src/components/ui/CosmicButton';
+import { FormInput } from '../../src/components/ui/FormInput';
 import { GradientCard } from '../../src/components/ui/GradientCard';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
 import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
@@ -10,9 +10,11 @@ import { useCosmicAlert } from '../../src/components/ui/CosmicAlert';
 import { BORDER_RADIUS, COLORS, FONTS, SPACING } from '../../src/constants/theme';
 import { useAuthStore } from '../../src/store/authStore';
 import { useUserStore } from '../../src/store/userStore';
-import type { BirthDetails } from '../../src/types/user';
-
-const SUPPORT_EMAIL = 'admin@cosmicself.app';
+import {
+  createBirthCorrectionRequest,
+  getPendingBirthCorrectionRequest,
+  type BirthCorrectionRequest,
+} from '../../src/services/firestoreService';
 
 function coerceDate(value?: Date | string | number | null) {
   const parsed = value instanceof Date ? value : new Date(value ?? Date.now());
@@ -32,14 +34,6 @@ function formatDate(value?: Date | string | number | null) {
   return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 }
 
-function formatBirthDetails(details: BirthDetails) {
-  return [
-    `Date: ${formatDate(details.date)}`,
-    `Time: ${details.time || 'Not provided'}`,
-    `Place: ${details.place?.name || 'Not provided'}`,
-  ].join('\n');
-}
-
 export default function BirthDetailCorrectionScreen() {
   const user = useUserStore((s) => s.user);
   const firebaseUser = useAuthStore((s) => s.firebaseUser);
@@ -57,7 +51,28 @@ export default function BirthDetailCorrectionScreen() {
   const [minute, setMinute] = useState(initialMinute);
   const [place, setPlace] = useState(user?.birthDetails.place?.name ?? '');
   const [note, setNote] = useState('');
-  const [openingMail, setOpeningMail] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [existingRequest, setExistingRequest] = useState<BirthCorrectionRequest | null>(null);
+  const [loadingExisting, setLoadingExisting] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!user?.id) {
+      setLoadingExisting(false);
+      return;
+    }
+    getPendingBirthCorrectionRequest(user.id)
+      .then((req) => {
+        if (!cancelled) setExistingRequest(req);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoadingExisting(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   const dateValidation = useMemo(() => {
     if (!day || !month || !year) return { valid: false, error: 'Corrected birth date is required' };
@@ -91,52 +106,72 @@ export default function BirthDetailCorrectionScreen() {
     : 'Add a short note so support can review the correction.';
   const isValid = dateValidation.valid && timeValidation.valid && !noteError;
 
-  const handleOpenEmail = useCallback(async () => {
-    if (!user || openingMail) return;
+  const handleSubmit = useCallback(async () => {
+    if (!user || submitting) return;
+    if (existingRequest) return;
     if (!isValid) {
       showAlert('Check the request', dateValidation.error || timeValidation.error || noteError);
       return;
     }
 
-    setOpeningMail(true);
+    setSubmitting(true);
     try {
       const requestedDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1, parseInt(day, 10));
-      const requestedTime = hour && minute ? `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}` : 'Not provided';
-      const requestedPlace = place.trim() || 'Not provided';
-      const subject = `Birth detail correction request - ${user.name}`;
-      const body = [
-        'Please review this birth detail correction request.',
-        '',
-        'Account',
-        `Name: ${user.name}`,
-        `User ID: ${user.id}`,
-        `Email: ${firebaseUser?.email ?? 'Not available'}`,
-        '',
-        'Current birth details',
-        formatBirthDetails(user.birthDetails),
-        '',
-        'Requested birth details',
-        `Date: ${formatDate(requestedDate)}`,
-        `Time: ${requestedTime}`,
-        `Place: ${requestedPlace}`,
-        '',
-        'Reason',
-        note.trim(),
-        '',
-        'I understand this request will be reviewed manually before my chart changes.',
-      ].join('\n');
-      const mailUrl = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      const requestedTime = hour && minute ? `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}` : null;
+      const requestedPlace = place.trim() || null;
 
-      await Linking.openURL(mailUrl);
-      showAlert('Email draft opened', 'Review the details and send the email. Your chart will stay locked until support reviews the request.');
+      const id = await createBirthCorrectionRequest({
+        uid: user.id,
+        userName: user.name,
+        userEmail: firebaseUser?.email ?? null,
+        currentDetails: {
+          date: coerceDate(user.birthDetails.date).toISOString(),
+          time: user.birthDetails.time ?? null,
+          place: user.birthDetails.place?.name ?? null,
+        },
+        requestedDetails: {
+          date: requestedDate.toISOString(),
+          time: requestedTime,
+          place: requestedPlace,
+        },
+        reason: note.trim(),
+      });
+
+      setExistingRequest({
+        id,
+        uid: user.id,
+        userName: user.name,
+        userEmail: firebaseUser?.email ?? null,
+        currentDetails: {
+          date: coerceDate(user.birthDetails.date).toISOString(),
+          time: user.birthDetails.time ?? null,
+          place: user.birthDetails.place?.name ?? null,
+        },
+        requestedDetails: {
+          date: requestedDate.toISOString(),
+          time: requestedTime,
+          place: requestedPlace,
+        },
+        reason: note.trim(),
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+        reviewedAt: null,
+        reviewerNote: null,
+      });
+
+      showAlert(
+        'Correction request submitted',
+        'Support will review your request. Your chart stays locked until the review is complete.'
+      );
     } catch {
-      showAlert('Could not open email', `Please email ${SUPPORT_EMAIL} with your current birth details and the correction you need.`);
+      showAlert('Could not submit', 'Your correction request did not go through. Check your connection and try again.');
     } finally {
-      setOpeningMail(false);
+      setSubmitting(false);
     }
   }, [
     dateValidation.error,
     day,
+    existingRequest,
     firebaseUser?.email,
     hour,
     isValid,
@@ -144,9 +179,9 @@ export default function BirthDetailCorrectionScreen() {
     month,
     note,
     noteError,
-    openingMail,
     place,
     showAlert,
+    submitting,
     timeValidation.error,
     user,
     year,
@@ -163,6 +198,15 @@ export default function BirthDetailCorrectionScreen() {
           <Text style={styles.copy}>
             Send a correction request if something was entered wrong. Support will review it before any chart data changes.
           </Text>
+
+          {existingRequest ? (
+            <GradientCard style={styles.noticeCard} accentColor={COLORS.starGold}>
+              <Text style={styles.label}>Request pending review</Text>
+              <Text style={styles.copy}>
+                Your correction request from {formatDate(existingRequest.createdAt)} is in the review queue. You can submit another once it is resolved.
+              </Text>
+            </GradientCard>
+          ) : null}
 
           <GradientCard style={styles.card} accentColor={COLORS.iris}>
             <Text style={styles.label}>Current details</Text>
@@ -191,6 +235,7 @@ export default function BirthDetailCorrectionScreen() {
                 placeholderTextColor={COLORS.textMuted}
                 keyboardType="number-pad"
                 maxLength={2}
+                accessibilityLabel="Day of birth"
               />
               <TextInput
                 style={[styles.input, styles.dateInput]}
@@ -200,6 +245,7 @@ export default function BirthDetailCorrectionScreen() {
                 placeholderTextColor={COLORS.textMuted}
                 keyboardType="number-pad"
                 maxLength={2}
+                accessibilityLabel="Month of birth"
               />
               <TextInput
                 style={[styles.input, styles.yearInput]}
@@ -209,6 +255,7 @@ export default function BirthDetailCorrectionScreen() {
                 placeholderTextColor={COLORS.textMuted}
                 keyboardType="number-pad"
                 maxLength={4}
+                accessibilityLabel="Year of birth"
               />
             </View>
             {dateValidation.error ? <Text style={styles.errorText}>{dateValidation.error}</Text> : null}
@@ -222,6 +269,7 @@ export default function BirthDetailCorrectionScreen() {
                 placeholderTextColor={COLORS.textMuted}
                 keyboardType="number-pad"
                 maxLength={2}
+                accessibilityLabel="Hour of birth"
               />
               <TextInput
                 style={[styles.input, styles.dateInput]}
@@ -231,6 +279,7 @@ export default function BirthDetailCorrectionScreen() {
                 placeholderTextColor={COLORS.textMuted}
                 keyboardType="number-pad"
                 maxLength={2}
+                accessibilityLabel="Minute of birth"
               />
               <TextInput
                 style={[styles.input, styles.placeInput]}
@@ -239,33 +288,43 @@ export default function BirthDetailCorrectionScreen() {
                 placeholder="City, country"
                 placeholderTextColor={COLORS.textMuted}
                 autoCapitalize="words"
+                accessibilityLabel="Place of birth"
               />
             </View>
             {timeValidation.error ? <Text style={styles.errorText}>{timeValidation.error}</Text> : null}
 
-            <TextInput
-              style={[styles.input, styles.noteInput]}
+            <FormInput
+              label="Reason for correction"
+              icon="document-text-outline"
               value={note}
               onChangeText={setNote}
               placeholder="What needs to be corrected?"
-              placeholderTextColor={COLORS.textMuted}
               multiline
               textAlignVertical="top"
               autoCapitalize="sentences"
+              inputStyle={styles.noteInputText}
+              error={note.length > 0 && noteError ? noteError : null}
             />
-            {note.length > 0 && noteError ? <Text style={styles.errorText}>{noteError}</Text> : null}
           </GradientCard>
 
           <GradientCard style={styles.noticeCard} accentColor={COLORS.starGold}>
             <Text style={styles.label}>Manual review</Text>
-            <Text style={styles.copy}>This opens an email draft to {SUPPORT_EMAIL}. It does not update your profile on this device.</Text>
+            <Text style={styles.copy}>
+              Your request is stored in our review queue. Support updates your chart once it is approved.
+            </Text>
           </GradientCard>
 
           <CosmicButton
-            title={openingMail ? 'Opening email' : 'Open email draft'}
-            onPress={() => void handleOpenEmail()}
-            disabled={!isValid || openingMail}
-            loading={openingMail}
+            title={
+              existingRequest
+                ? 'Request pending review'
+                : submitting
+                ? 'Submitting'
+                : 'Submit correction request'
+            }
+            onPress={() => void handleSubmit()}
+            disabled={!isValid || submitting || loadingExisting || !!existingRequest}
+            loading={submitting}
           />
         </ResetScrollView>
       </KeyboardAvoidingView>
@@ -348,7 +407,7 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    backgroundColor: 'rgba(255,255,255,0.74)',
+    backgroundColor: COLORS.glassBg,
     fontSize: 16,
     fontWeight: '700',
   },
@@ -363,8 +422,8 @@ const styles = StyleSheet.create({
   placeInput: {
     flex: 1.8,
   },
-  noteInput: {
-    minHeight: 112,
+  noteInputText: {
+    minHeight: 96,
     lineHeight: 22,
   },
   errorText: {

@@ -69,12 +69,20 @@ export function decodePayload(encoded: string): SharedProfilePayload | null {
 }
 
 /**
+ * Generate a referral deep link that opens the app and pre-fills the code.
+ */
+export function generateReferralLink(code: string): string {
+  return `cosmicself://referral?code=${encodeURIComponent(code)}`;
+}
+
+/**
  * Parse a CosmicSelf deep link to extract the action and payload.
  */
 export function parseDeepLink(url: string): {
-  type: 'profile' | 'compat' | 'unknown';
+  type: 'profile' | 'compat' | 'referral' | 'unknown';
   userId?: string;
   payload?: SharedProfilePayload;
+  referralCode?: string;
 } {
   try {
     const normalized = url.replace('cosmicself://', 'https://cosmicself.app/');
@@ -88,6 +96,11 @@ export function parseDeepLink(url: string): {
 
     if (parsed.pathname.includes('/compat')) {
       return { type: 'compat', userId: payload?.id, payload: payload ?? undefined };
+    }
+
+    if (parsed.pathname.includes('/referral')) {
+      const code = parsed.searchParams.get('code');
+      if (code) return { type: 'referral', referralCode: code.toUpperCase().trim() };
     }
   } catch {}
 

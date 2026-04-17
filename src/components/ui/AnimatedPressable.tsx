@@ -15,6 +15,10 @@ interface AnimatedPressableProps {
   scaleTo?: number;
   disabled?: boolean;
   haptic?: boolean;
+  accessibilityRole?: 'button' | 'link' | 'none';
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
+  accessibilityState?: { disabled?: boolean; selected?: boolean; busy?: boolean; checked?: boolean };
 }
 
 const isAndroid = Platform.OS === 'android';
@@ -26,6 +30,10 @@ export function AnimatedPressable({
   scaleTo = 0.96,
   disabled = false,
   haptic = false,
+  accessibilityRole,
+  accessibilityLabel,
+  accessibilityHint,
+  accessibilityState,
 }: AnimatedPressableProps) {
   const press = useRef(new Animated.Value(0)).current;
 
@@ -92,6 +100,10 @@ export function AnimatedPressable({
       onPressOut={onPressOut}
       onPress={onPress}
       disabled={disabled}
+      accessibilityRole={accessibilityRole}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityHint={accessibilityHint}
+      accessibilityState={accessibilityState}
     >
       <Animated.View style={[style, animatedStyle]}>
         {children}

@@ -62,11 +62,12 @@ interface StarFieldProps {
 }
 
 /* ─── Component ─────────────────────────────────────────────────────────── */
-const LIGHT_BG: [string, string, string] = ['#fff8f2', '#f4ebf8', '#ddd5ff'];
-const DARK_BG:  [string, string, string] = ['#0d0e1f', '#1a1430', '#130d25'];
+// Both modes dark — Midnight Observatory aesthetic is always-on.
+const LIGHT_BG: [string, string, string] = ['#07081a', '#0a0b1f', '#151736'];
+const DARK_BG:  [string, string, string] = ['#05060f', '#07081a', '#130d25'];
 
-const LIGHT_BLOBS = ['#f5d4b2', '#c9b4e8', '#a8c4e8', '#7b5ea0'];
-const DARK_BLOBS  = ['#3b1f6e', '#1e3a6e', '#4a1060', '#1a2d60'];
+const LIGHT_BLOBS = ['#3b1f6e', '#1e3a6e', '#4a1060', '#1a2d60'];
+const DARK_BLOBS  = ['#2b1d52', '#1e3a6e', '#3b1f4a', '#1a2d60'];
 
 export function StarField({ children }: StarFieldProps) {
   const { width, height } = useWindowDimensions();

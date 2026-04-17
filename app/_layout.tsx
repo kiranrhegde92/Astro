@@ -211,6 +211,9 @@ export default function RootLayout() {
           })
           .catch(() => {});
       }
+      if (parsed.type === 'referral' && parsed.referralCode) {
+        useAuthStore.getState().setPendingReferralCode(parsed.referralCode);
+      }
     };
 
     Linking.getInitialURL().then((url) => {
@@ -269,8 +272,7 @@ export default function RootLayout() {
     }
   }, [authReady, profileLoading, firebaseUser, router]);
 
-  const darkMode = useSettingsStore((s) => s.darkMode);
-  const rootBg = darkMode ? '#070814' : COLORS.bgDeep;
+  const rootBg = COLORS.bgDeep;
 
   if ((!authReady || !fontReady) && !onWebLanding) {
     return (

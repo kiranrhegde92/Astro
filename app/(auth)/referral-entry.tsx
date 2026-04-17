@@ -48,10 +48,19 @@ export default function ReferralEntryScreen() {
   const fbUser = currentUser();
   const setPendingReferral = useAuthStore((s) => s.setPendingReferral);
   const logout = useAuthStore((s) => s.logout);
+  const pendingReferralCode = useAuthStore((s) => s.pendingReferralCode);
+  const setPendingReferralCode = useAuthStore((s) => s.setPendingReferralCode);
 
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState(pendingReferralCode ?? '');
   const [codeError, setCodeError] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
+
+  // If a referral code arrives via deep link while this screen is open, fill it in
+  React.useEffect(() => {
+    if (pendingReferralCode && !code) {
+      setCode(pendingReferralCode);
+    }
+  }, [pendingReferralCode]);
   const { showAlert, alertModal } = useCosmicAlert();
 
   const handleSubmit = async () => {
@@ -114,6 +123,7 @@ export default function ReferralEntryScreen() {
       }
 
       // 7. Clear pending flag — _layout.tsx routing takes over to onboarding
+      setPendingReferralCode(null);
       setPendingReferral(false);
     } catch {
       showAlert('Error', 'Something went wrong. Please try again.');

@@ -252,10 +252,15 @@ export default function CosmicRevealScreen() {
           <Ionicons name="cloud-offline-outline" size={52} color={COLORS.textMuted} />
           <Text style={styles.loadingTitle}>Calculation pending</Text>
           <Text style={styles.errorMsg}>{errorMsg}</Text>
-          <AnimatedPressable haptic onPress={() => {
-            completeOnboarding();
-            router.replace('/(tabs)/today');
-          }}>
+          <AnimatedPressable
+            haptic
+            onPress={() => {
+              completeOnboarding();
+              router.replace('/(tabs)/today');
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Continue to today's reading without waiting for the server"
+          >
             <View style={styles.continueBtn}>
               <Text style={styles.continueBtnText}>Continue Anyway</Text>
             </View>
@@ -401,7 +406,7 @@ const styles = StyleSheet.create({
   stepDots: { flexDirection: 'row', gap: 5, marginTop: SPACING.sm },
   dot: {
     width: 6, height: 6, borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: COLORS.glassHighlight,
   },
   dotActive: { backgroundColor: COLORS.western },
   errorMsg: {
@@ -412,8 +417,8 @@ const styles = StyleSheet.create({
     marginTop: SPACING.sm,
     paddingVertical: 14, paddingHorizontal: SPACING.xl,
     borderRadius: BORDER_RADIUS.full,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)',
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1, borderColor: COLORS.glassBorder,
+    backgroundColor: COLORS.glassHighlight,
     minHeight: 44,
   },
   continueBtnText: {
@@ -434,7 +439,7 @@ const styles = StyleSheet.create({
   },
   signRow: { flexDirection: 'row', gap: SPACING.sm, flexWrap: 'wrap' },
   badge: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: COLORS.glassHighlight,
     borderRadius: BORDER_RADIUS.md, paddingVertical: 8, paddingHorizontal: 12,
     gap: 3, minWidth: 80,
   },

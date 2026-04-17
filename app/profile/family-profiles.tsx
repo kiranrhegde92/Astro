@@ -3,6 +3,7 @@ import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableO
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { CosmicButton } from '../../src/components/ui/CosmicButton';
+import { FormInput } from '../../src/components/ui/FormInput';
 import { GradientCard } from '../../src/components/ui/GradientCard';
 import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
@@ -222,12 +223,14 @@ export default function FamilyProfilesScreen() {
                 </>
               ) : (
                 <>
-              <TextInput
-                style={styles.input}
+              <FormInput
+                label="Profile name"
+                icon="person-outline"
                 value={name}
                 onChangeText={setName}
-                placeholder="Name"
-                placeholderTextColor={COLORS.textMuted}
+                placeholder="First name"
+                autoCapitalize="words"
+                returnKeyType="next"
               />
               <View style={styles.dateRow}>
                 <TextInput
@@ -238,6 +241,7 @@ export default function FamilyProfilesScreen() {
                   placeholderTextColor={COLORS.textMuted}
                   keyboardType="number-pad"
                   maxLength={2}
+                  accessibilityLabel="Day of birth"
                 />
                 <TextInput
                   style={[styles.input, styles.dateInput]}
@@ -247,6 +251,7 @@ export default function FamilyProfilesScreen() {
                   placeholderTextColor={COLORS.textMuted}
                   keyboardType="number-pad"
                   maxLength={2}
+                  accessibilityLabel="Month of birth"
                 />
                 <TextInput
                   style={[styles.input, styles.yearInput]}
@@ -256,6 +261,7 @@ export default function FamilyProfilesScreen() {
                   placeholderTextColor={COLORS.textMuted}
                   keyboardType="number-pad"
                   maxLength={4}
+                  accessibilityLabel="Year of birth"
                 />
               </View>
               {dateValidation.error ? <Text style={styles.errorText}>{dateValidation.error}</Text> : null}
@@ -269,6 +275,7 @@ export default function FamilyProfilesScreen() {
                   placeholderTextColor={COLORS.textMuted}
                   keyboardType="number-pad"
                   maxLength={2}
+                  accessibilityLabel="Hour of birth"
                 />
                 <TextInput
                   style={[styles.input, styles.dateInput]}
@@ -278,6 +285,7 @@ export default function FamilyProfilesScreen() {
                   placeholderTextColor={COLORS.textMuted}
                   keyboardType="number-pad"
                   maxLength={2}
+                  accessibilityLabel="Minute of birth"
                 />
                 <TextInput
                   style={[styles.input, styles.placeInput]}
@@ -285,6 +293,7 @@ export default function FamilyProfilesScreen() {
                   onChangeText={setPlace}
                   placeholder="City, country"
                   placeholderTextColor={COLORS.textMuted}
+                  accessibilityLabel="Place of birth"
                 />
               </View>
               {timeValidation.error ? <Text style={styles.errorText}>{timeValidation.error}</Text> : null}
@@ -295,7 +304,13 @@ export default function FamilyProfilesScreen() {
                 disabled={!isValid || saving}
                 loading={saving}
               />
-              <TouchableOpacity style={styles.cancelAddBtn} onPress={() => setShowAddForm(false)} activeOpacity={0.84}>
+              <TouchableOpacity
+                style={styles.cancelAddBtn}
+                onPress={() => setShowAddForm(false)}
+                activeOpacity={0.84}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel adding profile"
+              >
                 <Text style={styles.cancelAddText}>Cancel</Text>
               </TouchableOpacity>
                 </>
@@ -331,7 +346,14 @@ function ProfileRow({
 }) {
   return (
     <View style={[styles.profileRow, active && styles.profileRowActive]}>
-      <TouchableOpacity style={styles.profileBody} onPress={onSelect} activeOpacity={0.84}>
+      <TouchableOpacity
+        style={styles.profileBody}
+        onPress={onSelect}
+        activeOpacity={0.84}
+        accessibilityRole="radio"
+        accessibilityLabel={`${title}, ${subtitle}`}
+        accessibilityState={{ selected: active, checked: active }}
+      >
         <Ionicons name={active ? 'radio-button-on' : 'radio-button-off'} size={20} color={active ? COLORS.tide : COLORS.textMuted} />
         <View style={styles.profileText}>
           <Text style={styles.profileTitle}>{title}</Text>
@@ -339,7 +361,14 @@ function ProfileRow({
         </View>
       </TouchableOpacity>
       {onRemove ? (
-        <TouchableOpacity style={styles.removeBtn} onPress={onRemove} activeOpacity={0.84}>
+        <TouchableOpacity
+          style={styles.removeBtn}
+          onPress={onRemove}
+          activeOpacity={0.84}
+          accessibilityRole="button"
+          accessibilityLabel={`Remove ${title}`}
+          hitSlop={10}
+        >
           <Ionicons name="trash-outline" size={17} color={COLORS.coral} />
         </TouchableOpacity>
       ) : null}
@@ -380,7 +409,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.glassBorder,
     borderRadius: BORDER_RADIUS.md,
-    backgroundColor: 'rgba(255,255,255,0.58)',
+    backgroundColor: COLORS.glassBg,
   },
   profileRowActive: {
     borderColor: COLORS.glassBorderBright,
@@ -419,7 +448,7 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    backgroundColor: 'rgba(255,255,255,0.74)',
+    backgroundColor: COLORS.glassBg,
     fontSize: 16,
     fontWeight: '700',
   },
