@@ -262,6 +262,13 @@ export default function TodayScreen() {
   const topSupport = transits.find((transit) => transit.nature === 'support') ?? transits[0];
   const topTension = transits.find((transit) => transit.nature === 'tension');
   const highImpactTransit = !isPremium ? getHighImpactTransit(reading) : undefined;
+  const subscription = accountUser?.subscription;
+  const trialDaysLeft = (() => {
+    if (subscription?.status !== 'trial' || !subscription.trialEndsAt) return null;
+    const end = new Date(subscription.trialEndsAt).getTime();
+    const diff = Math.ceil((end - Date.now()) / (1000 * 60 * 60 * 24));
+    return diff > 0 ? diff : 0;
+  })();
 
   const todayCopy = getSpokenTodayCopy({
     language,
@@ -372,7 +379,11 @@ export default function TodayScreen() {
             {isPremium ? (
               <View style={styles.premiumBadge}>
                 <Ionicons name="star" size={10} color={COLORS.starGold} />
-                <Text style={styles.premiumBadgeText}>PREMIUM</Text>
+                <Text style={styles.premiumBadgeText}>
+                  {trialDaysLeft !== null
+                    ? `TRIAL · ${trialDaysLeft}D LEFT`
+                    : 'PREMIUM'}
+                </Text>
               </View>
             ) : null}
           </View>
