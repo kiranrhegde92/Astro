@@ -447,7 +447,37 @@ export default function TodayScreen() {
           </View>
         </AnimatedCard>
 
-        <AnimatedCard index={2}>
+        {!isPremium ? (
+          <AnimatedCard index={2}>
+            <Pressable
+              onPress={() => router.push('/subscription')}
+              style={({ pressed }) => [styles.upgradeCard, pressed && { opacity: 0.92 }]}
+              accessibilityRole="button"
+              accessibilityLabel="See Premium"
+            >
+              <LinearGradient
+                colors={['rgba(255,208,120,0.18)', 'rgba(172,132,255,0.14)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFillObject}
+              />
+              <View style={styles.upgradeRow}>
+                <View style={styles.upgradeIcon}>
+                  <Ionicons name="sparkles" size={18} color={COLORS.starGold} />
+                </View>
+                <View style={styles.upgradeBody}>
+                  <Text style={styles.upgradeTitle}>Go deeper with Premium</Text>
+                  <Text style={styles.upgradeCopy}>
+                    30-day forecast in 3 phases, life roadmap with Antardasha sub-chapters, journal insights, and ad-free reading.
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={COLORS.starGold} />
+              </View>
+            </Pressable>
+          </AnimatedCard>
+        ) : null}
+
+        <AnimatedCard index={!isPremium ? 3 : 2}>
           <GlassCard accentColor={COLORS.gold}>
             <SectionLabel accent={COLORS.gold}>{todayCopy.timingNote}</SectionLabel>
             <Text style={styles.timingText}>{timingNote}</Text>
@@ -837,6 +867,40 @@ const styles = StyleSheet.create({
   duoCard: {
     flexGrow: 1,
     flexBasis: 150,
+  },
+  upgradeCard: {
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255,208,120,0.35)',
+    overflow: 'hidden',
+    padding: SPACING.md,
+  },
+  upgradeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  upgradeIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,208,120,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  upgradeBody: {
+    flex: 1,
+    gap: 2,
+  },
+  upgradeTitle: {
+    color: COLORS.textPrimary,
+    fontSize: 14,
+    fontFamily: FONTS.heading,
+  },
+  upgradeCopy: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    lineHeight: 17,
   },
   cardTitle: {
     color: COLORS.textPrimary,

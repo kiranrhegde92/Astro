@@ -35,7 +35,9 @@ import type { SubscriptionPlanPeriod } from '../src/types/user';
 
 const PREMIUM_FEATURES = [
   { emoji: '\u{1F496}', text: 'Unlimited compatibility checks and deeper match readings' },
-  { emoji: '\u{1F30C}', text: 'Weekly and monthly forecasts across your active systems' },
+  { emoji: '\u{1F30C}', text: '30-day forecast broken into three real phases with per-phase focus' },
+  { emoji: '\u{1F52E}', text: 'Life roadmap with Antardasha sub-chapters and life-age ranges' },
+  { emoji: '\u{1F4D4}', text: 'Journal Insights: streak analytics, mood by moon phase, weekly cadence' },
   { emoji: '\u{1F52D}', text: 'Full blended readings with source-backed system details' },
   { emoji: '\u{1F4DA}', text: 'Full reading archive instead of the free recent-days view' },
   { emoji: '\u{1F514}', text: 'Real-time high-impact transit alerts' },
