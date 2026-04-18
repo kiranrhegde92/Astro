@@ -15,6 +15,7 @@ import { getPendingBirthCorrectionRequest } from '../src/services/firestoreServi
 import { useAuthStore } from '../src/store/authStore';
 import { useSettingsStore } from '../src/store/settingsStore';
 import { useUserStore } from '../src/store/userStore';
+import { hasPremiumEntitlement } from '../src/utils/subscription';
 import { shareDataExport } from '../src/utils/exportData';
 import type { AstrologySystem } from '../src/types/user';
 
@@ -67,6 +68,7 @@ export default function SettingsScreen() {
   } = useSettingsStore();
   const user = useUserStore((s) => s.user);
   const setActiveSystems = useUserStore((s) => s.setActiveSystems);
+  const isPremium = hasPremiumEntitlement(user?.subscription);
   const logout = useAuthStore((s) => s.logout);
   const deleteAccount = useAuthStore((s) => s.deleteAccount);
   const isAdmin = useAuthStore((s) => s.isAdmin);
@@ -248,12 +250,23 @@ export default function SettingsScreen() {
               <Ionicons name="notifications-outline" size={18} color={COLORS.starGold} />
               <Text style={styles.rowText}>Premium transit alerts</Text>
             </View>
-            <Switch
-              value={transitAlertsEnabled}
-              onValueChange={setTransitAlerts}
-              trackColor={{ false: COLORS.glassHighlight, true: COLORS.starGold }}
-              thumbColor={COLORS.textPrimary}
-            />
+            {isPremium ? (
+              <Switch
+                value={transitAlertsEnabled}
+                onValueChange={setTransitAlerts}
+                trackColor={{ false: COLORS.glassHighlight, true: COLORS.starGold }}
+                thumbColor={COLORS.textPrimary}
+              />
+            ) : (
+              <TouchableOpacity
+                onPress={() => router.push('/subscription')}
+                accessibilityRole="button"
+                accessibilityLabel="Unlock transit alerts with Premium"
+                activeOpacity={0.84}
+              >
+                <Text style={{ color: COLORS.starGold, fontWeight: '700', fontSize: 13 }}>Unlock</Text>
+              </TouchableOpacity>
+            )}
           </View>
           <TouchableOpacity
             style={styles.linkRow}
