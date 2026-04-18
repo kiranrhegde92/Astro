@@ -1,5 +1,8 @@
 import React, { useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { StarField } from '../src/components/ui/StarField';
 import { ScreenHeader } from '../src/components/ui/ScreenHeader';
 import { ResetScrollView } from '../src/components/ui/ResetScrollView';
@@ -8,10 +11,15 @@ import { EmptyState } from '../src/components/ui/EmptyState';
 import { AnimatedCard } from '../src/components/ui/AnimatedScreen';
 import { BORDER_RADIUS, COLORS, FONTS, SPACING, TYPE } from '../src/constants/theme';
 import { useJournalStore } from '../src/store/journalStore';
+import { useUserStore } from '../src/store/userStore';
+import { hasPremiumEntitlement } from '../src/utils/subscription';
 import { computeJournalInsights, MOOD_META } from '../src/utils/journalInsights';
 
 export default function JournalInsightsScreen() {
   const entries = useJournalStore((s) => s.entries);
+  const accountUser = useUserStore((s) => s.user);
+  const isPremium = hasPremiumEntitlement(accountUser?.subscription);
+  const router = useRouter();
   const insights = useMemo(() => computeJournalInsights(entries), [entries]);
 
   if (!entries.length) {
@@ -68,7 +76,36 @@ export default function JournalInsightsScreen() {
           </View>
         </AnimatedCard>
 
-        {topMoodMeta ? (
+        {!isPremium ? (
+          <AnimatedCard index={2}>
+            <Pressable
+              onPress={() => router.push('/subscription')}
+              style={({ pressed }) => [styles.lockCard, pressed && { opacity: 0.92 }]}
+              accessibilityRole="button"
+              accessibilityLabel="Unlock full insights with Premium"
+            >
+              <LinearGradient
+                colors={['rgba(172,132,255,0.22)', 'rgba(255,208,120,0.14)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFillObject}
+              />
+              <View style={styles.lockIconWrap}>
+                <Ionicons name="lock-closed" size={20} color={COLORS.starGold} />
+              </View>
+              <Text style={styles.lockTitle}>Unlock full insights</Text>
+              <Text style={styles.lockCopy}>
+                Premium shows your dominant mood, mood breakdown, weekly cadence chart, and moon-phase pattern across entries.
+              </Text>
+              <View style={styles.lockCta}>
+                <Text style={styles.lockCtaText}>See Premium</Text>
+                <Ionicons name="chevron-forward" size={14} color={COLORS.starGold} />
+              </View>
+            </Pressable>
+          </AnimatedCard>
+        ) : null}
+
+        {isPremium && topMoodMeta ? (
           <AnimatedCard index={2}>
             <GradientCard accentColor={COLORS.iris}>
               <Text style={styles.sectionLabel}>DOMINANT MOOD (30 DAYS)</Text>
@@ -85,6 +122,8 @@ export default function JournalInsightsScreen() {
           </AnimatedCard>
         ) : null}
 
+        {isPremium ? (
+        <>
         <AnimatedCard index={3}>
           <GradientCard>
             <Text style={styles.sectionLabel}>MOOD BREAKDOWN</Text>
@@ -176,6 +215,8 @@ export default function JournalInsightsScreen() {
             </View>
           </GradientCard>
         </AnimatedCard>
+        </>
+        ) : null}
 
         <View style={styles.bottomPad} />
       </ResetScrollView>
@@ -380,5 +421,42 @@ const styles = StyleSheet.create({
   },
   bottomPad: {
     height: 40,
+  },
+  lockCard: {
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255,208,120,0.35)',
+    overflow: 'hidden',
+    padding: SPACING.lg,
+    gap: SPACING.xs,
+  },
+  lockIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,208,120,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING.xs,
+  },
+  lockTitle: {
+    color: COLORS.textPrimary,
+    fontSize: 18,
+    fontFamily: FONTS.heading,
+  },
+  lockCopy: {
+    color: COLORS.textSecondary,
+    ...TYPE.bodySmall,
+  },
+  lockCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: SPACING.xs,
+  },
+  lockCtaText: {
+    color: COLORS.starGold,
+    ...TYPE.label,
+    fontFamily: FONTS.accent,
   },
 });
