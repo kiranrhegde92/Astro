@@ -14,6 +14,11 @@ import { EmptyState } from '../src/components/ui/EmptyState';
 import { useJournalStore } from '../src/store/journalStore';
 import { useReadingStore } from '../src/store/readingStore';
 import { useSettingsStore } from '../src/store/settingsStore';
+import { useUserStore } from '../src/store/userStore';
+import { hasPremiumEntitlement } from '../src/utils/subscription';
+import { LinearGradient } from 'expo-linear-gradient';
+
+const FREE_JOURNAL_HISTORY_LIMIT = 5;
 import { getDateKey, formatDisplayDate, parseDateKey } from '../src/utils/dateUtils';
 import { getMoonPhase } from '../src/utils/moonPhase';
 import type { JournalEntry } from '../src/types/appData';
@@ -46,6 +51,10 @@ export default function JournalScreen() {
   const removeEntry = useJournalStore((s) => s.removeEntry);
   const todayReading = useReadingStore((s) => s.todayReading);
   const journalLockEnabled = useSettingsStore((s) => s.journalLockEnabled);
+  const user = useUserStore((s) => s.user);
+  const isPremium = hasPremiumEntitlement(user?.subscription);
+  const visibleEntries = isPremium ? entries.slice(0, 20) : entries.slice(0, FREE_JOURNAL_HISTORY_LIMIT);
+  const hiddenEntryCount = !isPremium ? Math.max(entries.length - FREE_JOURNAL_HISTORY_LIMIT, 0) : 0;
   const [unlocked, setUnlocked] = useState(!journalLockEnabled);
   const [unlockError, setUnlockError] = useState<string | null>(null);
 
@@ -249,7 +258,7 @@ export default function JournalScreen() {
           <AnimatedCard index={1}>
             <Text style={styles.listTitle}>Past entries</Text>
             <View style={styles.entryList}>
-              {entries.slice(0, 20).map((entry) => (
+              {visibleEntries.map((entry) => (
                 <TouchableOpacity
                   key={entry.id}
                   activeOpacity={0.84}
@@ -286,6 +295,34 @@ export default function JournalScreen() {
                   </GradientCard>
                 </TouchableOpacity>
               ))}
+              {hiddenEntryCount > 0 ? (
+                <TouchableOpacity
+                  activeOpacity={0.88}
+                  onPress={() => router.push('/subscription')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Unlock full journal history with Premium"
+                  style={styles.journalLockCard}
+                >
+                  <LinearGradient
+                    colors={['rgba(255,208,120,0.18)', 'rgba(172,132,255,0.14)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={StyleSheet.absoluteFillObject}
+                  />
+                  <View style={styles.journalLockRow}>
+                    <Ionicons name="lock-closed" size={16} color={COLORS.starGold} />
+                    <View style={styles.journalLockBody}>
+                      <Text style={styles.journalLockTitle}>
+                        {hiddenEntryCount} older {hiddenEntryCount === 1 ? 'entry' : 'entries'} locked
+                      </Text>
+                      <Text style={styles.journalLockCopy}>
+                        Premium keeps your full reflection history and powers Journal Insights.
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color={COLORS.starGold} />
+                  </View>
+                </TouchableOpacity>
+              ) : null}
             </View>
           </AnimatedCard>
         ) : null}
@@ -468,6 +505,32 @@ const styles = StyleSheet.create({
   },
   entryList: {
     gap: SPACING.sm,
+  },
+  journalLockCard: {
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255,208,120,0.35)',
+    overflow: 'hidden',
+    padding: SPACING.md,
+  },
+  journalLockRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  journalLockBody: {
+    flex: 1,
+    gap: 2,
+  },
+  journalLockTitle: {
+    color: COLORS.textPrimary,
+    fontSize: 14,
+    fontFamily: FONTS.heading,
+  },
+  journalLockCopy: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    lineHeight: 17,
   },
   entryCard: {
     gap: 4,

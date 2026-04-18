@@ -368,8 +368,30 @@ export default function CosmicRevealScreen() {
           />
         </GradientCard>
 
+        <GradientCard accentColor={COLORS.starGold}>
+          <View style={styles.rewardRow}>
+            <Ionicons name="sparkles" size={20} color={COLORS.starGold} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.reward}>Try Premium free for 7 days</Text>
+              <Text style={styles.rewardCopy}>
+                Unlock your 30-day phased forecast, life roadmap with Antardasha sub-chapters, journal insights, and ad-free reading.
+              </Text>
+            </View>
+          </View>
+          <View style={{ marginTop: SPACING.md }}>
+            <CosmicButton
+              title="Start 7-day free trial"
+              onPress={() => {
+                completeOnboarding();
+                router.replace('/subscription');
+              }}
+            />
+          </View>
+        </GradientCard>
+
         <CosmicButton
           title="Open today's reading"
+          variant="outline"
           onPress={() => {
             completeOnboarding();
             router.replace('/(tabs)/today');
