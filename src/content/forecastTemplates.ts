@@ -5,6 +5,7 @@ import {
   getForecastDrivers,
   getForecastImpactScores,
   getNextDashaShift,
+  getNextSubPeriodShift,
   getWindowRange,
   getWindowSamples,
   type ForecastArea,
@@ -130,6 +131,7 @@ function getSummary(
   challengeArea: ForecastArea,
   profile: Partial<CosmicProfile>,
   window: ForecastWindow,
+  phases?: { early: ForecastArea; mid: ForecastArea; late: ForecastArea },
 ) {
   const dashaPlanet = getCurrentDashaPlanet(profile);
   const subPeriod = getCurrentSubPeriod(profile, new Date());
@@ -139,7 +141,10 @@ function getSummary(
     return `The next 7 days open most cleanly around ${AREA_TONE[supportArea]}, while ${AREA_TONE[challengeArea]} need slower, more deliberate handling. ${dashaPlanet} timing keeps the larger mood centered on ${DASHA_FOCUS[dashaPlanet]}${subPeriodPlanet ? `, with a ${subPeriodPlanet} sub-period sharpening the smaller day-to-day decisions.` : '.'}`;
   }
 
-  // Month window: describe the arc in three rough phases
+  // Month window: describe the arc in three actual phases
+  if (phases) {
+    return `Days 1-10 lead with ${AREA_TONE[phases.early]}, days 11-20 shift toward ${AREA_TONE[phases.mid]} where pacing matters most, and days 21-30 close on ${AREA_TONE[phases.late]} — steady follow-through beats reactive adjustments. ${dashaPlanet} Mahadasha holds the background tone throughout${subPeriodPlanet ? `, while ${subPeriodPlanet} sub-period activity adds texture mid-month.` : '.'}`;
+  }
   return `The month opens with a push toward ${AREA_TONE[supportArea]}, moves through a mid-period where ${AREA_TONE[challengeArea]} demands more careful navigation, and closes with a window that rewards steady follow-through over reactive adjustments. ${dashaPlanet} Mahadasha holds the background tone throughout${subPeriodPlanet ? `, while ${subPeriodPlanet} sub-period activity adds texture to the finer decisions mid-month.` : ', so the larger direction stays consistent even when shorter cycles shift.'}`;
 }
 
@@ -160,6 +165,17 @@ export function generatePeriodForecast(
   const supportArea = getDominantArea(samples, 'supportArea');
   const challengeArea = getDominantArea(samples, 'challengeArea');
   const nextShift = getNextDashaShift(profile, date, window === 'week' ? 7 : 30);
+  const nextSubShift = window === 'month' ? getNextSubPeriodShift(profile, date, 30) : undefined;
+  const nextSubShiftPlanet = nextSubShift ? getSafePlanet((nextSubShift as { planet?: unknown }).planet) : null;
+  const phaseAreas = window === 'month' && samples.length >= 30
+    ? {
+        early: getDominantArea(samples.slice(0, 10), 'supportArea'),
+        mid: getDominantArea(samples.slice(10, 20), 'supportArea'),
+        late: getDominantArea(samples.slice(20, 30), 'supportArea'),
+      }
+    : undefined;
+  const brightLabel = brightWindow.flat ? 'Steady tempo — no standout peak' : brightWindow.label;
+  const cautionLabel = cautionWindow.flat ? 'No pronounced strain — even keel' : cautionWindow.label;
   const kpPredictions = [...(profile.kp?.predictions ?? [])];
   const kpLead =
     kpPredictions.find((prediction) => prediction.area === supportArea || (supportArea === 'wellness' && prediction.area === 'health')) ??
@@ -209,6 +225,8 @@ export function generatePeriodForecast(
           label: 'Vedic',
           text: nextShift
             ? `The ${currentDashaPlanet}-to-${nextShiftPlanet ?? 'next cycle'} Mahadasha transition lands inside this month. The first half and second half carry meaningfully different tones — decisions made before the shift carry different weight than those made after.`
+            : nextSubShiftPlanet
+            ? `${currentDashaPlanet} Mahadasha runs the full 30 days, but your ${subPeriodPlanet ?? 'current'} sub-period hands off to ${nextSubShiftPlanet} inside this window — expect the tone to tilt mid-month even though the larger chapter stays the same.`
             : `${currentDashaPlanet} Mahadasha runs the full 30 days. Invest consistently in ${DASHA_FOCUS[currentDashaPlanet]}; the compound effect of steady attention outperforms short bursts${subPeriodPlanet ? `. The ${subPeriodPlanet} sub-period adds a sharper lens mid-month.` : '.'}`,
         },
         {
@@ -229,10 +247,10 @@ export function generatePeriodForecast(
     window,
     title: window === 'week' ? 'Next 7 days' : 'Next 30 days',
     headline: getHeadline(profile, drivers, supportArea, nextShift, window),
-    summary: getSummary(supportArea, challengeArea, profile, window),
+    summary: getSummary(supportArea, challengeArea, profile, window, phaseAreas),
     focusAreas,
-    brightWindow: brightWindow.label,
-    cautionWindow: cautionWindow.label,
+    brightWindow: brightLabel,
+    cautionWindow: cautionLabel,
     ritualPrompt: window === 'week' ? AREA_WEEKLY_PROMPTS[supportArea] : AREA_MONTHLY_PROMPTS[supportArea],
     drivers,
     impactScores,

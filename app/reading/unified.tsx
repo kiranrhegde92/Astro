@@ -116,7 +116,13 @@ export default function UnifiedReadingScreen() {
     [getCachedReading, profile, today, todayKey]
   );
   const forecast = useMemo(() => generatePeriodForecast(today, profile, forecastWindow), [forecastWindow, profile, today]);
-  const roadmap = useMemo(() => generateLifeRoadmap(today, profile), [profile, today]);
+  const birthDate = useMemo(() => {
+    const raw = user?.birthDetails?.date;
+    if (!raw) return null;
+    const parsed = new Date(raw);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }, [user?.birthDetails?.date]);
+  const roadmap = useMemo(() => generateLifeRoadmap(today, profile, birthDate), [birthDate, profile, today]);
   const explainItems = useMemo(() => getReadingExplainers(user, reading), [reading, user]);
   const tabs = [
     { key: 'summary', label: 'Summary' },

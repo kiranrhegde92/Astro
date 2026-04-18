@@ -825,6 +825,7 @@ export function getForecastImpactScores(samples: DailySignalSnapshot[]): Forecas
 
 export function getWindowRange(samples: DailySignalSnapshot[], mode: 'support' | 'challenge', span: number) {
   let bestScore = Number.NEGATIVE_INFINITY;
+  let worstScore = Number.POSITIVE_INFINITY;
   let bestStart = 0;
 
   for (let index = 0; index <= samples.length - span; index += 1) {
@@ -840,14 +841,21 @@ export function getWindowRange(samples: DailySignalSnapshot[], mode: 'support' |
       bestScore = score;
       bestStart = index;
     }
+    if (score < worstScore) {
+      worstScore = score;
+    }
   }
 
   const start = samples[bestStart]?.date ?? new Date();
   const end = samples[Math.min(samples.length - 1, bestStart + span - 1)]?.date ?? start;
+  const delta = Number.isFinite(bestScore) && Number.isFinite(worstScore) ? bestScore - worstScore : 0;
+  const flat = delta < 0.6;
   return {
     start,
     end,
     label: formatRange(start, end),
+    delta: Number(delta.toFixed(2)),
+    flat,
   };
 }
 
@@ -881,4 +889,24 @@ export function getNextDashaShift(profile: Partial<CosmicProfile>, date: Date, d
     const start = new Date(period.startDate).getTime();
     return start > date.getTime() && start <= end;
   });
+}
+
+export function getNextSubPeriodShift(profile: Partial<CosmicProfile>, date: Date, daysAhead: number) {
+  const subPeriods = profile.vedic?.currentDasha?.subPeriods;
+  if (!subPeriods?.length) return undefined;
+  const end = addDays(date, daysAhead).getTime();
+  const now = date.getTime();
+  return subPeriods.find((period) => {
+    const start = new Date(period.startDate).getTime();
+    return start > now && start <= end;
+  });
+}
+
+export function getUpcomingSubPeriods(profile: Partial<CosmicProfile>, date: Date, count: number) {
+  const subPeriods = profile.vedic?.currentDasha?.subPeriods;
+  if (!subPeriods?.length) return [];
+  const now = date.getTime();
+  return subPeriods
+    .filter((period) => new Date(period.startDate).getTime() > now)
+    .slice(0, count);
 }

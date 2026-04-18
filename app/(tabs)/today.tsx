@@ -16,6 +16,7 @@ import { StarField } from '../../src/components/ui/StarField';
 import { EmptyState } from '../../src/components/ui/EmptyState';
 import { NetworkBanner } from '../../src/components/ui/NetworkBanner';
 import { TutorialOverlay } from '../../src/components/ui/TutorialOverlay';
+import { ProgressRing } from '../../src/components/ui/ProgressRing';
 import {
   BORDER_RADIUS,
   COLORS,
@@ -389,9 +390,14 @@ export default function TodayScreen() {
                 <View style={[styles.toneDot, { backgroundColor: toneAccent }]} />
                 <Text style={styles.heroBadgeText}>{todayCopy.heroBadge}</Text>
               </View>
-              <View style={[styles.scorePill, { borderColor: `${toneAccent}66`, backgroundColor: `${toneAccent}1a` }]}>
-                <Text style={[styles.scoreText, { color: toneAccent }]}>{todayCopy.alignedText}</Text>
-              </View>
+              <ProgressRing
+                progress={alignmentScore / 100}
+                size={56}
+                strokeWidth={5}
+                color={toneAccent}
+                value={`${alignmentScore}`}
+                label="align"
+              />
             </View>
 
             <Text style={styles.heroHeadline}>{headline}</Text>

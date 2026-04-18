@@ -1,5 +1,5 @@
 import type { CosmicProfile, DashaPlanet, PredictionReference } from '../types/astrology';
-import { getCurrentSubPeriod } from './predictionSignals';
+import { getCurrentSubPeriod, getUpcomingSubPeriods } from './predictionSignals';
 
 export interface LifeRoadmapChapter {
   planet: DashaPlanet;
@@ -7,6 +7,14 @@ export interface LifeRoadmapChapter {
   range: string;
   theme: string;
   guidance: string;
+  ageRange?: string;
+}
+
+export interface LifeRoadmapSubChapter {
+  planet: DashaPlanet;
+  title: string;
+  range: string;
+  theme: string;
 }
 
 export interface LifeRoadmap {
@@ -15,6 +23,7 @@ export interface LifeRoadmap {
   currentChapter: LifeRoadmapChapter;
   nextChapter?: LifeRoadmapChapter;
   chapters: LifeRoadmapChapter[];
+  subChapters?: LifeRoadmapSubChapter[];
   turningPoints: string[];
   references: PredictionReference[];
 }
@@ -47,9 +56,28 @@ function formatRange(startDate: Date, endDate: Date) {
   return `${startDate.getFullYear()} - ${endDate.getFullYear()}`;
 }
 
-function buildChapter(profile: Partial<CosmicProfile>, planet: DashaPlanet, startDate: Date, endDate: Date): LifeRoadmapChapter {
+function formatSubRange(startDate: Date, endDate: Date) {
+  const opts: Intl.DateTimeFormatOptions = { month: 'short', year: 'numeric' };
+  return `${startDate.toLocaleDateString('en-US', opts)} - ${endDate.toLocaleDateString('en-US', opts)}`;
+}
+
+function computeAgeAt(birthDate: Date, reference: Date) {
+  const diffMs = reference.getTime() - birthDate.getTime();
+  return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24 * 365.2425)));
+}
+
+function buildChapter(
+  profile: Partial<CosmicProfile>,
+  planet: DashaPlanet,
+  startDate: Date,
+  endDate: Date,
+  birthDate?: Date | null,
+): LifeRoadmapChapter {
   const westernTone = profile.western?.element?.toLowerCase() ?? 'fire';
   const chineseTone = `${profile.chinese?.element ?? 'Wood'} ${profile.chinese?.animal ?? 'Dragon'}`;
+  const ageRange = birthDate
+    ? `ages ${computeAgeAt(birthDate, startDate)}-${computeAgeAt(birthDate, endDate)}`
+    : undefined;
 
   return {
     planet,
@@ -57,10 +85,15 @@ function buildChapter(profile: Partial<CosmicProfile>, planet: DashaPlanet, star
     range: formatRange(startDate, endDate),
     theme: DASHA_THEMES[planet],
     guidance: `${PLANET_GUIDANCE[planet]} With your ${westernTone} western tone and ${chineseTone} pattern, this chapter rewards steadier alignment over noise.`,
+    ageRange,
   };
 }
 
-export function generateLifeRoadmap(date: Date, profile: Partial<CosmicProfile>): LifeRoadmap | null {
+export function generateLifeRoadmap(
+  date: Date,
+  profile: Partial<CosmicProfile>,
+  birthDate?: Date | null,
+): LifeRoadmap | null {
   const dashas = profile.vedic?.dashas ?? [];
   if (!dashas.length) return null;
 
@@ -75,25 +108,42 @@ export function generateLifeRoadmap(date: Date, profile: Partial<CosmicProfile>)
   const active = dashas[activeIndex];
   const visible = dashas.slice(activeIndex, activeIndex + 4);
   const chapters = visible.map((period) =>
-    buildChapter(profile, period.planet, new Date(period.startDate), new Date(period.endDate)),
+    buildChapter(profile, period.planet, new Date(period.startDate), new Date(period.endDate), birthDate),
   );
   const currentChapter = chapters[0];
   const nextChapter = chapters[1];
   const subPeriod = getCurrentSubPeriod(profile, date);
+  const upcomingSubs = getUpcomingSubPeriods(profile, date, 3);
+  const subChapters: LifeRoadmapSubChapter[] = upcomingSubs.map((period) => ({
+    planet: period.planet,
+    title: `${period.planet} sub-period`,
+    range: formatSubRange(new Date(period.startDate), new Date(period.endDate)),
+    theme: DASHA_THEMES[period.planet],
+  }));
   const kpLead = profile.kp?.predictions?.sort((a, b) => b.confidence - a.confidence)[0];
+  const atTail = chapters.length < 4 && activeIndex + chapters.length >= dashas.length;
 
   const turningPoints = [
     subPeriod ? `${subPeriod.planet} sub-period is the current micro-timing layer inside your ${active.planet} Mahadasha.` : null,
     nextChapter ? `The next major pivot begins when ${nextChapter.title} starts in ${nextChapter.range.split(' - ')[0]}.` : null,
+    upcomingSubs[0]
+      ? `Inside this chapter, the ${upcomingSubs[0].planet} sub-period opens ${formatSubRange(new Date(upcomingSubs[0].startDate), new Date(upcomingSubs[0].endDate)).split(' - ')[0]} — a softer turning layer before the next Mahadasha.`
+      : null,
     kpLead ? `KP is repeatedly pointing toward ${kpLead.area === 'health' ? 'wellness' : kpLead.area} as the life area most ready to move.` : null,
+    atTail ? 'This is the tail of the stored dasha sequence — beyond the final chapter, the cycle restarts on a deeper level, so treat the closing years as the integration phase.' : null,
   ].filter(Boolean) as string[];
+
+  const ageNote = birthDate
+    ? ` You are roughly ${computeAgeAt(birthDate, date)} years in — the arc is timed in decades, not weeks.`
+    : '';
 
   return {
     title: 'Long-range roadmap',
-    summary: `${active.planet} is your current life chapter, so the longer arc is being timed through ${DASHA_THEMES[active.planet]}. This is the closest thing in the app to a whole-life future model: Vedic Mahadasha timing, sharpened by KP emphasis and colored by your Western and Chinese temperament.`,
+    summary: `${active.planet} is your current life chapter, so the longer arc is being timed through ${DASHA_THEMES[active.planet]}.${ageNote} This is the closest thing in the app to a whole-life future model: Vedic Mahadasha timing, sharpened by KP emphasis and colored by your Western and Chinese temperament.`,
     currentChapter,
     nextChapter,
     chapters,
+    subChapters: subChapters.length ? subChapters : undefined,
     turningPoints,
     references: [
       { source: 'Brihat Parashara Hora Shastra', type: 'scripture', tradition: 'vedic' },

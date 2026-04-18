@@ -14,7 +14,10 @@ export function LifeRoadmapPanel({ roadmap }: { roadmap: LifeRoadmap }) {
         <View style={styles.chapterCard}>
           <Text style={styles.chapterKicker}>Current chapter</Text>
           <Text style={styles.chapterTitle}>{roadmap.currentChapter.title}</Text>
-          <Text style={styles.chapterRange}>{roadmap.currentChapter.range}</Text>
+          <Text style={styles.chapterRange}>
+            {roadmap.currentChapter.range}
+            {roadmap.currentChapter.ageRange ? ` · ${roadmap.currentChapter.ageRange}` : ''}
+          </Text>
           <Text style={styles.chapterTheme}>{roadmap.currentChapter.theme}</Text>
           <Text style={styles.chapterGuidance}>{roadmap.currentChapter.guidance}</Text>
         </View>
@@ -23,12 +26,28 @@ export function LifeRoadmapPanel({ roadmap }: { roadmap: LifeRoadmap }) {
           <View style={styles.chapterCard}>
             <Text style={styles.chapterKicker}>Next chapter</Text>
             <Text style={styles.chapterTitle}>{roadmap.nextChapter.title}</Text>
-            <Text style={styles.chapterRange}>{roadmap.nextChapter.range}</Text>
+            <Text style={styles.chapterRange}>
+              {roadmap.nextChapter.range}
+              {roadmap.nextChapter.ageRange ? ` · ${roadmap.nextChapter.ageRange}` : ''}
+            </Text>
             <Text style={styles.chapterTheme}>{roadmap.nextChapter.theme}</Text>
             <Text style={styles.chapterGuidance}>{roadmap.nextChapter.guidance}</Text>
           </View>
         ) : null}
       </View>
+
+      {roadmap.subChapters?.length ? (
+        <View style={styles.subWrap}>
+          <Text style={styles.subTitle}>Upcoming sub-periods (Antardasha)</Text>
+          {roadmap.subChapters.map((sub) => (
+            <View key={`${sub.planet}-${sub.range}`} style={styles.subRow}>
+              <Text style={styles.subPlanet}>{sub.title}</Text>
+              <Text style={styles.subRange}>{sub.range}</Text>
+              <Text style={styles.subTheme}>{sub.theme}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
 
       <View style={styles.timeline}>
         {roadmap.chapters.map((chapter) => (
@@ -162,6 +181,38 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontSize: 13,
     lineHeight: 20,
+  },
+  subWrap: {
+    borderTopWidth: 1,
+    borderTopColor: COLORS.glassBorder,
+    paddingTop: SPACING.sm,
+    gap: SPACING.xs,
+  },
+  subTitle: {
+    color: COLORS.textPrimary,
+    fontSize: 13,
+    fontFamily: FONTS.heading,
+  },
+  subRow: {
+    paddingVertical: 4,
+    gap: 2,
+  },
+  subPlanet: {
+    color: COLORS.textPrimary,
+    fontSize: 13,
+    fontWeight: '700',
+    textTransform: 'capitalize',
+  },
+  subRange: {
+    color: COLORS.vedic,
+    fontSize: 11,
+    fontFamily: FONTS.accent,
+    letterSpacing: 0.7,
+  },
+  subTheme: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    lineHeight: 18,
   },
 });
 
