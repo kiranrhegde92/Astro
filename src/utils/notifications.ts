@@ -151,7 +151,7 @@ async function cancelNotificationsByKind(kind: string): Promise<void> {
   );
 }
 
-function getHighImpactTransit(reading?: DailyReading | null) {
+export function getHighImpactTransit(reading?: DailyReading | null) {
   return (reading?.activeTransits ?? []).find(
     (transit) =>
       HIGH_IMPACT_TRANSIT_PLANETS.has(transit.transitPlanet) &&

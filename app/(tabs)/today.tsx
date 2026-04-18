@@ -31,6 +31,7 @@ import { fetchDailyReading } from '../../src/services/functionsService';
 import { speakReading, stopReadingAudio } from '../../src/services/ttsService';
 import {
   cancelTransitAlerts,
+  getHighImpactTransit,
   scheduleHighImpactTransitAlert,
 } from '../../src/utils/notifications';
 import { useActiveProfile } from '../../src/hooks/useActiveProfile';
@@ -260,6 +261,7 @@ export default function TodayScreen() {
   const toneAccent = TONE_ACCENTS[tone];
   const topSupport = transits.find((transit) => transit.nature === 'support') ?? transits[0];
   const topTension = transits.find((transit) => transit.nature === 'tension');
+  const highImpactTransit = !isPremium ? getHighImpactTransit(reading) : undefined;
 
   const todayCopy = getSpokenTodayCopy({
     language,
@@ -477,7 +479,38 @@ export default function TodayScreen() {
           </AnimatedCard>
         ) : null}
 
-        <AnimatedCard index={!isPremium ? 3 : 2}>
+        {highImpactTransit ? (
+          <AnimatedCard index={3}>
+            <Pressable
+              onPress={() => router.push('/subscription')}
+              style={({ pressed }) => [styles.alertCard, pressed && { opacity: 0.92 }]}
+              accessibilityRole="button"
+              accessibilityLabel="Unlock transit alerts with Premium"
+            >
+              <LinearGradient
+                colors={['rgba(172,132,255,0.22)', 'rgba(255,120,150,0.14)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFillObject}
+              />
+              <View style={styles.alertHeaderRow}>
+                <View style={styles.alertIcon}>
+                  <Ionicons name="notifications" size={16} color={COLORS.iris} />
+                </View>
+                <Text style={styles.alertKicker}>High-impact transit · Premium alert</Text>
+              </View>
+              <Text style={styles.alertTitle}>
+                {highImpactTransit.transitPlanet} {highImpactTransit.aspect} {highImpactTransit.natalPlanet}
+              </Text>
+              <Text style={styles.alertBody} numberOfLines={3}>{highImpactTransit.brief}</Text>
+              <Text style={styles.alertCta}>
+                Premium would send you a push the moment this peaks → upgrade
+              </Text>
+            </Pressable>
+          </AnimatedCard>
+        ) : null}
+
+        <AnimatedCard index={!isPremium ? 4 : 2}>
           <GlassCard accentColor={COLORS.gold}>
             <SectionLabel accent={COLORS.gold}>{todayCopy.timingNote}</SectionLabel>
             <Text style={styles.timingText}>{timingNote}</Text>
@@ -901,6 +934,51 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontSize: 12,
     lineHeight: 17,
+  },
+  alertCard: {
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(172,132,255,0.35)',
+    overflow: 'hidden',
+    padding: SPACING.md,
+    gap: 6,
+  },
+  alertHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  alertIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(172,132,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  alertKicker: {
+    color: COLORS.iris,
+    fontSize: 11,
+    fontFamily: FONTS.accent,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  alertTitle: {
+    color: COLORS.textPrimary,
+    fontSize: 15,
+    fontFamily: FONTS.heading,
+    textTransform: 'capitalize',
+  },
+  alertBody: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  alertCta: {
+    color: COLORS.starGold,
+    fontSize: 12,
+    fontFamily: FONTS.heading,
+    marginTop: 4,
   },
   cardTitle: {
     color: COLORS.textPrimary,
