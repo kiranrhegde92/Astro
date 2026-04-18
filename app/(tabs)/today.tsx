@@ -466,9 +466,9 @@ export default function TodayScreen() {
                   <Ionicons name="sparkles" size={18} color={COLORS.starGold} />
                 </View>
                 <View style={styles.upgradeBody}>
-                  <Text style={styles.upgradeTitle}>Go deeper with Premium</Text>
+                  <Text style={styles.upgradeTitle}>Try Premium free for 7 days</Text>
                   <Text style={styles.upgradeCopy}>
-                    30-day forecast in 3 phases, life roadmap with Antardasha sub-chapters, journal insights, and ad-free reading.
+                    Unlock the 3-phase 30-day forecast, Antardasha sub-chapters, journal insights, and an ad-free experience.
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={COLORS.starGold} />

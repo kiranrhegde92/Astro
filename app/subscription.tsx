@@ -9,6 +9,7 @@ import { CosmicButton } from '../src/components/ui/CosmicButton';
 import { NetworkBanner } from '../src/components/ui/NetworkBanner';
 import { ResetScrollView } from '../src/components/ui/ResetScrollView';
 import { useCosmicAlert } from '../src/components/ui/CosmicAlert';
+import { PremiumCelebrationModal, type PremiumCelebrationVariant } from '../src/components/ui/PremiumCelebrationModal';
 import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../src/constants/theme';
 import { showRewardedAd } from '../src/services/rewardedAds';
 import {
@@ -103,6 +104,7 @@ export default function SubscriptionScreen() {
   const [purchaseLoading, setPurchaseLoading] = useState(false);
   const [restoreLoading, setRestoreLoading] = useState(false);
   const [loadingFeature, setLoadingFeature] = useState<PremiumFeatureKey | null>(null);
+  const [celebration, setCelebration] = useState<PremiumCelebrationVariant | null>(null);
   const { showAlert, alertModal } = useCosmicAlert();
 
   useEffect(() => {
@@ -184,9 +186,7 @@ export default function SubscriptionScreen() {
         return;
       }
 
-      showAlert('Premium active', 'Your CosmicSelf+ access is active.', [
-        { text: 'Continue', onPress: () => router.back() },
-      ]);
+      setCelebration(nextSubscription.status === 'trial' ? 'trial' : 'purchase');
     } catch (error) {
       showAlert('Purchase failed', getRevenueCatErrorMessage(error));
     } finally {
@@ -208,7 +208,7 @@ export default function SubscriptionScreen() {
       const restoredSubscription = await restorePurchases();
       setSubscription(restoredSubscription);
       if (hasPremiumEntitlement(restoredSubscription)) {
-        showAlert('Purchases restored', 'Your CosmicSelf+ access is active.');
+        setCelebration('restore');
       } else {
         showAlert('Restore purchases', 'No previous premium subscription was found for this App Store or Play Store account.');
       }
@@ -274,14 +274,20 @@ export default function SubscriptionScreen() {
             </View>
 
             <CosmicButton
-              title={selectedPlan === 'yearly' ? 'Continue Yearly' : 'Continue Monthly'}
+              title={
+                isAlreadyPremium
+                  ? 'Manage subscription'
+                  : selectedPlan === 'yearly'
+                  ? 'Start 7-day free trial · Yearly'
+                  : 'Start 7-day free trial · Monthly'
+              }
               onPress={() => void handleSubscribe()}
               colors={[COLORS.starGold, COLORS.sunOrange]}
               loading={purchaseLoading}
               disabled={restoreLoading}
             />
             <Text style={styles.trialNote}>
-              Store billing is handled by App Store or Play Store via RevenueCat. Trial availability follows the store product setup.
+              Free for the first 7 days. After that, billing continues at the selected plan through App Store or Play Store. Cancel anytime from your store account.
             </Text>
             {getRevenueCatSetupIssue() ? (
               <NetworkBanner
@@ -376,6 +382,14 @@ export default function SubscriptionScreen() {
         <View style={styles.bottomPad} />
       </ResetScrollView>
       {alertModal}
+      <PremiumCelebrationModal
+        visible={celebration !== null}
+        variant={celebration ?? 'purchase'}
+        onDismiss={() => {
+          setCelebration(null);
+          router.back();
+        }}
+      />
     </StarField>
   );
 }
