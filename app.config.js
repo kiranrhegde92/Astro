@@ -49,7 +49,7 @@ if (
 /** @type {import('expo/config').ExpoConfig} */
 module.exports = {
   name: 'CosmicSelf',
-  slug: 'CosmicSelf',
+  slug: 'cosmic-self',
   version: '1.0.0',
   runtimeVersion: { policy: 'appVersion' },
   orientation: 'portrait',
@@ -142,11 +142,11 @@ module.exports = {
       iosUrlScheme: EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME,
     },
     eas: {
-      projectId: '9c57c6ef-4966-4774-ae00-9871c43b7a19',
+      projectId: '1d0b5ccf-80d7-4edf-aaef-59f8e7bc3eaf',
     },
   },
-  owner: 'kiranrh',
+  owner: 'cosmicselfs-organization',
   updates: {
-    url: 'https://u.expo.dev/9c57c6ef-4966-4774-ae00-9871c43b7a19',
+    url: 'https://u.expo.dev/1d0b5ccf-80d7-4edf-aaef-59f8e7bc3eaf',
   },
 };
