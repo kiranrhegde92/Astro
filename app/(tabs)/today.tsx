@@ -1,9 +1,12 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
+import { ConfettiBurst } from '../../src/components/ui/ConfettiBurst';
+import { AnimalMascot } from '../../src/components/ui/AnimalMascot';
 import type { DailyReading } from '../../src/types/astrology';
 import { CosmicButton } from '../../src/components/ui/CosmicButton';
 import { useCosmicAlert } from '../../src/components/ui/CosmicAlert';
@@ -28,6 +31,7 @@ import {
 import { generateDailyReading } from '../../src/content/dailyTemplates';
 import { buildForecastProfile } from '../../src/content/predictionSignals';
 import { fetchDailyReading } from '../../src/services/functionsService';
+import { Config } from '../../src/config';
 import { speakReading, stopReadingAudio } from '../../src/services/ttsService';
 import {
   cancelTransitAlerts,
@@ -97,6 +101,8 @@ export default function TodayScreen() {
   const [loadingTimedOut, setLoadingTimedOut] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [confettiOn, setConfettiOn] = useState(false);
+  const lastCelebratedStreak = useRef<number | null>(null);
   const [usedLocalFallback, setUsedLocalFallback] = useState(false);
   const [fallbackDismissed, setFallbackDismissed] = useState(false);
   const { showAlert, alertModal } = useCosmicAlert();
@@ -161,6 +167,15 @@ export default function TodayScreen() {
     const cached = refreshing ? null : getCachedReading(todayKey);
     if (cached?.unified?.shareText && cached.references?.length && (cached.version ?? 0) >= READING_VERSION) {
       setTodayReading(cached);
+      incrementStreak().catch(() => {});
+      finish();
+      return;
+    }
+    const hasBackend = Boolean(Config.firebase.apiKey && Config.firebase.projectId);
+    if (!hasBackend) {
+      const generated = generateDailyReading(today, forecastProfile);
+      setTodayReading(generated);
+      setUsedLocalFallback(false);
       incrementStreak().catch(() => {});
       finish();
       return;
@@ -233,6 +248,19 @@ export default function TodayScreen() {
 
   useEffect(() => () => { stopReadingAudio().catch(() => {}); }, []);
 
+  useEffect(() => {
+    const streak = accountUser?.streak ?? 0;
+    if (streak <= 0) return;
+    const milestones = [3, 7, 14, 30, 60, 90, 180, 365];
+    if (!milestones.includes(streak)) {
+      lastCelebratedStreak.current = streak;
+      return;
+    }
+    if (lastCelebratedStreak.current === streak) return;
+    lastCelebratedStreak.current = streak;
+    setConfettiOn(true);
+  }, [accountUser?.streak]);
+
   const greeting = useMemo(() => getGreetingLabel(today, language), [language, today]);
   const firstName = safeUser?.name?.split(' ')[0] ?? user?.name?.split(' ')[0] ?? 'you';
 
@@ -293,6 +321,7 @@ export default function TodayScreen() {
   const focusArea = todayCopy.focusArea;
 
   const handleToggleAudio = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     if (isSpeaking) {
       await stopReadingAudio();
       setIsSpeaking(false);
@@ -364,6 +393,22 @@ export default function TodayScreen() {
           />
         ) : null}
 
+        {confettiOn ? (
+          <View style={styles.milestoneCard}>
+            <LinearGradient
+              colors={['rgba(255,208,120,0.25)', 'rgba(172,132,255,0.18)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFillObject}
+            />
+            <Text style={styles.milestoneEmoji}>{'\u{1F389}'}</Text>
+            <View style={styles.milestoneBody}>
+              <Text style={styles.milestoneTitle}>Day {accountUser?.streak} streak!</Text>
+              <Text style={styles.milestoneCopy}>The cosmos is watching. Keep showing up.</Text>
+            </View>
+          </View>
+        ) : null}
+
         {refreshing ? (
           <View style={styles.refreshPill} accessibilityRole="progressbar" accessibilityLabel="Regenerating today's reading">
             <Ionicons name="sync" size={12} color={COLORS.gold} />
@@ -387,10 +432,15 @@ export default function TodayScreen() {
               </View>
             ) : null}
           </View>
-          <Text style={styles.greetingText}>
-            {greeting}, <Text style={styles.greetingName}>{firstName}</Text>
-          </Text>
-          <Text style={styles.headerCopy}>{todayCopy.headerCopy}</Text>
+          <View style={styles.greetingRow}>
+            <View style={styles.greetingCol}>
+              <Text style={styles.greetingText}>
+                {greeting}, <Text style={styles.greetingName}>{firstName}</Text>
+              </Text>
+              <Text style={styles.headerCopy}>{todayCopy.headerCopy}</Text>
+            </View>
+            <AnimalMascot animal={user.chinese?.animal} size={76} celebrating={confettiOn} />
+          </View>
         </View>
 
         <AnimatedCard index={0}>
@@ -442,6 +492,20 @@ export default function TodayScreen() {
                 ))}
               </View>
             ) : null}
+
+            {(() => {
+              const retrogrades = (reading.transitPositions ?? []).filter((p) => p.retrograde);
+              if (retrogrades.length === 0) return null;
+              return (
+                <Pressable style={styles.retroBanner} onPress={() => router.push('/retrograde')}>
+                  <Ionicons name="refresh-circle" size={14} color={COLORS.coral} />
+                  <Text style={styles.retroBannerText}>
+                    <Text style={styles.retroBannerStrong}>{retrogrades.map((r) => r.planet).join(', ')}</Text>
+                    {retrogrades.length > 1 ? ' are retrograde' : ' is retrograde'} — slower pace, inward review
+                  </Text>
+                </Pressable>
+              );
+            })()}
           </View>
         </AnimatedCard>
 
@@ -463,7 +527,10 @@ export default function TodayScreen() {
         {!isPremium ? (
           <AnimatedCard index={2}>
             <Pressable
-              onPress={() => router.push('/subscription')}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                router.push('/subscription');
+              }}
               style={({ pressed }) => [styles.upgradeCard, pressed && { opacity: 0.92 }]}
               accessibilityRole="button"
               accessibilityLabel="See Premium"
@@ -479,9 +546,9 @@ export default function TodayScreen() {
                   <Ionicons name="sparkles" size={18} color={COLORS.starGold} />
                 </View>
                 <View style={styles.upgradeBody}>
-                  <Text style={styles.upgradeTitle}>Try Premium free for 7 days</Text>
+                  <Text style={styles.upgradeTitle}>7 days of Premium, on us ✨</Text>
                   <Text style={styles.upgradeCopy}>
-                    Unlock the 3-phase 30-day forecast, Antardasha sub-chapters, journal insights, and an ad-free experience.
+                    Unwrap the 30-day forecast, Antardasha deep-dives, journal insights, and zero ads.
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={COLORS.starGold} />
@@ -493,7 +560,10 @@ export default function TodayScreen() {
         {highImpactTransit ? (
           <AnimatedCard index={3}>
             <Pressable
-              onPress={() => router.push('/subscription')}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                router.push('/subscription');
+              }}
               style={({ pressed }) => [styles.alertCard, pressed && { opacity: 0.92 }]}
               accessibilityRole="button"
               accessibilityLabel="Unlock transit alerts with Premium"
@@ -599,7 +669,10 @@ export default function TodayScreen() {
               {systems.map((system) => (
                 <Pressable
                   key={system.key}
-                  onPress={() => router.push(system.route as never)}
+                  onPress={() => {
+                    Haptics.selectionAsync().catch(() => {});
+                    router.push(system.route as never);
+                  }}
                   accessibilityRole="button"
                   accessibilityLabel={`Open ${system.label} reading`}
                   style={({ pressed }) => [
@@ -633,17 +706,17 @@ export default function TodayScreen() {
           <View style={styles.quickLinks}>
             <QuickLink
               icon="moon-outline"
-              label="Moon calendar"
+              label="Moon tonight"
               onPress={() => router.push('/moon-calendar')}
             />
             <QuickLink
               icon="refresh-outline"
-              label="Retrograde"
+              label="Retrogrades"
               onPress={() => router.push('/retrograde')}
             />
             <QuickLink
               icon="sparkles-outline"
-              label="Archive"
+              label="Your archive"
               onPress={() => router.push('/reading/archive')}
             />
           </View>
@@ -653,6 +726,7 @@ export default function TodayScreen() {
       </ResetScrollView>
       {alertModal}
       <TutorialOverlay visible={!hasSeenTutorial && !!reading} />
+      <ConfettiBurst visible={confettiOn} onDone={() => setConfettiOn(false)} />
     </StarField>
   );
 }
@@ -687,7 +761,10 @@ function QuickLink({
 }) {
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => {
+        Haptics.selectionAsync().catch(() => {});
+        onPress();
+      }}
       accessibilityRole="button"
       accessibilityLabel={label}
       style={({ pressed }) => [styles.quickLink, pressed && { opacity: 0.8 }]}
@@ -765,12 +842,24 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.display,
   },
   greetingName: {
-    color: COLORS.gold,
+    color: COLORS.starGold,
+    textShadowColor: 'rgba(241,183,79,0.4)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 8,
   },
   headerCopy: {
     ...TYPE.body,
     color: COLORS.textSecondary,
     maxWidth: 360,
+  },
+  greetingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+  },
+  greetingCol: {
+    flex: 1,
+    gap: 4,
   },
   hero: {
     borderRadius: BORDER_RADIUS.xxl,
@@ -902,6 +991,28 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: FONTS.accent,
     letterSpacing: 0.6,
+  },
+  retroBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: `${COLORS.coral}55`,
+    backgroundColor: `${COLORS.coral}14`,
+    alignSelf: 'flex-start',
+  },
+  retroBannerText: {
+    color: COLORS.textSecondary,
+    fontSize: 11,
+    flexShrink: 1,
+  },
+  retroBannerStrong: {
+    color: COLORS.coral,
+    fontFamily: FONTS.heading,
   },
   duoGrid: {
     flexDirection: 'row',
@@ -1127,5 +1238,32 @@ const styles = StyleSheet.create({
   },
   bottomPad: {
     height: 20,
+  },
+  milestoneCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255,208,120,0.45)',
+    overflow: 'hidden',
+  },
+  milestoneEmoji: {
+    fontSize: 28,
+  },
+  milestoneBody: {
+    flex: 1,
+    gap: 2,
+  },
+  milestoneTitle: {
+    color: COLORS.starGold,
+    fontSize: 16,
+    fontFamily: FONTS.heading,
+  },
+  milestoneCopy: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    lineHeight: 17,
   },
 });

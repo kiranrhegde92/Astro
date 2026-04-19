@@ -1,5 +1,6 @@
 import { calculateCosmicProfile } from '../engines/unified';
 import { findActiveTransits, getCurrentTransits, type TransitHit } from '../engines/common/transits';
+import { getMoonPhase, type MoonPhaseKey } from '../utils/moonPhase';
 import type {
   ChineseElement,
   CosmicProfile,
@@ -175,7 +176,40 @@ const MONTH_ELEMENT: ChineseElement[] = [
   'Earth',
 ];
 
-const DAILY_READING_VERSION = 5;
+const DAILY_READING_VERSION = 6;
+
+const MOON_PHASE_WEIGHT: Record<MoonPhaseKey, number> = {
+  'new': 0.04,
+  'waxing-crescent': 0.03,
+  'first-quarter': 0.02,
+  'waxing-gibbous': 0.04,
+  'full': 0.05,
+  'waning-gibbous': 0.01,
+  'last-quarter': -0.02,
+  'waning-crescent': -0.03,
+};
+
+const RETROGRADE_PENALTY: Record<string, number> = {
+  Mercury: 0.04,
+  Venus: 0.035,
+  Mars: 0.05,
+  Jupiter: 0.015,
+  Saturn: 0.01,
+};
+
+const ELEMENT_BY_SIGN: Record<WesternSign, 'Fire' | 'Earth' | 'Air' | 'Water'> = {
+  Aries: 'Fire', Leo: 'Fire', Sagittarius: 'Fire',
+  Taurus: 'Earth', Virgo: 'Earth', Capricorn: 'Earth',
+  Gemini: 'Air', Libra: 'Air', Aquarius: 'Air',
+  Cancer: 'Water', Scorpio: 'Water', Pisces: 'Water',
+};
+
+const ELEMENT_HARMONY: Record<string, Record<string, number>> = {
+  Fire: { Fire: 0.03, Air: 0.025, Earth: -0.01, Water: -0.015 },
+  Earth: { Earth: 0.03, Water: 0.025, Fire: -0.015, Air: -0.01 },
+  Air: { Air: 0.03, Fire: 0.025, Water: -0.015, Earth: -0.01 },
+  Water: { Water: 0.03, Earth: 0.025, Fire: -0.02, Air: -0.015 },
+};
 
 const ELEMENT_STYLE: Record<string, string> = {
   Fire: 'move boldly while the signal is clear',
@@ -691,9 +725,28 @@ export function generateSignalDailyReading(date: Date, profile: Partial<CosmicPr
   const timingNote = [timingNoteBase, liveMoonNote].filter(Boolean).join(' ');
 
   const shareText = `${topTransitLabel || signature} | ${activeCount} active transits | ${(western?.sun ?? 'Leo')} + ${(vedic?.rashi ?? 'Simha')} + ${(chinese?.animal ?? 'Dragon')} | CosmicSelf`;
-  const positivityScore = Number(
-    Math.max(0.62, Math.min(0.92, 0.74 + snapshot.supportScore * 0.018 - snapshot.challengeScore * 0.014)).toFixed(2),
-  );
+
+  const moonPhase = getMoonPhase(date);
+  const moonPhaseBoost = MOON_PHASE_WEIGHT[moonPhase.key] ?? 0;
+  const retroPenalty = transitPositionsRaw
+    .filter((p) => p.retrograde && RETROGRADE_PENALTY[p.planet])
+    .reduce((sum, p) => sum + (RETROGRADE_PENALTY[p.planet] ?? 0), 0);
+  const moonElement = transitPositionsRaw.find((p) => p.planet === 'Moon')?.sign
+    ? ELEMENT_BY_SIGN[transitPositionsRaw.find((p) => p.planet === 'Moon')!.sign]
+    : null;
+  const natalElement = western?.element as 'Fire' | 'Earth' | 'Air' | 'Water' | undefined;
+  const moonNatalHarmony = moonElement && natalElement
+    ? ELEMENT_HARMONY[natalElement]?.[moonElement] ?? 0
+    : 0;
+
+  const rawPositivity =
+    0.70 +
+    snapshot.supportScore * 0.022 -
+    snapshot.challengeScore * 0.019 +
+    moonPhaseBoost +
+    moonNatalHarmony -
+    retroPenalty;
+  const positivityScore = Number(Math.max(0.45, Math.min(0.95, rawPositivity)).toFixed(2));
 
   const activeTransits = snapshot.hits.slice(0, 4).map((hit) => ({
     transitPlanet: hit.transitPlanet,

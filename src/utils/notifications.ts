@@ -129,6 +129,7 @@ const COSMIC_MESSAGES = [
 
 const DAILY_NOTIFICATION_KIND = 'daily';
 const TRANSIT_NOTIFICATION_KIND = 'transit';
+const MATCH_PEAK_NOTIFICATION_KIND = 'match-peak';
 const TRANSIT_ALERT_MEMORY_KEY = '@cosmicself_last_transit_alert';
 const HIGH_IMPACT_TRANSIT_PLANETS = new Set(['Jupiter', 'Saturn', 'NorthNode', 'SouthNode']);
 const HIGH_IMPACT_TRANSIT_ASPECTS = new Set(['conjunction', 'square']);
@@ -308,6 +309,50 @@ export async function cancelTransitAlerts(): Promise<void> {
   await AsyncStorage.removeItem(TRANSIT_ALERT_MEMORY_KEY);
 }
 
+export async function scheduleMatchPeakNotification(
+  partnerName: string,
+  peakDateKey: string,
+  peakScore: number,
+  note: string,
+): Promise<boolean> {
+  if (IS_EXPO_GO) return false;
+
+  const peakDate = new Date(peakDateKey);
+  const now = new Date();
+  const fireAt = new Date(peakDate);
+  fireAt.setHours(9, 30, 0, 0);
+  const secondsUntil = Math.floor((fireAt.getTime() - now.getTime()) / 1000);
+  if (secondsUntil < 60) return false;
+
+  const Notifications = getNotifications();
+  await cancelNotificationsByKind(MATCH_PEAK_NOTIFICATION_KIND);
+
+  const weekday = peakDate.toLocaleDateString('en-US', { weekday: 'long' });
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: `Peak day with ${partnerName} \u2728`,
+      body: `${weekday} is your ${peakScore}% window. ${note}`,
+      data: {
+        screen: 'compatibility',
+        kind: MATCH_PEAK_NOTIFICATION_KIND,
+        partnerName,
+        peakDateKey,
+      },
+      sound: true,
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds: secondsUntil,
+      repeats: false,
+    },
+  });
+  return true;
+}
+
+export async function cancelMatchPeakAlerts(): Promise<void> {
+  await cancelNotificationsByKind(MATCH_PEAK_NOTIFICATION_KIND);
+}
+
 /**
  * Cancel all scheduled notifications. No-op in Expo Go.
  */
@@ -315,4 +360,5 @@ export async function cancelAllNotifications(): Promise<void> {
   if (IS_EXPO_GO) return;
   await cancelNotificationsByKind(DAILY_NOTIFICATION_KIND);
   await cancelTransitAlerts();
+  await cancelMatchPeakAlerts();
 }
