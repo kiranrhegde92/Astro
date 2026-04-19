@@ -1,4 +1,4 @@
-import { buildSystemPrompt } from '../systemPrompt';
+import { STATIC_SYSTEM_PROMPT, buildUserMessage } from '../systemPrompt';
 import type { AkashaDigest } from '../types';
 
 const DIGEST: AkashaDigest = {
@@ -19,35 +19,44 @@ const DIGEST: AkashaDigest = {
   },
 };
 
-describe('buildSystemPrompt', () => {
+describe('STATIC_SYSTEM_PROMPT', () => {
   it('includes Akasha identity', () => {
-    const p = buildSystemPrompt({ digest: DIGEST, locale: 'en' });
-    expect(p.toLowerCase()).toContain('akasha');
-    expect(p.toLowerCase()).toContain('oracle');
+    expect(STATIC_SYSTEM_PROMPT.toLowerCase()).toContain('akasha');
+    expect(STATIC_SYSTEM_PROMPT.toLowerCase()).toContain('oracle');
   });
 
-  it('embeds the digest as JSON', () => {
-    const p = buildSystemPrompt({ digest: DIGEST, locale: 'en' });
-    expect(p).toContain('"seventhLord":"Saturn"');
+  it('enforces grounding and scope rules', () => {
+    expect(STATIC_SYSTEM_PROMPT).toMatch(/do not invent|must trace/i);
+    expect(STATIC_SYSTEM_PROMPT).toMatch(/death timing|harm|medical/i);
   });
 
-  it('instructs response language', () => {
-    const en = buildSystemPrompt({ digest: DIGEST, locale: 'en' });
-    const hi = buildSystemPrompt({ digest: DIGEST, locale: 'hi' });
+  it('sets word length range 150-400', () => {
+    expect(STATIC_SYSTEM_PROMPT).toContain('150');
+    expect(STATIC_SYSTEM_PROMPT).toContain('400');
+  });
+
+  it('does not embed per-user digest or question (so it stays cacheable)', () => {
+    expect(STATIC_SYSTEM_PROMPT).not.toContain('Saturn');
+    expect(STATIC_SYSTEM_PROMPT).not.toContain('DIGEST');
+  });
+});
+
+describe('buildUserMessage', () => {
+  it('embeds digest JSON', () => {
+    const msg = buildUserMessage({ digest: DIGEST, question: 'when?', locale: 'en' });
+    expect(msg).toContain('"seventhLord":"Saturn"');
+  });
+
+  it('embeds locale instruction', () => {
+    const en = buildUserMessage({ digest: DIGEST, question: 'q', locale: 'en' });
+    const hi = buildUserMessage({ digest: DIGEST, question: 'q', locale: 'hi' });
     expect(en).toContain('en');
     expect(hi).toContain('hi');
     expect(en).not.toEqual(hi);
   });
 
-  it('enforces grounding and scope rules', () => {
-    const p = buildSystemPrompt({ digest: DIGEST, locale: 'en' });
-    expect(p).toMatch(/do not invent|must trace/i);
-    expect(p).toMatch(/death timing|harm|medical/i);
-  });
-
-  it('sets word length range 150-400', () => {
-    const p = buildSystemPrompt({ digest: DIGEST, locale: 'en' });
-    expect(p).toContain('150');
-    expect(p).toContain('400');
+  it('embeds the question', () => {
+    const msg = buildUserMessage({ digest: DIGEST, question: 'when will I marry?', locale: 'en' });
+    expect(msg).toContain('when will I marry?');
   });
 });
