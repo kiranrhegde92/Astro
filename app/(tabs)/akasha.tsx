@@ -120,7 +120,7 @@ export default function AkashaScreen() {
         style={styles.topGlow}
         pointerEvents="none"
       />
-      <SafeAreaView style={styles.flex} edges={['top']}>
+      <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
         <Header
           hasHistory={pastReadings.length > 0}
           onHistoryToggle={() => setShowHistory((v) => !v)}
@@ -133,6 +133,7 @@ export default function AkashaScreen() {
         >
           <ScrollView
             ref={scrollRef}
+            style={styles.flex}
             contentContainerStyle={styles.content}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
