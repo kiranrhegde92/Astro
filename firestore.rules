@@ -40,5 +40,17 @@ service cloud.firestore {
       allow read: if request.auth != null && request.auth.uid == uid;
       allow write: if false; // Only Cloud Functions write readings
     }
+
+    // Akasha state: private, read-only by user; only Cloud Functions write
+    match /users/{uid}/akasha/state {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    // Akasha readings: private, read-only by user; only Cloud Functions write
+    match /users/{uid}/akashaReadings/{readingId} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
   }
 }
