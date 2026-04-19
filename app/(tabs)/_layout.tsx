@@ -1,14 +1,23 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Tabs } from 'expo-router';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+import * as Haptics from 'expo-haptics';
 import { BORDER_RADIUS, COLORS, SHADOWS, SPACING } from '../../src/constants/theme';
 import { OrbIcon } from '../../src/components/ui/OrbIcon';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
 const TABS = [
   { name: 'today', icon: 'sunny', labelKey: 'tabs.today', accent: COLORS.sunOrange, secondary: '#ffe9c7' },
+  { name: 'akasha', icon: 'sparkles', labelKey: 'akasha.tabLabel', accent: COLORS.violetDeep, secondary: COLORS.violetSoft },
   { name: 'profile', icon: 'person', labelKey: 'tabs.profile', accent: COLORS.iris, secondary: '#ece6ff' },
   { name: 'compatibility', icon: 'heart', labelKey: 'tabs.compatibility', accent: COLORS.coral, secondary: '#ffe3da' },
   { name: 'share', icon: 'share-social', labelKey: 'tabs.share', accent: COLORS.tide, secondary: '#e2f5ef' },
@@ -29,17 +38,46 @@ function TabItem({
   focused: boolean;
   onPress: () => void;
 }) {
+  const scale = useSharedValue(focused ? 1 : 0.9);
+  const translateY = useSharedValue(0);
+
+  useEffect(() => {
+    if (focused) {
+      scale.value = withSequence(
+        withSpring(1.12, { damping: 8, stiffness: 220 }),
+        withSpring(1, { damping: 10, stiffness: 180 }),
+      );
+      translateY.value = withSequence(
+        withTiming(-4, { duration: 140 }),
+        withSpring(0, { damping: 9, stiffness: 200 }),
+      );
+    } else {
+      scale.value = withSpring(0.92, { damping: 12, stiffness: 200 });
+    }
+  }, [focused, scale, translateY]);
+
+  const iconStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }, { translateY: translateY.value }],
+  }));
+
+  const handlePress = () => {
+    Haptics.selectionAsync().catch(() => {});
+    onPress();
+  };
+
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={styles.tabItem} accessibilityRole="tab" accessibilityLabel={label}>
+    <TouchableOpacity onPress={handlePress} activeOpacity={0.8} style={styles.tabItem} accessibilityRole="tab" accessibilityLabel={label}>
       <View style={[styles.tabInner, focused && styles.tabInnerFocused]}>
-        <OrbIcon
-          icon={icon}
-          size={focused ? 34 : 30}
-          accentColor={focused ? accent : COLORS.silverMid}
-          secondaryColor={focused ? secondary : '#fffaf1'}
-          active={focused}
-          iconColor="#1b2233"
-        />
+        <Animated.View style={iconStyle}>
+          <OrbIcon
+            icon={icon}
+            size={focused ? 34 : 30}
+            accentColor={focused ? accent : COLORS.silverMid}
+            secondaryColor={focused ? secondary : '#fffaf1'}
+            active={focused}
+            iconColor="#1b2233"
+          />
+        </Animated.View>
         <Text style={[styles.label, focused && styles.labelFocused]}>{label}</Text>
       </View>
     </TouchableOpacity>
@@ -86,6 +124,7 @@ export default function TabsLayout() {
   return (
     <Tabs tabBar={(props) => <BottomBar {...props} />} screenOptions={{ headerShown: false }}>
       <Tabs.Screen name="today" options={{ title: t('tabs.today') }} />
+      <Tabs.Screen name="akasha" options={{ title: t('akasha.tabLabel') }} />
       <Tabs.Screen name="profile" options={{ title: t('tabs.profile') }} />
       <Tabs.Screen name="compatibility" options={{ title: t('tabs.compatibility') }} />
       <Tabs.Screen name="share" options={{ title: t('tabs.share') }} />
@@ -129,10 +168,10 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 10,
-    color: COLORS.textMuted,
+    color: '#4a5878',
     fontWeight: '700',
   },
   labelFocused: {
-    color: COLORS.textPrimary,
+    color: '#1b2233',
   },
 });
