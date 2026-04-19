@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Animated, { FadeIn, FadeOut, Easing } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -29,16 +30,19 @@ import { logAkashaEvent } from '../../src/services/akashaAnalytics';
 
 const CHIP_KEYS = ['marriage', 'career', 'moonSign', 'travel', 'dasha'] as const;
 
-function useCyclingStatus(active: boolean): string {
+function useCyclingStatus(active: boolean): { text: string; index: number } {
   const { t } = useTranslation();
   const [index, setIndex] = useState(0);
   useEffect(() => {
-    if (!active) return;
-    const id = setInterval(() => setIndex((i) => (i + 1) % 3), 1400);
+    if (!active) {
+      setIndex(0);
+      return;
+    }
+    const id = setInterval(() => setIndex((i) => (i + 1) % 3), 1800);
     return () => clearInterval(id);
   }, [active]);
   const keys = ['akasha.statusReading', 'akasha.statusConsulting', 'akasha.statusWeaving'];
-  return t(keys[index]);
+  return { text: t(keys[index]), index };
 }
 
 export default function AkashaScreen() {
@@ -133,7 +137,7 @@ export default function AkashaScreen() {
               onDismiss={resetToIdle}
             />
           ) : status === 'asking' ? (
-            <AskingState question={currentQuestion} statusLine={cyclingStatus} />
+            <AskingState question={currentQuestion} statusLine={cyclingStatus.text} statusIndex={cyclingStatus.index} />
           ) : status === 'error' ? (
             <ErrorState message={errorMessage} onRetry={resetToIdle} />
           ) : currentReading ? (
@@ -173,13 +177,17 @@ function EmptyState(props: {
   onToggle: (id: string) => void;
 }) {
   const { t } = useTranslation();
+  const entry = (delay: number) =>
+    FadeIn.duration(520).delay(delay).easing(Easing.out(Easing.cubic));
   return (
     <>
-      <View style={styles.orbWrap}>
+      <Animated.View entering={FadeIn.duration(700)} style={styles.orbWrap}>
         <AkashaOrb mode="idle" />
-      </View>
-      <Text style={styles.intro}>{t('akasha.intro')}</Text>
-      <View style={styles.inputRow}>
+      </Animated.View>
+      <Animated.Text entering={entry(220)} style={styles.intro}>
+        {t('akasha.intro')}
+      </Animated.Text>
+      <Animated.View entering={entry(360)} style={styles.inputRow}>
         <TextInput
           value={props.input}
           onChangeText={props.onInputChange}
@@ -198,41 +206,65 @@ function EmptyState(props: {
         >
           <Text style={styles.askBtnLabel}>{t('akasha.askButton')}</Text>
         </TouchableOpacity>
-      </View>
+      </Animated.View>
       <View style={styles.chips}>
-        {CHIP_KEYS.map((key) => (
-          <PromptChip key={key} label={t(`akasha.chips.${key}`)} onPress={() => props.onChip(key)} />
+        {CHIP_KEYS.map((key, i) => (
+          <Animated.View key={key} entering={entry(500 + i * 80)}>
+            <PromptChip label={t(`akasha.chips.${key}`)} onPress={() => props.onChip(key)} />
+          </Animated.View>
         ))}
       </View>
       {props.onPastReadings ? (
-        <Pressable onPress={props.onPastReadings} style={styles.pastLink}>
-          <Text style={styles.pastLinkLabel}>
-            {t('akasha.pastReadings')} <Ionicons name="arrow-down" size={12} />
-          </Text>
-        </Pressable>
+        <Animated.View entering={entry(900)}>
+          <Pressable onPress={props.onPastReadings} style={styles.pastLink}>
+            <Text style={styles.pastLinkLabel}>
+              {t('akasha.pastReadings')} <Ionicons name="arrow-down" size={12} />
+            </Text>
+          </Pressable>
+        </Animated.View>
       ) : null}
       {props.pastReadings.length > 0 ? (
-        <View style={styles.pastWrap}>
+        <Animated.View entering={entry(1000)} style={styles.pastWrap}>
           <Text style={styles.sectionLabel}>{t('akasha.pastReadings')}</Text>
           <PastReadingsList
             readings={props.pastReadings}
             expandedId={props.expandedId}
             onToggle={props.onToggle}
           />
-        </View>
+        </Animated.View>
       ) : null}
     </>
   );
 }
 
-function AskingState({ question, statusLine }: { question: string; statusLine: string }) {
+function AskingState({
+  question,
+  statusLine,
+  statusIndex,
+}: {
+  question: string;
+  statusLine: string;
+  statusIndex: number;
+}) {
   return (
     <View style={styles.centered}>
       <AkashaOrb mode="asking" />
-      <Text style={styles.askingQuestion}>{question}</Text>
+      <Animated.Text
+        entering={FadeIn.duration(500)}
+        style={styles.askingQuestion}
+      >
+        {question}
+      </Animated.Text>
       <View style={styles.statusRow}>
         <ActivityIndicator color={COLORS.violetLight} />
-        <Text style={styles.statusLine}>{statusLine}</Text>
+        <Animated.Text
+          key={statusIndex}
+          entering={FadeIn.duration(420)}
+          exiting={FadeOut.duration(320)}
+          style={styles.statusLine}
+        >
+          {statusLine}
+        </Animated.Text>
       </View>
     </View>
   );
@@ -248,14 +280,16 @@ function AnsweredState(props: {
   const { t } = useTranslation();
   return (
     <>
-      <View style={styles.orbSmallWrap}>
+      <Animated.View entering={FadeIn.duration(600)} style={styles.orbSmallWrap}>
         <AkashaOrb mode="idle" size={88} />
-      </View>
-      <AnswerCard
-        question={props.reading.question}
-        answer={props.reading.answer}
-        createdAt={props.reading.createdAt}
-      />
+      </Animated.View>
+      <Animated.View entering={FadeIn.duration(700).delay(200)}>
+        <AnswerCard
+          question={props.reading.question}
+          answer={props.reading.answer}
+          createdAt={props.reading.createdAt}
+        />
+      </Animated.View>
       <TouchableOpacity onPress={props.onAskAnother} style={styles.secondaryBtn} activeOpacity={0.8}>
         <Text style={styles.secondaryBtnLabel}>{t('akasha.askButton')}</Text>
       </TouchableOpacity>
