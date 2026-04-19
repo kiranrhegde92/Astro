@@ -3,5 +3,5 @@
   "compilerOptions": {
     "strict": true
   },
-  "exclude": ["dist", "node_modules", "functions/**/__tests__/**"]
+  "exclude": ["dist", "node_modules", "firebase-functions/**/__tests__/**"]
 }

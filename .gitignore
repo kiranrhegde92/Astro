@@ -59,8 +59,14 @@ serviceAccountKey.json
 **/serviceAccountKey.json
 
 # Firebase functions build output
-functions/lib/
+firebase-functions/lib/
 
 # Local workspace / agent state
 .superpowers/
 .test-screens/
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example

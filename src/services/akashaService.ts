@@ -7,7 +7,7 @@ import { useAkashaStore, type AkashaReading } from '../store/akashaStore';
 import { useAuthStore } from '../store/authStore';
 import { useUserStore } from '../store/userStore';
 import { logAkashaEvent } from './akashaAnalytics';
-import type { AkashaAskRequest, AkashaAskResponse } from '../../functions/src/akasha/types';
+import type { AkashaAskRequest, AkashaAskResponse } from '../../firebase-functions/src/akasha/types';
 
 function currentTier(): 'free' | 'trial' | 'premium' {
   const sub = useUserStore.getState().user?.subscription;

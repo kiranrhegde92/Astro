@@ -1,11 +1,11 @@
 import type { ChartResult } from '../../services/functionsService';
-import type { AkashaDigest } from '../../../functions/src/akasha/types';
-import type { VedicChart } from '../../../functions/src/calculations/vedic';
-import type { WesternChart } from '../../../functions/src/calculations/western';
-import type { KPChart } from '../../../functions/src/calculations/kp';
-import type { ChineseChart } from '../../../functions/src/calculations/chinese';
+import type { AkashaDigest } from '../../../firebase-functions/src/akasha/types';
+import type { VedicChart } from '../../../firebase-functions/src/calculations/vedic';
+import type { WesternChart } from '../../../firebase-functions/src/calculations/western';
+import type { KPChart } from '../../../firebase-functions/src/calculations/kp';
+import type { ChineseChart } from '../../../firebase-functions/src/calculations/chinese';
 
-export type { AkashaDigest } from '../../../functions/src/akasha/types';
+export type { AkashaDigest } from '../../../firebase-functions/src/akasha/types';
 
 export type AkashaChartInput = ChartResult['chart'];
 
