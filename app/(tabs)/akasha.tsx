@@ -15,6 +15,7 @@ import Animated, { FadeIn, FadeOut, Easing } from 'react-native-reanimated';
 import { MotiView } from 'moti';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -51,6 +52,7 @@ export default function AkashaScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
   const scrollRef = useRef<ScrollView>(null);
   const [input, setInput] = useState('');
   const [showHistory, setShowHistory] = useState(false);
@@ -128,8 +130,8 @@ export default function AkashaScreen() {
         />
         <KeyboardAvoidingView
           style={styles.flex}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={tabBarHeight}
         >
           <ScrollView
             ref={scrollRef}
@@ -176,15 +178,15 @@ export default function AkashaScreen() {
               <EmptyState onChip={handleChip} />
             )}
           </ScrollView>
+          {showInputBar ? (
+            <InputBar
+              input={input}
+              onInputChange={setInput}
+              onAsk={handleAsk}
+              onChip={handleChip}
+            />
+          ) : null}
         </KeyboardAvoidingView>
-        {showInputBar ? (
-          <InputBar
-            input={input}
-            onInputChange={setInput}
-            onAsk={handleAsk}
-            onChip={handleChip}
-          />
-        ) : null}
       </View>
     </StarField>
   );
