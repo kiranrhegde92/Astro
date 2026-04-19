@@ -147,11 +147,11 @@ export default function ReferralEntryScreen() {
             <View>
               <Text style={styles.label}>Referral Code</Text>
               <FocusInput error={!!codeError}>
-                <Ionicons name="key-outline" size={18} color={COLORS.textMuted} style={styles.icon} />
+                <Ionicons name="key-outline" size={18} color="#6b7390" style={styles.icon} />
                 <TextInput
                   style={styles.input}
                   placeholder="e.g. ABCD1234"
-                  placeholderTextColor={COLORS.textMuted}
+                  placeholderTextColor="#6b7390"
                   value={code}
                   onChangeText={(t) => { setCode(t); setCodeError(undefined); }}
                   autoCapitalize="characters"
@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
     minHeight: 54,
   },
   icon: { marginRight: 10 },
-  input: { flex: 1, color: COLORS.textPrimary, fontSize: 16, paddingVertical: 14, letterSpacing: 2 },
+  input: { flex: 1, color: '#1b2233', fontSize: 16, paddingVertical: 14, letterSpacing: 2 },
   errorText: { color: COLORS.error, fontSize: 12, marginTop: 4, marginLeft: 2 },
   btn: {
     backgroundColor: COLORS.western,

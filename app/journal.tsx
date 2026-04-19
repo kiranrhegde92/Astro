@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { AnimatedCard } from '../src/components/ui/AnimatedScreen';
 import { CosmicButton } from '../src/components/ui/CosmicButton';
@@ -32,11 +33,13 @@ const MOODS: Array<{ value: JournalEntry['mood']; label: string; emoji: string }
 ];
 
 const PROMPTS = [
-  'What resonated most from today\'s reading?',
-  'What cosmic energy did you feel today?',
-  'How did today\'s forecast align with reality?',
-  'What are you grateful for today?',
-  'What surprised you about today?',
+  "What tiny thing lit you up today?",
+  "Where did today's reading nail it — or miss?",
+  "What cosmic weather did you actually feel?",
+  "Who or what are you quietly grateful for?",
+  "What surprised you in the last 24 hours?",
+  "If today had a soundtrack, what's playing?",
+  "What would past-you cheer you on for?",
 ];
 
 function getPromptForDate(date: string): string {
@@ -173,11 +176,16 @@ export default function JournalScreen() {
       <ScreenHeader title="Journal" accentColor={COLORS.iris} />
       <ResetScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <View style={styles.headlineRow}>
-          <Text style={styles.headline}>Reflect on your cosmic journey</Text>
+          <Text style={styles.headline}>
+            Catch your <Text style={styles.headlineAccent}>thoughts</Text>.{'\n'}The stars are listening.
+          </Text>
           {entries.length > 0 ? (
             <TouchableOpacity
               style={styles.insightsBtn}
-              onPress={() => router.push('/journal-insights')}
+              onPress={() => {
+                Haptics.selectionAsync().catch(() => {});
+                router.push('/journal-insights');
+              }}
               activeOpacity={0.84}
               accessibilityRole="button"
               accessibilityLabel="View journal insights"
@@ -207,7 +215,10 @@ export default function JournalScreen() {
                   <TouchableOpacity
                     key={m.value}
                     style={[styles.moodChip, mood === m.value && styles.moodChipActive]}
-                    onPress={() => setMood(m.value)}
+                    onPress={() => {
+                      Haptics.selectionAsync().catch(() => {});
+                      setMood(m.value);
+                    }}
                     activeOpacity={0.84}
                     accessibilityRole="button"
                     accessibilityLabel={`Mood: ${m.label}`}
@@ -262,7 +273,10 @@ export default function JournalScreen() {
                 <TouchableOpacity
                   key={entry.id}
                   activeOpacity={0.84}
-                  onPress={() => handleEdit(entry)}
+                  onPress={() => {
+                    Haptics.selectionAsync().catch(() => {});
+                    handleEdit(entry);
+                  }}
                   accessibilityRole="button"
                   accessibilityLabel={`Edit journal entry from ${formatDisplayDate(entry.date)}`}
                 >
@@ -298,7 +312,10 @@ export default function JournalScreen() {
               {hiddenEntryCount > 0 ? (
                 <TouchableOpacity
                   activeOpacity={0.88}
-                  onPress={() => router.push('/subscription')}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                    router.push('/subscription');
+                  }}
                   accessibilityRole="button"
                   accessibilityLabel="Unlock full journal history with Premium"
                   style={styles.journalLockCard}
@@ -331,9 +348,9 @@ export default function JournalScreen() {
           <AnimatedCard index={1}>
             <EmptyState
               icon="journal-outline"
-              title="Your journal is empty"
-              body="Start by reflecting on today's cosmic reading."
-              ctaLabel="Write today's reflection"
+              title="A blank page awaits"
+              body="Even one sentence counts. Jot something down — future-you will thank present-you."
+              ctaLabel="Start writing"
               onCta={handleNew}
             />
           </AnimatedCard>
@@ -360,10 +377,13 @@ const styles = StyleSheet.create({
   headline: {
     flex: 1,
     color: COLORS.textPrimary,
-    fontSize: 30,
-    lineHeight: 36,
+    fontSize: 28,
+    lineHeight: 34,
     fontFamily: FONTS.display,
     letterSpacing: -0.5,
+  },
+  headlineAccent: {
+    color: COLORS.iris,
   },
   insightsBtn: {
     flexDirection: 'row',

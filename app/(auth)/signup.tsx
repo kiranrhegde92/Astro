@@ -176,11 +176,11 @@ export default function SignupScreen() {
             <View>
               <Text style={styles.label}>Your Name</Text>
               <FocusInput error={!!errors.name}>
-                <Ionicons name="person-outline" size={18} color={COLORS.textMuted} style={styles.icon} />
+                <Ionicons name="person-outline" size={18} color="#6b7390" style={styles.icon} />
                 <TextInput
                   style={styles.input}
                   placeholder="A name to place in the stars"
-                  placeholderTextColor={COLORS.textMuted}
+                  placeholderTextColor="#6b7390"
                   value={name}
                   onChangeText={t => { setName(t); setErrors(p => ({ ...p, name: undefined })); }}
                   autoCapitalize="words"
@@ -196,12 +196,12 @@ export default function SignupScreen() {
             <View>
               <Text style={styles.label}>Email</Text>
               <FocusInput error={!!errors.email}>
-                <Ionicons name="mail-outline" size={18} color={COLORS.textMuted} style={styles.icon} />
+                <Ionicons name="mail-outline" size={18} color="#6b7390" style={styles.icon} />
                 <TextInput
                   ref={emailRef}
                   style={styles.input}
                   placeholder="you@example.com"
-                  placeholderTextColor={COLORS.textMuted}
+                  placeholderTextColor="#6b7390"
                   value={email}
                   onChangeText={t => { setEmail(t); setErrors(p => ({ ...p, email: undefined })); }}
                   autoCapitalize="none"
@@ -218,12 +218,12 @@ export default function SignupScreen() {
             <View>
               <Text style={styles.label}>Password</Text>
               <FocusInput error={!!errors.password}>
-                <Ionicons name="lock-closed-outline" size={18} color={COLORS.textMuted} style={styles.icon} />
+                <Ionicons name="lock-closed-outline" size={18} color="#6b7390" style={styles.icon} />
                 <TextInput
                   ref={passwordRef}
                   style={styles.input}
                   placeholder="Min 6 characters"
-                  placeholderTextColor={COLORS.textMuted}
+                  placeholderTextColor="#6b7390"
                   value={password}
                   onChangeText={t => { setPassword(t); setErrors(p => ({ ...p, password: undefined })); }}
                   secureTextEntry={!showPass}
@@ -232,7 +232,7 @@ export default function SignupScreen() {
                   onSubmitEditing={() => referralRef.current?.focus()}
                 />
                 <TouchableOpacity onPress={() => setShowPass(v => !v)} style={styles.eyeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <Ionicons name={showPass ? 'eye-off-outline' : 'eye-outline'} size={18} color={COLORS.textMuted} />
+                  <Ionicons name={showPass ? 'eye-off-outline' : 'eye-outline'} size={18} color="#6b7390" />
                 </TouchableOpacity>
               </FocusInput>
               {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
@@ -242,12 +242,12 @@ export default function SignupScreen() {
             <View>
               <Text style={styles.label}>Referral Code</Text>
               <FocusInput error={!!errors.referralCode}>
-                <Ionicons name="key-outline" size={18} color={COLORS.textMuted} style={styles.icon} />
+                <Ionicons name="key-outline" size={18} color="#6b7390" style={styles.icon} />
                 <TextInput
                   ref={referralRef}
                   style={[styles.input, styles.codeInput]}
                   placeholder="Ask a friend for their code"
-                  placeholderTextColor={COLORS.textMuted}
+                  placeholderTextColor="#6b7390"
                   value={referralCode}
                   onChangeText={t => { setReferralCode(t); setErrors(p => ({ ...p, referralCode: undefined })); }}
                   autoCapitalize="characters"
@@ -279,7 +279,7 @@ export default function SignupScreen() {
                 <ActivityIndicator color={COLORS.textPrimary} />
               ) : (
                 <>
-                  <Ionicons name="logo-google" size={18} color={COLORS.textPrimary} />
+                  <Ionicons name="logo-google" size={18} color="#1b2233" />
                   <Text style={styles.googleText}>Continue with Google</Text>
                 </>
               )}
@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
   icon: { marginRight: 10 },
   input: {
     flex: 1,
-    color: COLORS.textPrimary,
+    color: '#1b2233',
     fontSize: 16,
     paddingVertical: 14,
   },
@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   googleText: {
-    color: COLORS.textPrimary,
+    color: '#1b2233',
     fontSize: 15,
     fontFamily: FONTS.heading,
   },

@@ -143,17 +143,6 @@ export default function WelcomeScreen() {
 
               <View style={styles.ctaWrap}>
                 <CosmicButton title={copy.cta} onPress={() => router.push('/(onboarding)/birth-details')} />
-                <TouchableOpacity
-                  style={styles.sampleBtn}
-                  onPress={() => router.push('/(onboarding)/birth-details?sample=1')}
-                  activeOpacity={0.7}
-                  accessibilityRole="button"
-                  accessibilityLabel="Preview the app with a sample chart"
-                  hitSlop={8}
-                >
-                  <Ionicons name="sparkles-outline" size={14} color={COLORS.textSecondary} />
-                  <Text style={styles.sampleText}>Peek with a sample chart</Text>
-                </TouchableOpacity>
               </View>
             </LinearGradient>
 
@@ -272,20 +261,6 @@ const styles = StyleSheet.create({
     marginTop: SPACING.lg,
     maxWidth: 230,
     gap: SPACING.sm,
-  },
-  sampleBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-  },
-  sampleText: {
-    color: COLORS.textSecondary,
-    fontSize: 12,
-    fontFamily: FONTS.accent,
-    letterSpacing: 0.8,
-    textDecorationLine: 'underline',
   },
   systemGrid: {
     flexDirection: 'row',

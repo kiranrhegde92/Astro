@@ -64,7 +64,7 @@ export function CosmicButton({
 
   if (variant === 'outline') {
     return (
-      <AnimatedPressable onPress={onPress} disabled={disabled} scaleTo={0.97} style={style}>
+      <AnimatedPressable onPress={onPress} disabled={disabled} scaleTo={0.97} haptic style={style}>
         <View style={[styles.base, styles.outlineButton, disabled && styles.disabled]}>
           <Text style={styles.outlineText}>{title}</Text>
         </View>

@@ -48,7 +48,7 @@ export default function ShareScreen() {
     <StarField>
       <ResetScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <Text style={styles.kicker}>Share</Text>
-        <Text style={styles.headline}>Spread your cosmic energy</Text>
+        <Text style={styles.headline}>Send your stardust into the wild</Text>
 
         {/* ── QR Code Quick Access ─────────────────────────────────── */}
         <AnimatedCard index={0}>

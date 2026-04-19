@@ -3,21 +3,22 @@ import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { BORDER_RADIUS, COLORS, FONTS, SPACING } from '../../constants/theme';
+import { ConfettiBurst } from './ConfettiBurst';
 
 export type PremiumCelebrationVariant = 'purchase' | 'trial' | 'restore';
 
 const VARIANT_COPY: Record<PremiumCelebrationVariant, { title: string; body: string }> = {
   purchase: {
-    title: 'Premium unlocked',
-    body: 'The full 30-day forecast, Antardasha sub-chapters, journal insights, and ad-free reading are now active.',
+    title: 'You\'re officially Premium 🎉',
+    body: 'The full 30-day forecast, Antardasha deep-dives, journal insights, and zero ads — all yours.',
   },
   trial: {
-    title: 'Your 7-day trial is live',
-    body: 'Explore the full Daily Blend, life roadmap, and insights. No charges until day 8 and you can cancel anytime from your store account.',
+    title: '7 days of Premium, unlocked ✨',
+    body: "Dive into the full Daily Blend, life roadmap, and insights. No charges until day 8 — cancel anytime.",
   },
   restore: {
-    title: 'Purchases restored',
-    body: 'Welcome back. Your Premium access is active again across all your cosmic systems.',
+    title: 'Welcome back, starseed',
+    body: 'Your Premium access is active again across every cosmic system.',
   },
 };
 
@@ -43,6 +44,7 @@ export function PremiumCelebrationModal({
       statusBarTranslucent
     >
       <View style={styles.backdrop}>
+        <ConfettiBurst visible={visible} count={40} />
         <View style={styles.card}>
           <LinearGradient
             colors={['rgba(255,208,120,0.22)', 'rgba(172,132,255,0.18)']}

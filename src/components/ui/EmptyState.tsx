@@ -2,8 +2,15 @@
  * EmptyState — unified empty/loading/error rendering.
  * Produces a consistent shape: orb → title → body → optional CTA.
  */
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ActivityIndicator, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, TYPE } from '../../constants/theme';
 import { CosmicOrb } from './CosmicOrb';
@@ -34,13 +41,30 @@ export const EmptyState = React.memo(function EmptyState({
   onSecondary,
   style,
 }: EmptyStateProps) {
+  const float = useSharedValue(0);
+  useEffect(() => {
+    if (variant === 'loading') return;
+    float.value = withRepeat(
+      withTiming(1, { duration: 2200, easing: Easing.inOut(Easing.quad) }),
+      -1,
+      true,
+    );
+  }, [float, variant]);
+
+  const floatStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: -6 * float.value },
+      { scale: 1 + float.value * 0.04 },
+    ],
+  }));
+
   return (
     <View style={[styles.wrap, style]} accessibilityLiveRegion="polite">
       <View style={styles.orb}>
         {variant === 'loading' ? (
           <CosmicOrb size={96} />
         ) : (
-          <View style={styles.iconHalo}>
+          <Animated.View style={[styles.iconHalo, floatStyle]}>
             <Ionicons
               name={
                 icon ?? (variant === 'error' ? 'cloud-offline-outline' : 'sparkles-outline')
@@ -48,7 +72,7 @@ export const EmptyState = React.memo(function EmptyState({
               size={28}
               color={variant === 'error' ? COLORS.error : COLORS.gold}
             />
-          </View>
+          </Animated.View>
         )}
       </View>
       <Text style={styles.title} accessibilityRole="header">

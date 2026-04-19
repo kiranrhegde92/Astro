@@ -13,7 +13,7 @@ import Animated, {
   FadeInUp,
   LinearTransition,
 } from 'react-native-reanimated';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { StarField } from '../../src/components/ui/StarField';
@@ -38,8 +38,6 @@ import { normalizeLanguage } from '../../src/i18n/language';
 
 export default function BirthDetailsScreen() {
   const router = useRouter();
-  const { sample } = useLocalSearchParams<{ sample?: string }>();
-  const isSample = sample === '1';
   const { t, i18n } = useTranslation();
   const setUser = useUserStore((state) => state.setUser);
   const firebaseUser = useAuthStore((s) => s.firebaseUser);
@@ -50,14 +48,14 @@ export default function BirthDetailsScreen() {
   const hourRef = useRef<TextInput>(null);
   const minuteRef = useRef<TextInput>(null);
 
-  const [name, setName] = useState(isSample ? 'Star Guest' : '');
-  const [day, setDay] = useState(isSample ? '15' : '');
-  const [month, setMonth] = useState(isSample ? '06' : '');
-  const [year, setYear] = useState(isSample ? '1990' : '');
-  const [hour, setHour] = useState(isSample ? '12' : '');
-  const [minute, setMinute] = useState(isSample ? '00' : '');
-  const [place, setPlace] = useState(isSample ? 'London, United Kingdom' : '');
-  const [expanded, setExpanded] = useState(isSample);
+  const [name, setName] = useState('');
+  const [day, setDay] = useState('');
+  const [month, setMonth] = useState('');
+  const [year, setYear] = useState('');
+  const [hour, setHour] = useState('');
+  const [minute, setMinute] = useState('');
+  const [place, setPlace] = useState('');
+  const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
 

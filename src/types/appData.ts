@@ -1,5 +1,6 @@
 import type { CompatibilityResult, CosmicProfile, DailyReading } from './astrology';
 import type { AstrologySystem, BirthDetails } from './user';
+import type { CompatibilityForecast } from '../engines/unified/crossCompatibility';
 
 export type RelationshipMode = 'romantic' | 'friend' | 'work' | 'family';
 export type SavedProfileRelation = 'partner' | 'friend' | 'family' | 'coworker' | 'other';
@@ -37,6 +38,7 @@ export interface CompatibilityHistoryEntry {
   result: CompatibilityResult;
   partnerProfile: CosmicProfile;
   createdAt: string;
+  forecast?: CompatibilityForecast;
 }
 
 export interface JournalEntry {

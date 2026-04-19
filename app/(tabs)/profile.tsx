@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -10,7 +10,10 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
+import { ConfettiBurst } from '../../src/components/ui/ConfettiBurst';
+import { AnimalMascot } from '../../src/components/ui/AnimalMascot';
 import { CosmicOrb } from '../../src/components/ui/CosmicOrb';
 import { GlassCard } from '../../src/components/ui/GlassCard';
 import { SectionLabel } from '../../src/components/ui/SectionLabel';
@@ -67,10 +70,27 @@ export default function ProfileScreen() {
   const [editingName, setEditingName] = useState(false);
   const [editName, setEditName] = useState('');
   const [showLanguages, setShowLanguages] = useState(false);
+  const [badgeConfetti, setBadgeConfetti] = useState(false);
+  const prevBadgeCount = useRef<number | null>(null);
 
   useEffect(() => {
     setCurrentLang(normalizeLanguage(user?.language ?? i18n.language));
   }, [user?.language]);
+
+  useEffect(() => {
+    if (!accountUser) return;
+    const count = getEarnedBadges(
+      accountUser.streak,
+      accountUser.cosmicPoints,
+      accountUser.activeSystems,
+      compatibilityHistory.length,
+      false,
+    ).length;
+    if (prevBadgeCount.current !== null && count > prevBadgeCount.current) {
+      setBadgeConfetti(true);
+    }
+    prevBadgeCount.current = count;
+  }, [accountUser?.streak, accountUser?.cosmicPoints, accountUser?.activeSystems, compatibilityHistory.length, accountUser]);
 
   const cosmicDNA = useMemo(() => {
     if (!user?.western || !user?.vedic || !user?.chinese) return '';
@@ -225,7 +245,7 @@ export default function ProfileScreen() {
           <View style={styles.posterWrap}>
             <LinearGradient colors={COLORS.gradientInk} style={styles.poster}>
               <View style={styles.posterTopHighlight} pointerEvents="none" />
-              <SectionLabel accent={COLORS.gold}>Your chart</SectionLabel>
+              <SectionLabel accent={COLORS.gold}>Your cosmic passport</SectionLabel>
               {user.isManagedProfile ? (
                 <Pressable
                   onPress={() => router.push('/profile/family-profiles')}
@@ -245,7 +265,7 @@ export default function ProfileScreen() {
                     value={editName}
                     onChangeText={setEditName}
                     autoFocus
-                    placeholderTextColor="rgba(255,250,241,0.4)"
+                    placeholderTextColor={COLORS.textMuted}
                     selectionColor={COLORS.gold}
                     onSubmitEditing={handleCommitName}
                     accessibilityLabel="Edit display name"
@@ -285,7 +305,10 @@ export default function ProfileScreen() {
               ) : null}
 
               <Pressable
-                onPress={handleRecalculate}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                  handleRecalculate();
+                }}
                 disabled={recalculating}
                 style={({ pressed }) => [styles.recalcInline, pressed && { opacity: 0.85 }]}
                 accessibilityRole="button"
@@ -315,18 +338,27 @@ export default function ProfileScreen() {
         {cosmicDNA ? (
           <AnimatedCard index={1}>
             <GlassCard accentColor={COLORS.gold}>
-              <SectionLabel accent={COLORS.gold}>Cosmic DNA</SectionLabel>
+              <View style={styles.dnaHeader}>
+                <SectionLabel accent={COLORS.gold}>Cosmic DNA</SectionLabel>
+                <AnimalMascot animal={user.chinese?.animal} size={52} celebrating={badgeConfetti} />
+              </View>
               <Text style={styles.dnaText}>{cosmicDNA}</Text>
               <View style={styles.dnaChipRow}>
                 {[
-                  { label: 'Sun', value: user.western?.sun },
-                  { label: 'Rashi', value: user.vedic?.rashi },
-                  { label: 'Animal', value: user.chinese?.animal },
+                  { label: 'Sun', value: user.western?.sun, accent: COLORS.western ?? COLORS.gold },
+                  { label: 'Rashi', value: user.vedic?.rashi, accent: COLORS.vedic ?? COLORS.iris },
+                  { label: 'Animal', value: user.chinese?.animal, accent: COLORS.chinese ?? COLORS.coral },
                 ].map((chip) => (
-                  <View key={chip.label} style={styles.dnaChip}>
-                    <Text style={styles.dnaChipLabel}>{chip.label.toUpperCase()}</Text>
+                  <LinearGradient
+                    key={chip.label}
+                    colors={[`${chip.accent}22`, `${chip.accent}08`]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={[styles.dnaChip, { borderColor: `${chip.accent}55` }]}
+                  >
+                    <Text style={[styles.dnaChipLabel, { color: chip.accent }]}>{chip.label.toUpperCase()}</Text>
                     <Text style={styles.dnaChipValue}>{chip.value ?? '—'}</Text>
-                  </View>
+                  </LinearGradient>
                 ))}
               </View>
             </GlassCard>
@@ -337,7 +369,7 @@ export default function ProfileScreen() {
         <AnimatedCard index={2}>
           <GlassCard elevated accentColor={COLORS.starGold}>
             <View style={styles.sectionHead}>
-              <SectionLabel accent={COLORS.starGold}>Achievements</SectionLabel>
+              <SectionLabel accent={COLORS.starGold}>Your trophy shelf</SectionLabel>
               <Text style={styles.achieveCount}>
                 {earnedBadges.length} earned
               </Text>
@@ -355,7 +387,7 @@ export default function ProfileScreen() {
               <View style={styles.badgeGrid}>
                 {earnedBadges.length === 0 ? (
                   <Text style={styles.noBadgesText}>
-                    Keep checking in daily to unlock badges.
+                    Show up daily — badges start raining in soon.
                   </Text>
                 ) : (
                   earnedBadges.slice(0, 4).map((badge) => (
@@ -430,7 +462,10 @@ export default function ProfileScreen() {
                     return (
                       <Pressable
                         key={lang.code}
-                        onPress={() => handleLanguage(lang.code)}
+                        onPress={() => {
+                          Haptics.selectionAsync().catch(() => {});
+                          handleLanguage(lang.code);
+                        }}
                         accessibilityRole="button"
                         accessibilityState={{ selected: active }}
                         accessibilityLabel={lang.nativeName}
@@ -466,6 +501,7 @@ export default function ProfileScreen() {
         <View style={{ height: 40 }} />
       </ResetScrollView>
       {alertModal}
+      <ConfettiBurst visible={badgeConfetti} onDone={() => setBadgeConfetti(false)} />
     </StarField>
   );
 }
@@ -515,7 +551,10 @@ function ToolRow({
 }) {
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => {
+        Haptics.selectionAsync().catch(() => {});
+        onPress();
+      }}
       disabled={loading}
       accessibilityRole="button"
       accessibilityLabel={meta ? `${label}, ${meta}` : label}
@@ -658,6 +697,12 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: FONTS.accent,
     letterSpacing: 1.2,
+  },
+  dnaHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: SPACING.sm,
   },
   dnaText: {
     color: COLORS.textPrimary,

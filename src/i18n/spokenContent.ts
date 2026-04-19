@@ -109,10 +109,10 @@ const ASPECT_LABELS: Record<SupportedLanguage, Record<string, string>> = {
 
 const TODAY_UI = {
   en: {
-    loadingTitle: 'Preparing your daily reading',
-    loadingCopy: "Calibrating today's transits against your saved chart.",
+    loadingTitle: 'Brewing your cosmos',
+    loadingCopy: "Steeping today's transits with your natal chart — back in a sec.",
     retry: 'Tap to retry',
-    headerCopy: 'A clean daily brief built from live transits, dasha timing, and your natal chart.',
+    headerCopy: "Here's your daily signal — pulled fresh from live transits, dasha timing, and your natal chart.",
     tabs: { brief: 'Brief', proof: 'Proof', forecast: 'Forecast', systems: 'Systems' },
     heroBadge: 'DAILY BRIEF',
     aligned: (score: number) => `${score}% aligned`,
@@ -261,14 +261,43 @@ function planet(value: string | undefined, language: SupportedLanguage) {
 export function getGreetingLabel(date: Date, language?: string | null) {
   const lang = normalizeLanguage(language);
   const hour = date.getHours();
-  const part = hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening';
-  const labels = {
-    en: { morning: 'Good morning', afternoon: 'Good afternoon', evening: 'Good evening' },
-    hi: { morning: 'सुप्रभात', afternoon: 'नमस्ते', evening: 'शुभ संध्या' },
-    zh: { morning: '早上好', afternoon: '下午好', evening: '晚上好' },
-    kn: { morning: 'ಶುಭೋದಯ', afternoon: 'ನಮಸ್ಕಾರ', evening: 'ಶುಭ ಸಂಜೆ' },
-  } satisfies Record<SupportedLanguage, Record<'morning' | 'afternoon' | 'evening', string>>;
-  return labels[lang][part];
+  let part: 'morning' | 'afternoon' | 'evening' | 'night' = 'evening';
+  if (hour < 5) part = 'night';
+  else if (hour < 12) part = 'morning';
+  else if (hour < 17) part = 'afternoon';
+  else if (hour < 22) part = 'evening';
+  else part = 'night';
+
+  const variants = {
+    en: {
+      morning: ['Rise & shine', 'Morning, starseed', 'Sun\'s up'],
+      afternoon: ['Hey there', 'Afternoon vibes', 'Midday check-in'],
+      evening: ['Stardust o\'clock', 'Good evening', 'Cozy hour'],
+      night: ['Moonlight mode', 'Still glowing', 'Dream time'],
+    },
+    hi: {
+      morning: ['सुप्रभात', 'नमस्कार'],
+      afternoon: ['नमस्ते', 'दोपहर की चमक'],
+      evening: ['शुभ संध्या', 'तारों की शाम'],
+      night: ['शुभ रात्रि', 'चंद्र समय'],
+    },
+    zh: {
+      morning: ['早上好', '星光早晨'],
+      afternoon: ['下午好', '午后好运'],
+      evening: ['晚上好', '星光时刻'],
+      night: ['月夜好', '晚安宇宙'],
+    },
+    kn: {
+      morning: ['ಶುಭೋದಯ', 'ನಕ್ಷತ್ರ ಬೆಳಗು'],
+      afternoon: ['ನಮಸ್ಕಾರ', 'ಮಧ್ಯಾಹ್ನ'],
+      evening: ['ಶುಭ ಸಂಜೆ', 'ತಾರಾ ಸಂಜೆ'],
+      night: ['ಶುಭ ರಾತ್ರಿ', 'ಚಂದ್ರ ಸಮಯ'],
+    },
+  } satisfies Record<SupportedLanguage, Record<'morning' | 'afternoon' | 'evening' | 'night', readonly string[]>>;
+
+  const pool = variants[lang][part];
+  const seed = date.getFullYear() * 400 + date.getMonth() * 31 + date.getDate();
+  return pool[seed % pool.length];
 }
 
 export function formatTransitTitle(transit: TransitItem, language?: string | null) {
