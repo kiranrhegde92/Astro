@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import Animated, { FadeIn, FadeOut, Easing } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -50,6 +51,7 @@ export default function AkashaScreen() {
   const router = useRouter();
   const scrollRef = useRef<ScrollView>(null);
   const [input, setInput] = useState('');
+  const [showHistory, setShowHistory] = useState(false);
 
   const user = useUserStore((s) => s.user);
   const subscription = useSubscriptionStore((s) => s.subscription);
@@ -93,10 +95,6 @@ export default function AkashaScreen() {
     expandReading(id === expandedReadingId ? null : id);
   }, [expandReading, expandedReadingId]);
 
-  const scrollToPast = useCallback(() => {
-    scrollRef.current?.scrollToEnd({ animated: true });
-  }, []);
-
   const currentReading = useMemo(() => {
     if (status === 'answered' && currentReadingId && currentAnswer) {
       const createdAt =
@@ -111,83 +109,157 @@ export default function AkashaScreen() {
     [pastReadings, currentReadingId]
   );
 
+  const showInputBar = status === 'idle' || status === 'error';
+
   return (
     <View style={styles.root}>
       <LinearGradient colors={COLORS.gradientBg} style={StyleSheet.absoluteFill} />
       <StarField />
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView
-          ref={scrollRef}
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
+      <LinearGradient
+        colors={['rgba(91,62,168,0.18)', 'transparent']}
+        style={styles.topGlow}
+        pointerEvents="none"
+      />
+      <SafeAreaView style={styles.flex} edges={['top']}>
+        <Header
+          hasHistory={pastReadings.length > 0}
+          onHistoryToggle={() => setShowHistory((v) => !v)}
+          showingHistory={showHistory}
+        />
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
         >
-          {!hasBirth ? (
-            <NoBirthState onComplete={() => router.push('/(onboarding)/birth-details')} />
-          ) : status === 'rateLimited' ? (
-            <LimitReachedState
-              isPremium={isPremium}
-              nextAvailableAt={nextAvailableAt}
-              onUpgrade={() => {
-                logAkashaEvent('akasha_limit_upsell_tapped', { tier: isPremium ? 'premium' : 'free' });
-                router.push('/reading/unified');
-              }}
-              onDismiss={resetToIdle}
-            />
-          ) : status === 'asking' ? (
-            <AskingState question={currentQuestion} statusLine={cyclingStatus.text} statusIndex={cyclingStatus.index} />
-          ) : status === 'error' ? (
-            <ErrorState message={errorMessage} onRetry={resetToIdle} />
-          ) : currentReading ? (
-            <AnsweredState
-              reading={currentReading}
-              historical={historicalReadings}
-              expandedId={expandedReadingId}
-              onToggle={handleExpandReading}
-              onAskAnother={resetToIdle}
-            />
-          ) : (
-            <EmptyState
-              input={input}
-              onInputChange={setInput}
-              onAsk={handleAsk}
-              onChip={handleChip}
-              onPastReadings={pastReadings.length > 0 ? scrollToPast : undefined}
-              pastReadings={pastReadings}
-              expandedId={expandedReadingId}
-              onToggle={handleExpandReading}
-            />
-          )}
-        </ScrollView>
-      </KeyboardAvoidingView>
+          <ScrollView
+            ref={scrollRef}
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            {!hasBirth ? (
+              <NoBirthState onComplete={() => router.push('/(onboarding)/birth-details')} />
+            ) : status === 'rateLimited' ? (
+              <LimitReachedState
+                isPremium={isPremium}
+                nextAvailableAt={nextAvailableAt}
+                onUpgrade={() => {
+                  logAkashaEvent('akasha_limit_upsell_tapped', { tier: isPremium ? 'premium' : 'free' });
+                  router.push('/reading/unified');
+                }}
+                onDismiss={resetToIdle}
+              />
+            ) : status === 'asking' ? (
+              <AskingState
+                question={currentQuestion}
+                statusLine={cyclingStatus.text}
+                statusIndex={cyclingStatus.index}
+              />
+            ) : status === 'error' ? (
+              <ErrorState message={errorMessage} onRetry={resetToIdle} />
+            ) : currentReading ? (
+              <AnsweredState
+                reading={currentReading}
+                historical={historicalReadings}
+                expandedId={expandedReadingId}
+                onToggle={handleExpandReading}
+                onAskAnother={resetToIdle}
+              />
+            ) : showHistory && pastReadings.length > 0 ? (
+              <HistoryView
+                readings={pastReadings}
+                expandedId={expandedReadingId}
+                onToggle={handleExpandReading}
+              />
+            ) : (
+              <EmptyState />
+            )}
+          </ScrollView>
+        </KeyboardAvoidingView>
+        {showInputBar ? (
+          <InputBar
+            input={input}
+            onInputChange={setInput}
+            onAsk={handleAsk}
+            onChip={handleChip}
+          />
+        ) : null}
+      </SafeAreaView>
     </View>
   );
 }
 
-function EmptyState(props: {
+function Header({
+  hasHistory,
+  onHistoryToggle,
+  showingHistory,
+}: {
+  hasHistory: boolean;
+  onHistoryToggle: () => void;
+  showingHistory: boolean;
+}) {
+  const { t } = useTranslation();
+  return (
+    <View style={styles.header}>
+      <View style={styles.headerBadge}>
+        <Ionicons name="sparkles" size={14} color={COLORS.violetLight} />
+        <Text style={styles.headerTitle}>{t('akasha.tabLabel')}</Text>
+      </View>
+      {hasHistory ? (
+        <TouchableOpacity onPress={onHistoryToggle} style={styles.headerIconBtn} activeOpacity={0.7}>
+          <Ionicons
+            name={showingHistory ? 'close' : 'time-outline'}
+            size={20}
+            color={COLORS.textPrimary}
+          />
+        </TouchableOpacity>
+      ) : null}
+    </View>
+  );
+}
+
+function EmptyState() {
+  const { t } = useTranslation();
+  return (
+    <View style={styles.heroWrap}>
+      <Animated.View entering={FadeIn.duration(700)}>
+        <AkashaOrb mode="idle" size={180} />
+      </Animated.View>
+      <Animated.Text
+        entering={FadeIn.duration(600).delay(220).easing(Easing.out(Easing.cubic))}
+        style={styles.hero}
+      >
+        {t('akasha.intro')}
+      </Animated.Text>
+    </View>
+  );
+}
+
+function InputBar(props: {
   input: string;
   onInputChange: (v: string) => void;
   onAsk: () => void;
   onChip: (key: string) => void;
-  onPastReadings?: () => void;
-  pastReadings: { id: string; question: string; answer: string; locale: string; createdAt: number }[];
-  expandedId: string | null;
-  onToggle: (id: string) => void;
 }) {
   const { t } = useTranslation();
-  const entry = (delay: number) =>
-    FadeIn.duration(520).delay(delay).easing(Easing.out(Easing.cubic));
   return (
-    <>
-      <Animated.View entering={FadeIn.duration(700)} style={styles.orbWrap}>
-        <AkashaOrb mode="idle" />
-      </Animated.View>
-      <Animated.Text entering={entry(220)} style={styles.intro}>
-        {t('akasha.intro')}
-      </Animated.Text>
-      <Animated.View entering={entry(360)} style={styles.inputRow}>
+    <Animated.View entering={FadeIn.duration(500).delay(400)} style={styles.inputBarWrap}>
+      <LinearGradient
+        colors={['rgba(10,11,31,0)', 'rgba(10,11,31,0.85)']}
+        style={styles.inputBarGradient}
+        pointerEvents="none"
+      />
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.chipsRow}
+        keyboardShouldPersistTaps="handled"
+      >
+        {CHIP_KEYS.map((key) => (
+          <PromptChip key={key} label={t(`akasha.chips.${key}`)} onPress={() => props.onChip(key)} />
+        ))}
+      </ScrollView>
+      <View style={styles.inputRow}>
         <TextInput
           value={props.input}
           onChangeText={props.onInputChange}
@@ -197,6 +269,7 @@ function EmptyState(props: {
           multiline
           onSubmitEditing={props.onAsk}
           returnKeyType="send"
+          blurOnSubmit
         />
         <TouchableOpacity
           onPress={props.onAsk}
@@ -204,36 +277,10 @@ function EmptyState(props: {
           style={[styles.askBtn, !props.input.trim() && styles.askBtnDisabled]}
           activeOpacity={0.8}
         >
-          <Text style={styles.askBtnLabel}>{t('akasha.askButton')}</Text>
+          <Ionicons name="arrow-up" size={20} color="#fff" />
         </TouchableOpacity>
-      </Animated.View>
-      <View style={styles.chips}>
-        {CHIP_KEYS.map((key, i) => (
-          <Animated.View key={key} entering={entry(500 + i * 80)}>
-            <PromptChip label={t(`akasha.chips.${key}`)} onPress={() => props.onChip(key)} />
-          </Animated.View>
-        ))}
       </View>
-      {props.onPastReadings ? (
-        <Animated.View entering={entry(900)}>
-          <Pressable onPress={props.onPastReadings} style={styles.pastLink}>
-            <Text style={styles.pastLinkLabel}>
-              {t('akasha.pastReadings')} <Ionicons name="arrow-down" size={12} />
-            </Text>
-          </Pressable>
-        </Animated.View>
-      ) : null}
-      {props.pastReadings.length > 0 ? (
-        <Animated.View entering={entry(1000)} style={styles.pastWrap}>
-          <Text style={styles.sectionLabel}>{t('akasha.pastReadings')}</Text>
-          <PastReadingsList
-            readings={props.pastReadings}
-            expandedId={props.expandedId}
-            onToggle={props.onToggle}
-          />
-        </Animated.View>
-      ) : null}
-    </>
+    </Animated.View>
   );
 }
 
@@ -247,13 +294,10 @@ function AskingState({
   statusIndex: number;
 }) {
   return (
-    <View style={styles.centered}>
-      <AkashaOrb mode="asking" />
-      <Animated.Text
-        entering={FadeIn.duration(500)}
-        style={styles.askingQuestion}
-      >
-        {question}
+    <View style={styles.heroWrap}>
+      <AkashaOrb mode="asking" size={200} />
+      <Animated.Text entering={FadeIn.duration(500)} style={styles.askingQuestion}>
+        “{question}”
       </Animated.Text>
       <View style={styles.statusRow}>
         <ActivityIndicator color={COLORS.violetLight} />
@@ -279,9 +323,9 @@ function AnsweredState(props: {
 }) {
   const { t } = useTranslation();
   return (
-    <>
+    <View style={styles.answeredWrap}>
       <Animated.View entering={FadeIn.duration(600)} style={styles.orbSmallWrap}>
-        <AkashaOrb mode="idle" size={88} />
+        <AkashaOrb mode="idle" size={96} />
       </Animated.View>
       <Animated.View entering={FadeIn.duration(700).delay(200)}>
         <AnswerCard
@@ -290,8 +334,13 @@ function AnsweredState(props: {
           createdAt={props.reading.createdAt}
         />
       </Animated.View>
-      <TouchableOpacity onPress={props.onAskAnother} style={styles.secondaryBtn} activeOpacity={0.8}>
-        <Text style={styles.secondaryBtnLabel}>{t('akasha.askButton')}</Text>
+      <TouchableOpacity
+        onPress={props.onAskAnother}
+        style={styles.askAnotherBtn}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="sparkles" size={16} color={COLORS.violetLight} />
+        <Text style={styles.askAnotherLabel}>{t('akasha.askButton')}</Text>
       </TouchableOpacity>
       {props.historical.length > 0 ? (
         <View style={styles.pastWrap}>
@@ -303,7 +352,25 @@ function AnsweredState(props: {
           />
         </View>
       ) : null}
-    </>
+    </View>
+  );
+}
+
+function HistoryView(props: {
+  readings: { id: string; question: string; answer: string; locale: string; createdAt: number }[];
+  expandedId: string | null;
+  onToggle: (id: string) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <View style={styles.historyWrap}>
+      <Text style={styles.sectionLabel}>{t('akasha.pastReadings')}</Text>
+      <PastReadingsList
+        readings={props.readings}
+        expandedId={props.expandedId}
+        onToggle={props.onToggle}
+      />
+    </View>
   );
 }
 
@@ -321,8 +388,8 @@ function LimitReachedState(props: {
       })
     : '';
   return (
-    <View style={styles.centered}>
-      <AkashaOrb mode="idle" size={100} />
+    <View style={styles.heroWrap}>
+      <AkashaOrb mode="idle" size={140} />
       <Text style={styles.limitText}>
         {props.isPremium ? t('akasha.limitPremium') : t('akasha.limitFree', { date: dateStr })}
       </Text>
@@ -342,9 +409,9 @@ function LimitReachedState(props: {
 function NoBirthState({ onComplete }: { onComplete: () => void }) {
   const { t } = useTranslation();
   return (
-    <View style={styles.centered}>
-      <AkashaOrb mode="idle" size={100} />
-      <Text style={styles.intro}>{t('akasha.noBirthData')}</Text>
+    <View style={styles.heroWrap}>
+      <AkashaOrb mode="idle" size={140} />
+      <Text style={styles.hero}>{t('akasha.noBirthData')}</Text>
       <TouchableOpacity onPress={onComplete} style={styles.primaryBtn} activeOpacity={0.8}>
         <Text style={styles.primaryBtnLabel}>{t('akasha.noBirthDataCta')}</Text>
       </TouchableOpacity>
@@ -361,9 +428,9 @@ function ErrorState({ message, onRetry }: { message: string | null; onRetry: () 
       ? t('akasha.noBirthData')
       : t('akasha.oracleSilent');
   return (
-    <View style={styles.centered}>
-      <AkashaOrb mode="idle" size={100} />
-      <Text style={styles.intro}>{copy}</Text>
+    <View style={styles.heroWrap}>
+      <AkashaOrb mode="idle" size={140} />
+      <Text style={styles.hero}>{copy}</Text>
       <TouchableOpacity onPress={onRetry} style={styles.secondaryBtn} activeOpacity={0.8}>
         <Text style={styles.secondaryBtnLabel}>{t('akasha.retry')}</Text>
       </TouchableOpacity>
@@ -374,66 +441,155 @@ function ErrorState({ message, onRetry }: { message: string | null; onRetry: () 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.bgDeep },
   flex: { flex: 1 },
-  content: {
-    padding: SPACING.lg,
-    paddingTop: SPACING.xxl,
-    paddingBottom: SPACING.xxl,
-    gap: SPACING.lg,
+  topGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 260,
   },
-  orbWrap: { alignItems: 'center', marginTop: SPACING.lg },
-  orbSmallWrap: { alignItems: 'center', marginBottom: SPACING.md },
-  centered: { alignItems: 'center', gap: SPACING.md, marginTop: SPACING.xl },
-  intro: {
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.sm,
+  },
+  headerBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 6,
+    borderRadius: BORDER_RADIUS.lg,
+    backgroundColor: 'rgba(236,227,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(236,227,255,0.18)',
+  },
+  headerTitle: {
+    ...TYPE.label,
+    color: COLORS.textPrimary,
+    letterSpacing: 1.5,
+  },
+  headerIconBtn: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
+  },
+  content: {
+    flexGrow: 1,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.lg,
+    paddingBottom: SPACING.xxl * 2,
+  },
+  heroWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.lg,
+    minHeight: 420,
+    paddingVertical: SPACING.xl,
+  },
+  hero: {
     ...TYPE.body,
     color: COLORS.textPrimary,
     textAlign: 'center',
     fontStyle: 'italic',
+    paddingHorizontal: SPACING.md,
+    lineHeight: 24,
+  },
+  answeredWrap: {
+    gap: SPACING.md,
+    paddingBottom: SPACING.xl,
+  },
+  orbSmallWrap: { alignItems: 'center', marginVertical: SPACING.md },
+  askAnotherBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    alignSelf: 'center',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDER_RADIUS.xl,
+    borderWidth: 1,
+    borderColor: COLORS.violetLight,
+    backgroundColor: 'rgba(91,62,168,0.15)',
+    marginTop: SPACING.md,
+  },
+  askAnotherLabel: {
+    color: COLORS.violetLight,
+    fontWeight: '700',
+    fontSize: 14,
+    letterSpacing: 0.5,
+  },
+  historyWrap: { gap: SPACING.md, paddingTop: SPACING.md },
+  pastWrap: { gap: SPACING.sm, marginTop: SPACING.xl },
+  sectionLabel: {
+    ...TYPE.label,
+    color: COLORS.violetLight,
+    letterSpacing: 1.5,
+  },
+  inputBarWrap: {
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.sm,
+  },
+  inputBarGradient: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: -40,
+    height: 40,
+  },
+  chipsRow: {
+    gap: SPACING.sm,
+    paddingHorizontal: SPACING.xs,
+    paddingBottom: SPACING.sm,
   },
   inputRow: {
     flexDirection: 'row',
     gap: SPACING.sm,
     alignItems: 'flex-end',
+    backgroundColor: 'rgba(21,23,54,0.85)',
+    borderRadius: BORDER_RADIUS.xl,
+    padding: SPACING.xs,
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
+    ...SHADOWS.glass,
   },
   input: {
     flex: 1,
-    minHeight: 48,
+    minHeight: 44,
     maxHeight: 120,
-    backgroundColor: COLORS.bgCard,
-    borderRadius: BORDER_RADIUS.xl,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
     color: COLORS.textPrimary,
-    borderWidth: 1,
-    borderColor: COLORS.glassBorder,
     ...TYPE.body,
   },
   askBtn: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: COLORS.violetDeep,
-    borderRadius: BORDER_RADIUS.xl,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
+    borderRadius: 22,
     ...SHADOWS.glass,
   },
-  askBtnDisabled: { opacity: 0.5 },
-  askBtnLabel: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  chips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.sm,
-  },
-  pastLink: { alignSelf: 'flex-end', paddingVertical: SPACING.xs },
-  pastLinkLabel: { color: COLORS.violetLight, fontWeight: '600', fontSize: 13 },
-  pastWrap: { gap: SPACING.sm, marginTop: SPACING.md },
-  sectionLabel: {
-    ...TYPE.label,
-    color: COLORS.violetLight,
-  },
+  askBtnDisabled: { opacity: 0.4 },
   askingQuestion: {
     ...TYPE.subhead,
     color: COLORS.textMuted,
     textAlign: 'center',
     fontStyle: 'italic',
     marginTop: SPACING.md,
+    paddingHorizontal: SPACING.md,
   },
   statusRow: {
     flexDirection: 'row',
@@ -443,11 +599,13 @@ const styles = StyleSheet.create({
   statusLine: {
     ...TYPE.caption,
     color: COLORS.textSecondary,
+    letterSpacing: 0.5,
   },
   limitText: {
     ...TYPE.body,
     color: COLORS.textPrimary,
     textAlign: 'center',
+    paddingHorizontal: SPACING.md,
   },
   primaryBtn: {
     backgroundColor: COLORS.violetDeep,
