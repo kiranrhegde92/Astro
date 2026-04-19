@@ -28,11 +28,30 @@ const googleSignInPlugin = EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME
   ? ['@react-native-google-signin/google-signin', { iosUrlScheme: EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME }]
   : '@react-native-google-signin/google-signin';
 
+// Google AdMob test IDs — only safe for non-production builds.
+const ADMOB_TEST_ANDROID = 'ca-app-pub-3940256099942544~3347511713';
+const ADMOB_TEST_IOS = 'ca-app-pub-3940256099942544~1458002511';
+const useProductionAds = EXPO_PUBLIC_ADMOB_USE_PRODUCTION === 'true';
+
+if (
+  useProductionAds &&
+  (EXPO_PUBLIC_ADMOB_ANDROID_APP_ID === ADMOB_TEST_ANDROID ||
+    EXPO_PUBLIC_ADMOB_IOS_APP_ID === ADMOB_TEST_IOS ||
+    !EXPO_PUBLIC_ADMOB_REWARDED_ANDROID ||
+    !EXPO_PUBLIC_ADMOB_REWARDED_IOS)
+) {
+  throw new Error(
+    'Production AdMob build requested but test IDs or missing ad-unit IDs detected. ' +
+      'Set EXPO_PUBLIC_ADMOB_ANDROID_APP_ID / IOS_APP_ID and REWARDED_ANDROID / IOS in .env.',
+  );
+}
+
 /** @type {import('expo/config').ExpoConfig} */
 module.exports = {
   name: 'CosmicSelf',
   slug: 'CosmicSelf',
   version: '1.0.0',
+  runtimeVersion: { policy: 'appVersion' },
   orientation: 'portrait',
   icon: './assets/icon.png',
   userInterfaceStyle: 'dark',
@@ -45,6 +64,17 @@ module.exports = {
   ios: {
     supportsTablet: true,
     bundleIdentifier: 'com.cosmicself.app',
+    buildNumber: '1',
+    config: {
+      usesNonExemptEncryption: false,
+    },
+    infoPlist: {
+      NSCameraUsageDescription:
+        'CosmicSelf uses the camera so you can scan a friend\u2019s shared QR code to connect.',
+      NSUserTrackingUsageDescription:
+        'Allow CosmicSelf to use your advertising identifier to show more relevant ads and support the free tier.',
+      ITSAppUsesNonExemptEncryption: false,
+    },
   },
   android: {
     adaptiveIcon: {
@@ -52,6 +82,7 @@ module.exports = {
       backgroundColor: '#0a0a2e',
     },
     package: 'com.cosmicself.app',
+    versionCode: 1,
   },
   web: {
     favicon: './assets/favicon.png',
@@ -69,10 +100,19 @@ module.exports = {
     ],
     'expo-sharing',
     [
+      'expo-notifications',
+      {
+        icon: './assets/adaptive-icon.png',
+        color: '#0a0a2e',
+      },
+    ],
+    [
       'react-native-google-mobile-ads',
       {
         androidAppId: EXPO_PUBLIC_ADMOB_ANDROID_APP_ID,
         iosAppId: EXPO_PUBLIC_ADMOB_IOS_APP_ID,
+        userTrackingUsageDescription:
+          'Allow CosmicSelf to use your advertising identifier to show more relevant ads and support the free tier.',
       },
     ],
     googleSignInPlugin,
