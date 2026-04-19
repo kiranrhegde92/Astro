@@ -141,5 +141,12 @@ module.exports = {
       iosClientId: EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
       iosUrlScheme: EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME,
     },
+    eas: {
+      projectId: '9c57c6ef-4966-4774-ae00-9871c43b7a19',
+    },
+  },
+  owner: 'kiranrh',
+  updates: {
+    url: 'https://u.expo.dev/9c57c6ef-4966-4774-ae00-9871c43b7a19',
   },
 };
