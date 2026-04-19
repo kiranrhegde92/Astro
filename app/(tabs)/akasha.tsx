@@ -15,7 +15,6 @@ import Animated, { FadeIn, FadeOut, Easing } from 'react-native-reanimated';
 import { MotiView } from 'moti';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -52,7 +51,6 @@ export default function AkashaScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const tabBarHeight = useBottomTabBarHeight();
   const scrollRef = useRef<ScrollView>(null);
   const [input, setInput] = useState('');
   const [showHistory, setShowHistory] = useState(false);
@@ -131,7 +129,7 @@ export default function AkashaScreen() {
         <KeyboardAvoidingView
           style={styles.flex}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={tabBarHeight}
+          keyboardVerticalOffset={0}
         >
           <ScrollView
             ref={scrollRef}
