@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import { BORDER_RADIUS, COLORS, SHADOWS, SPACING } from '../../src/constants/theme';
 import { OrbIcon } from '../../src/components/ui/OrbIcon';
+import { useAkashaEnabled } from '../../src/services/akashaFlag';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
 const TABS = [
@@ -87,13 +88,16 @@ function TabItem({
 function BottomBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
+  const akashaEnabled = useAkashaEnabled();
   const paddingBottom = Math.max(insets.bottom, Platform.OS === 'ios' ? 10 : 8);
+
+  const visibleTabs = akashaEnabled ? TABS : TABS.filter((tab) => tab.name !== 'akasha');
 
   return (
     <View style={[styles.outer, { paddingBottom }]}>
       <View style={styles.bar}>
-        {state.routes.filter((route) => TABS.some((t) => t.name === route.name)).map((route, index) => {
-          const tab = TABS.find((item) => item.name === route.name) ?? TABS[0];
+        {state.routes.filter((route) => visibleTabs.some((t) => t.name === route.name)).map((route, index) => {
+          const tab = visibleTabs.find((item) => item.name === route.name) ?? visibleTabs[0];
           const focused = state.index === state.routes.indexOf(route);
 
           return (

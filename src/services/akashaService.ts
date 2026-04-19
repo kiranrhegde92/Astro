@@ -5,7 +5,16 @@ import { getChart } from './firestoreService';
 import { buildAkashaDigest } from '../engines/unified/akashaDigest';
 import { useAkashaStore, type AkashaReading } from '../store/akashaStore';
 import { useAuthStore } from '../store/authStore';
+import { useSubscriptionStore } from '../store/subscriptionStore';
+import { logAkashaEvent } from './akashaAnalytics';
 import type { AkashaAskRequest, AkashaAskResponse } from '../../functions/src/akasha/types';
+
+function currentTier(): 'free' | 'trial' | 'premium' {
+  const sub = useSubscriptionStore.getState().subscription;
+  if (sub.status === 'trial') return 'trial';
+  if (sub.tier === 'premium' && sub.status === 'active') return 'premium';
+  return 'free';
+}
 
 const functions = getFunctions(app, 'us-central1');
 const callable = httpsCallable<AkashaAskRequest, AkashaAskResponse>(functions, 'askAkasha');
@@ -25,6 +34,9 @@ export async function askAkasha(question: string, locale: string): Promise<void>
   }
 
   store.setAsking(question);
+  const tier = currentTier();
+  const startedAt = Date.now();
+  logAkashaEvent('akasha_question_asked', { tier, locale, questionLength: question.length });
 
   try {
     const digest = buildAkashaDigest(chart as any);
@@ -44,11 +56,18 @@ export async function askAkasha(question: string, locale: string): Promise<void>
         locale,
         createdAt: Date.now(),
       });
+      logAkashaEvent('akasha_answer_received', {
+        tier,
+        locale,
+        answerLength: body.answer.length,
+        latencyMs: Date.now() - startedAt,
+      });
       return;
     }
 
     if (body.error === 'rate_limited' && body.nextAvailableAt) {
       store.setRateLimited(Date.parse(body.nextAvailableAt));
+      logAkashaEvent('akasha_rate_limited', { tier });
       return;
     }
     if (body.error === 'meditating') {

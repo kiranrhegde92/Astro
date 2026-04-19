@@ -25,6 +25,7 @@ import { useAkashaStore } from '../../src/store/akashaStore';
 import { useUserStore } from '../../src/store/userStore';
 import { useSubscriptionStore } from '../../src/store/subscriptionStore';
 import { askAkasha, loadPastReadings } from '../../src/services/akashaService';
+import { logAkashaEvent } from '../../src/services/akashaAnalytics';
 
 const CHIP_KEYS = ['marriage', 'career', 'moonSign', 'travel', 'dasha'] as const;
 
@@ -77,8 +78,16 @@ export default function AkashaScreen() {
   }, [input, i18n.language]);
 
   const handleChip = useCallback((labelKey: string) => {
+    logAkashaEvent('akasha_prompt_chip_tapped', { chipKey: labelKey });
     setInput(t(`akasha.chips.${labelKey}`));
   }, [t]);
+
+  const handleExpandReading = useCallback((id: string) => {
+    if (id !== expandedReadingId) {
+      logAkashaEvent('akasha_past_reading_opened', { readingId: id });
+    }
+    expandReading(id === expandedReadingId ? null : id);
+  }, [expandReading, expandedReadingId]);
 
   const scrollToPast = useCallback(() => {
     scrollRef.current?.scrollToEnd({ animated: true });
@@ -117,7 +126,10 @@ export default function AkashaScreen() {
             <LimitReachedState
               isPremium={isPremium}
               nextAvailableAt={nextAvailableAt}
-              onUpgrade={() => router.push('/reading/unified')}
+              onUpgrade={() => {
+                logAkashaEvent('akasha_limit_upsell_tapped', { tier: isPremium ? 'premium' : 'free' });
+                router.push('/reading/unified');
+              }}
               onDismiss={resetToIdle}
             />
           ) : status === 'asking' ? (
@@ -129,7 +141,7 @@ export default function AkashaScreen() {
               reading={currentReading}
               historical={historicalReadings}
               expandedId={expandedReadingId}
-              onToggle={expandReading}
+              onToggle={handleExpandReading}
               onAskAnother={resetToIdle}
             />
           ) : (
@@ -141,7 +153,7 @@ export default function AkashaScreen() {
               onPastReadings={pastReadings.length > 0 ? scrollToPast : undefined}
               pastReadings={pastReadings}
               expandedId={expandedReadingId}
-              onToggle={expandReading}
+              onToggle={handleExpandReading}
             />
           )}
         </ScrollView>
