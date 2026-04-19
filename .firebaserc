@@ -1,6 +1,7 @@
 {
   "projects": {
-    "cosmicself_stage": "cosmicself-66472"
+    "cosmicself_stage": "cosmicself-66472",
+    "staging": "cosmicself-53568"
   },
   "targets": {},
   "etags": {}

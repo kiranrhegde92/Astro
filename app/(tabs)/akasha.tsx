@@ -12,6 +12,8 @@ import {
   View,
 } from 'react-native';
 import Animated, { FadeIn, FadeOut, Easing } from 'react-native-reanimated';
+import { MotiView } from 'moti';
+import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -220,40 +222,98 @@ function Header({
   );
 }
 
+const CARD_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+  marriage: 'heart-outline',
+  career: 'briefcase-outline',
+  moonSign: 'moon-outline',
+  travel: 'airplane-outline',
+  dasha: 'time-outline',
+};
+
+const CARD_GRADIENTS: Record<string, readonly [string, string]> = {
+  marriage: ['rgba(255,107,158,0.22)', 'rgba(147,58,174,0.12)'],
+  career: ['rgba(107,164,255,0.22)', 'rgba(58,116,174,0.12)'],
+  moonSign: ['rgba(196,167,255,0.24)', 'rgba(91,62,168,0.14)'],
+  travel: ['rgba(107,232,205,0.22)', 'rgba(58,174,148,0.12)'],
+  dasha: ['rgba(255,197,107,0.22)', 'rgba(174,122,58,0.12)'],
+};
+
 function EmptyState({ onChip }: { onChip: (key: string) => void }) {
   const { t } = useTranslation();
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour < 5) return t('akasha.greetingNight') ?? 'The night listens';
+    if (hour < 12) return t('akasha.greetingMorning') ?? 'Good morning, seeker';
+    if (hour < 17) return t('akasha.greetingAfternoon') ?? 'The afternoon stills';
+    return t('akasha.greetingEvening') ?? 'Good evening, seeker';
+  }, [t]);
+
   return (
     <View style={styles.heroWrap}>
-      <Animated.View entering={FadeIn.duration(700)} style={styles.orbHalo}>
-        <AkashaOrb mode="idle" size={160} />
-      </Animated.View>
-      <Animated.Text
-        entering={FadeIn.duration(600).delay(220).easing(Easing.out(Easing.cubic))}
-        style={styles.hero}
-      >
-        {t('akasha.intro')}
-      </Animated.Text>
+      <View style={styles.orbHeroBlock}>
+        <MotiView
+          from={{ scale: 0.95, opacity: 0.75 }}
+          animate={{ scale: 1.02, opacity: 1 }}
+          transition={{
+            loop: true,
+            type: 'timing',
+            duration: 2800,
+            easing: Easing.inOut(Easing.quad),
+          }}
+          style={styles.orbHalo}
+        >
+          <AkashaOrb mode="idle" size={170} />
+        </MotiView>
+        <Animated.Text
+          entering={FadeIn.duration(600).delay(220)}
+          style={styles.greeting}
+        >
+          {greeting}
+        </Animated.Text>
+        <Animated.Text
+          entering={FadeIn.duration(600).delay(360).easing(Easing.out(Easing.cubic))}
+          style={styles.hero}
+        >
+          {t('akasha.intro')}
+        </Animated.Text>
+      </View>
+
       <Animated.View
-        entering={FadeIn.duration(600).delay(380)}
+        entering={FadeIn.duration(600).delay(500)}
         style={styles.suggestionGrid}
       >
         <Text style={styles.suggestLabel}>{t('akasha.tryAsking') ?? 'TRY ASKING'}</Text>
         <View style={styles.suggestList}>
-          {CHIP_KEYS.map((key) => (
-            <Pressable
+          {CHIP_KEYS.map((key, idx) => (
+            <MotiView
               key={key}
-              onPress={() => onChip(key)}
-              style={({ pressed }) => [styles.suggestCard, pressed && styles.suggestCardPressed]}
+              from={{ opacity: 0, translateY: 12 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              transition={{ type: 'timing', duration: 420, delay: 560 + idx * 80 }}
             >
-              <Ionicons name="sparkles-outline" size={16} color={COLORS.violetLight} />
-              <Text style={styles.suggestText}>{t(`akasha.chips.${key}`)}</Text>
-              <Ionicons
-                name="arrow-forward"
-                size={14}
-                color={COLORS.textMuted}
-                style={styles.suggestArrow}
-              />
-            </Pressable>
+              <Pressable
+                onPress={() => onChip(key)}
+                style={({ pressed }) => [
+                  styles.suggestCardShell,
+                  pressed && styles.suggestCardPressed,
+                ]}
+              >
+                <LinearGradient
+                  colors={CARD_GRADIENTS[key]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={StyleSheet.absoluteFill}
+                />
+                <BlurView intensity={18} tint="dark" style={StyleSheet.absoluteFill} />
+                <View style={styles.suggestIconBubble}>
+                  <Ionicons name={CARD_ICONS[key]} size={18} color={COLORS.violetLight} />
+                </View>
+                <Text style={styles.suggestText} numberOfLines={2}>
+                  {t(`akasha.chips.${key}`)}
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+              </Pressable>
+            </MotiView>
           ))}
         </View>
       </Animated.View>
@@ -518,17 +578,34 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: SPACING.lg,
+    gap: SPACING.md,
     paddingTop: SPACING.md,
-    paddingBottom: SPACING.md,
+    paddingBottom: SPACING.sm,
+  },
+  orbHeroBlock: {
+    alignItems: 'center',
+    gap: SPACING.sm,
+    width: '100%',
   },
   orbHalo: {
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: COLORS.violetDeep,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 30,
+    elevation: 14,
+  },
+  greeting: {
+    ...TYPE.label,
+    color: COLORS.violetLight,
+    letterSpacing: 2.4,
+    textTransform: 'uppercase',
+    textAlign: 'center',
+    marginTop: SPACING.sm,
   },
   suggestionGrid: {
     width: '100%',
-    marginTop: SPACING.md,
     gap: SPACING.sm,
   },
   suggestLabel: {
@@ -541,28 +618,37 @@ const styles = StyleSheet.create({
   suggestList: {
     gap: SPACING.sm,
   },
-  suggestCard: {
+  suggestCardShell: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.sm,
+    gap: SPACING.md,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.md,
     borderRadius: BORDER_RADIUS.lg,
-    backgroundColor: 'rgba(236,227,255,0.06)',
     borderWidth: 1,
-    borderColor: 'rgba(236,227,255,0.14)',
+    borderColor: 'rgba(236,227,255,0.16)',
+    overflow: 'hidden',
   },
   suggestCardPressed: {
-    backgroundColor: 'rgba(236,227,255,0.12)',
+    borderColor: 'rgba(236,227,255,0.32)',
+    transform: [{ scale: 0.98 }],
+  },
+  suggestIconBubble: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(196,167,255,0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(196,167,255,0.28)',
   },
   suggestText: {
     flex: 1,
     color: COLORS.textPrimary,
     fontSize: 14,
+    fontWeight: '600',
     lineHeight: 20,
-  },
-  suggestArrow: {
-    marginLeft: SPACING.xs,
   },
   hero: {
     ...TYPE.body,
