@@ -31,6 +31,14 @@ firebase-debug.log
 firestore-debug.log
 ui-debug.log
 
+# Native build caches — EAS does a clean Gradle build in the cloud
+android/.gradle/
+android/build/
+android/app/build/
+android/app/.cxx/
+ios/build/
+ios/Pods/
+
 # Editor junk
 .vscode/
 .idea/
