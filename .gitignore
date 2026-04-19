@@ -57,3 +57,10 @@ yarn-error.*
 # Firebase service account keys (never commit)
 serviceAccountKey.json
 **/serviceAccountKey.json
+
+# Firebase functions build output
+functions/lib/
+
+# Local workspace / agent state
+.superpowers/
+.test-screens/
