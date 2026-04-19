@@ -1,0 +1,39 @@
+# Extends .gitignore — anything here is excluded from EAS build uploads
+# even if git-tracked. Keep the archive lean.
+
+# Web build output
+dist/
+web-build/
+
+# Local dev artifacts
+.expo/
+.expo-shared/
+
+# Screenshots, recordings, test artifacts
+.test-screens/
+*.png.bak
+screen*.png
+p8-*.png
+p9-*.png
+akasha-*.png
+
+# Plans, specs, internal docs — not needed on the build server
+docs/
+plan.md
+
+# Secrets folder: keys are injected via EAS secrets, not uploaded
+secrets/
+
+# Firebase emulator / functions local state
+functions/lib/
+functions/node_modules/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Editor junk
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
