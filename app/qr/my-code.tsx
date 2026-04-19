@@ -118,6 +118,7 @@ export default function MyQRCodeScreen() {
             <QRRevealAnimation
               key={`${user.id}-${selectedTheme}-${revealVersion}`}
               rashi={user.vedic.rashi}
+              chineseAnimal={user.chinese.animal}
               deepLink={deepLink}
               userName={user.name}
               cosmicDNA={cosmicDNA}

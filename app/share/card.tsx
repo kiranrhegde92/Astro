@@ -2,6 +2,8 @@ import React, { useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import ViewShot from 'react-native-view-shot';
+import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { StarField } from '../../src/components/ui/StarField';
 import { OrbIcon } from '../../src/components/ui/OrbIcon';
 import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
@@ -46,7 +48,16 @@ export default function ShareCardScreen() {
   const canShareWithoutWatermark = hasPremiumEntitlement(accountUser?.subscription) || premiumCardUnlocked;
 
   const handleShare = () => {
-    captureAndShare(viewShotRef, 'Check out my Cosmic DNA!');
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    const caption = activeTab === 'daily-vibe'
+      ? `Today's cosmic vibe, courtesy of my ${user.western?.sun ?? 'stars'} ✨`
+      : 'Check out my Cosmic DNA ✨';
+    captureAndShare(viewShotRef, caption);
+  };
+
+  const handleTabChange = (tab: CardType) => {
+    Haptics.selectionAsync().catch(() => {});
+    setActiveTab(tab);
   };
 
   const handleUsePremiumCardUnlock = async () => {
@@ -75,29 +86,48 @@ export default function ShareCardScreen() {
     <StarField>
       <ScreenHeader title="Share your stars" />
       <ResetScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        <Text style={styles.headline}>Send a postcard from the cosmos</Text>
         <Text style={styles.subtitle}>
-          Create beautiful shareable cards for social media
+          Pick a card, tap share, and drop some stardust on your feed.
         </Text>
 
         {/* Tab Selector */}
         <View style={styles.tabs}>
           <TouchableOpacity
-            style={[styles.tab, activeTab === 'cosmic-dna' && styles.tabActive]}
-            onPress={() => setActiveTab('cosmic-dna')}
+            style={styles.tab}
+            activeOpacity={0.85}
+            onPress={() => handleTabChange('cosmic-dna')}
           >
+            {activeTab === 'cosmic-dna' ? (
+              <LinearGradient
+                colors={[`${COLORS.gold}44`, `${COLORS.gold}14`]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+            ) : null}
             <View style={styles.tabInner}>
-              <OrbIcon icon="sparkles" size={28} accentColor={COLORS.gold} secondaryColor="#fff4cf" active={activeTab === 'cosmic-dna'} />
+              <OrbIcon icon="sparkles" size={26} accentColor={COLORS.gold} secondaryColor="#fff4cf" active={activeTab === 'cosmic-dna'} />
               <Text style={[styles.tabText, activeTab === 'cosmic-dna' && styles.tabTextActive]}>
                 Cosmic DNA
               </Text>
             </View>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.tab, activeTab === 'daily-vibe' && styles.tabActive]}
-            onPress={() => setActiveTab('daily-vibe')}
+            style={styles.tab}
+            activeOpacity={0.85}
+            onPress={() => handleTabChange('daily-vibe')}
           >
+            {activeTab === 'daily-vibe' ? (
+              <LinearGradient
+                colors={[`${COLORS.sunOrange}44`, `${COLORS.sunOrange}14`]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+            ) : null}
             <View style={styles.tabInner}>
-              <OrbIcon icon="sunny" size={28} accentColor={COLORS.sunOrange} secondaryColor="#ffe9c7" active={activeTab === 'daily-vibe'} />
+              <OrbIcon icon="sunny" size={26} accentColor={COLORS.sunOrange} secondaryColor="#ffe9c7" active={activeTab === 'daily-vibe'} />
               <Text style={[styles.tabText, activeTab === 'daily-vibe' && styles.tabTextActive]}>
                 Daily Vibe
               </Text>
@@ -143,13 +173,13 @@ export default function ShareCardScreen() {
 
         {/* Share Button */}
         <CosmicButton
-          title="Share to Social Media"
+          title="Send it to the world"
           onPress={handleShare}
           colors={[COLORS.starGold, COLORS.sunOrange]}
         />
 
         <Text style={styles.shareHint}>
-          Perfect for Instagram Stories, TikTok, WhatsApp, and more!
+          Built for Instagram, TikTok, WhatsApp — anywhere your people hang out.
         </Text>
 
         <View style={styles.bottomPad} />
@@ -164,42 +194,51 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingBottom: SPACING.xxl,
   },
+  headline: {
+    color: COLORS.textPrimary,
+    fontSize: 22,
+    fontFamily: FONTS.display,
+    textAlign: 'center',
+    marginTop: SPACING.xs,
+  },
   subtitle: {
     color: COLORS.textSecondary,
     fontSize: 14,
     textAlign: 'center',
-    marginTop: SPACING.sm,
+    marginTop: SPACING.xs,
     marginBottom: SPACING.lg,
+    paddingHorizontal: SPACING.md,
+    lineHeight: 20,
   },
   tabs: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.68)',
+    backgroundColor: 'rgba(15,18,34,0.55)',
     borderRadius: BORDER_RADIUS.lg,
-    padding: 4,
+    padding: 5,
     marginBottom: SPACING.lg,
     borderWidth: 1,
     borderColor: COLORS.glassBorder,
+    gap: 4,
   },
   tab: {
     flex: 1,
     paddingVertical: SPACING.sm,
     borderRadius: BORDER_RADIUS.md,
     alignItems: 'center',
+    overflow: 'hidden',
   },
   tabInner: {
     alignItems: 'center',
     gap: 6,
   },
-  tabActive: {
-    backgroundColor: COLORS.bgMuted,
-  },
   tabText: {
     color: COLORS.textMuted,
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: FONTS.heading,
+    letterSpacing: 0.3,
   },
   tabTextActive: {
-    color: COLORS.textPrimary,
+    color: COLORS.gold,
   },
   cardWrapper: {
     alignItems: 'center',
@@ -207,9 +246,12 @@ const styles = StyleSheet.create({
   },
   shareHint: {
     color: COLORS.textMuted,
-    fontSize: 13,
+    fontSize: 12,
     textAlign: 'center',
     marginTop: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    lineHeight: 17,
+    fontStyle: 'italic',
   },
   premiumActions: {
     gap: SPACING.sm,
