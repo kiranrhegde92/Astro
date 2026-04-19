@@ -11,8 +11,16 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import Animated, { FadeIn, FadeOut, Easing } from 'react-native-reanimated';
-import { MotiView } from 'moti';
+import Animated, {
+  Easing,
+  FadeIn,
+  FadeOut,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -31,6 +39,44 @@ import { askAkasha, loadPastReadings } from '../../src/services/akashaService';
 import { logAkashaEvent } from '../../src/services/akashaAnalytics';
 
 const CHIP_KEYS = ['marriage', 'career', 'moonSign', 'travel', 'dasha'] as const;
+
+function BreathingHalo({
+  size,
+  duration = 2800,
+  fromScale = 0.95,
+  toScale = 1.02,
+  fromOpacity = 0.75,
+  toOpacity = 1,
+  style,
+  children,
+}: {
+  size: number;
+  duration?: number;
+  fromScale?: number;
+  toScale?: number;
+  fromOpacity?: number;
+  toOpacity?: number;
+  style?: any;
+  children: React.ReactNode;
+}) {
+  const progress = useSharedValue(0);
+  useEffect(() => {
+    progress.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration, easing: Easing.inOut(Easing.quad) }),
+        withTiming(0, { duration, easing: Easing.inOut(Easing.quad) }),
+      ),
+      -1,
+      false,
+    );
+  }, [duration, progress]);
+  const animatedStyle = useAnimatedStyle(() => {
+    const s = fromScale + (toScale - fromScale) * progress.value;
+    const o = fromOpacity + (toOpacity - fromOpacity) * progress.value;
+    return { transform: [{ scale: s }], opacity: o };
+  });
+  return <Animated.View style={[style, animatedStyle]}>{children}</Animated.View>;
+}
 
 function useCyclingStatus(active: boolean): { text: string; index: number } {
   const { t } = useTranslation();
@@ -248,19 +294,9 @@ function EmptyState({ onChip }: { onChip: (key: string) => void }) {
   return (
     <View style={styles.heroWrap}>
       <View style={styles.orbHeroBlock}>
-        <MotiView
-          from={{ scale: 0.95, opacity: 0.75 }}
-          animate={{ scale: 1.02, opacity: 1 }}
-          transition={{
-            loop: true,
-            type: 'timing',
-            duration: 2800,
-            easing: Easing.inOut(Easing.quad),
-          }}
-          style={styles.orbHalo}
-        >
+        <BreathingHalo size={170} style={styles.orbHalo}>
           <AkashaOrb mode="idle" size={170} />
-        </MotiView>
+        </BreathingHalo>
         <Animated.Text
           entering={FadeIn.duration(600).delay(220)}
           style={styles.greeting}
@@ -282,11 +318,9 @@ function EmptyState({ onChip }: { onChip: (key: string) => void }) {
         <Text style={styles.suggestLabel}>{t('akasha.tryAsking', { defaultValue: 'TRY ASKING' })}</Text>
         <View style={styles.suggestList}>
           {CHIP_KEYS.map((key, idx) => (
-            <MotiView
+            <Animated.View
               key={key}
-              from={{ opacity: 0, translateY: 12 }}
-              animate={{ opacity: 1, translateY: 0 }}
-              transition={{ type: 'timing', duration: 420, delay: 560 + idx * 80 }}
+              entering={FadeIn.duration(420).delay(560 + idx * 80)}
             >
               <Pressable
                 onPress={() => onChip(key)}
@@ -310,7 +344,7 @@ function EmptyState({ onChip }: { onChip: (key: string) => void }) {
                 </Text>
                 <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
               </Pressable>
-            </MotiView>
+            </Animated.View>
           ))}
         </View>
       </Animated.View>
@@ -464,19 +498,17 @@ function CenteredHero({
 }) {
   return (
     <View style={styles.centeredHero}>
-      <MotiView
-        from={{ scale: 0.92, opacity: 0.8 }}
-        animate={{ scale: 1.04, opacity: 1 }}
-        transition={{
-          loop: true,
-          type: 'timing',
-          duration: 3000,
-          easing: Easing.inOut(Easing.quad),
-        }}
+      <BreathingHalo
+        size={140}
+        duration={3000}
+        fromScale={0.92}
+        toScale={1.04}
+        fromOpacity={0.8}
+        toOpacity={1}
         style={styles.orbHalo}
       >
         <AkashaOrb mode="idle" size={140} />
-      </MotiView>
+      </BreathingHalo>
       {icon ? (
         <View style={styles.heroIconBubble}>
           <Ionicons name={icon} size={22} color={COLORS.violetLight} />

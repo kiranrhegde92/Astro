@@ -36,7 +36,6 @@
     "expo-system-ui": "~55.0.15",
     "firebase": "^12.11.0",
     "i18next": "^26.0.3",
-    "moti": "^0.30.0",
     "qrcode": "^1.5.4",
     "react": "19.2.0",
     "react-dom": "19.2.0",
