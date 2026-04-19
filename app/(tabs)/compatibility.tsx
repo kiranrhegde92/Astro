@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import ViewShot from 'react-native-view-shot';
 import { CosmicButton } from '../../src/components/ui/CosmicButton';
@@ -13,7 +14,12 @@ import { SynastryWheel } from '../../src/components/chart/SynastryWheel';
 import { BORDER_RADIUS, COLORS, FONTS, SPACING } from '../../src/constants/theme';
 import { CompatibilityCard } from '../../src/components/share/ShareableCard';
 import { calculateCosmicProfile } from '../../src/engines/unified';
-import { calculateCrossCompatibility } from '../../src/engines/unified/crossCompatibility';
+import {
+  calculateCrossCompatibility,
+  calculateCompatibilityForecast,
+  type CompatibilityForecast,
+} from '../../src/engines/unified/crossCompatibility';
+import { CompatibilityTrajectory } from '../../src/components/ui/CompatibilityTrajectory';
 import { useActiveProfile } from '../../src/hooks/useActiveProfile';
 import { showRewardedAd } from '../../src/services/rewardedAds';
 import { useAdUnlockStore } from '../../src/store/adUnlockStore';
@@ -29,30 +35,106 @@ import { getDateKey, formatDisplayDate } from '../../src/utils/dateUtils';
 import { geocodePlace } from '../../src/utils/geocoding';
 import { captureAndShare } from '../../src/utils/shareUtils';
 import { hasPremiumEntitlement } from '../../src/utils/subscription';
+import { scheduleMatchPeakNotification } from '../../src/utils/notifications';
 
-const MODES: Array<{ value: RelationshipMode; label: string; help: string }> = [
-  { value: 'romantic', label: 'Romantic', help: 'Look for chemistry, tenderness, and long-term ease.' },
-  { value: 'friend', label: 'Friend', help: 'Focus on trust, rhythm, and how you support each other.' },
-  { value: 'work', label: 'Work', help: 'Check timing, communication, and shared momentum.' },
-  { value: 'family', label: 'Family', help: 'Look at patience, emotional fit, and daily harmony.' },
+const MODES: Array<{ value: RelationshipMode; label: string; help: string; accent: string }> = [
+  { value: 'romantic', label: 'Romantic', help: 'Chemistry, tenderness, and the slow-burn kind of magic.', accent: COLORS.coral },
+  { value: 'friend', label: 'Friend', help: 'Trust, rhythm, and the inside-joke chemistry.', accent: COLORS.gold },
+  { value: 'work', label: 'Work', help: 'Timing, comms, and who picks up what ball.', accent: COLORS.tide },
+  { value: 'family', label: 'Family', help: 'Patience, emotional fit, and day-to-day harmony.', accent: COLORS.iris },
 ];
 
 function ScoreLine({
   label,
   value,
   text,
+  accent = COLORS.coral,
 }: {
   label: string;
   value: number;
   text: string;
+  accent?: string;
 }) {
+  const pct = Math.max(4, Math.min(100, value));
   return (
     <View style={styles.scoreLine}>
       <View style={styles.scoreMeta}>
-        <Text style={styles.scoreLabel}>{label}</Text>
-        <Text style={styles.scoreValue}>{value}%</Text>
+        <View style={styles.scoreLabelRow}>
+          <View style={[styles.scoreAccentDot, { backgroundColor: accent }]} />
+          <Text style={styles.scoreLabel}>{label}</Text>
+        </View>
+        <Text style={[styles.scoreValue, { color: accent }]}>{value}%</Text>
+      </View>
+      <View style={styles.scoreBarTrack}>
+        <LinearGradient
+          colors={[accent, `${accent}88`]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={[styles.scoreBarFill, { width: `${pct}%` }]}
+        />
       </View>
       <Text style={styles.scoreText}>{text}</Text>
+    </View>
+  );
+}
+
+function UpcomingHighlights({
+  forecast,
+  onSelectDay,
+}: {
+  forecast: CompatibilityForecast;
+  onSelectDay?: (dateKey: string) => void;
+}) {
+  const todayKey = getDateKey(new Date());
+  const upcoming = forecast.days.filter((d) => d.dateKey >= todayKey);
+  const topPeaks = [...upcoming].sort((a, b) => b.score - a.score).slice(0, 3);
+  const worstUpcoming = [...upcoming].sort((a, b) => a.score - b.score)[0] ?? null;
+  const showLow = worstUpcoming && !topPeaks.some((d) => d.dateKey === worstUpcoming.dateKey);
+
+  const formatPill = (dateKey: string) => {
+    const d = new Date(dateKey);
+    const diffDays = Math.round((d.getTime() - new Date(todayKey).getTime()) / 86400000);
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Tomorrow';
+    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  };
+
+  return (
+    <View style={styles.highlightsList}>
+      <Text style={styles.sectionLabel}>Upcoming highlights</Text>
+      {topPeaks.map((day, idx) => (
+        <TouchableOpacity
+          key={day.dateKey}
+          activeOpacity={0.84}
+          onPress={() => onSelectDay?.(day.dateKey)}
+          style={[styles.highlightRow, idx === 0 && styles.highlightRowTop]}
+        >
+          <View style={[styles.highlightAccent, { backgroundColor: idx === 0 ? COLORS.gold : COLORS.iris }]} />
+          <View style={styles.highlightMeta}>
+            <Text style={styles.highlightHeader}>
+              {idx === 0 ? 'Peak window' : 'Bright day'} · {formatPill(day.dateKey)}
+            </Text>
+            <Text style={styles.highlightNote}>{day.note}</Text>
+          </View>
+          <Text style={[styles.highlightScore, { color: idx === 0 ? COLORS.gold : COLORS.iris }]}>
+            {day.score}%
+          </Text>
+        </TouchableOpacity>
+      ))}
+      {showLow && worstUpcoming ? (
+        <TouchableOpacity
+          activeOpacity={0.84}
+          onPress={() => onSelectDay?.(worstUpcoming.dateKey)}
+          style={styles.highlightRow}
+        >
+          <View style={[styles.highlightAccent, { backgroundColor: COLORS.coral }]} />
+          <View style={styles.highlightMeta}>
+            <Text style={styles.highlightHeader}>Go gently · {formatPill(worstUpcoming.dateKey)}</Text>
+            <Text style={styles.highlightNote}>{worstUpcoming.note}</Text>
+          </View>
+          <Text style={[styles.highlightScore, { color: COLORS.coral }]}>{worstUpcoming.score}%</Text>
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 }
@@ -144,6 +226,7 @@ export default function CompatibilityScreen() {
   const [place, setPlace] = useState('');
   const [mode, setMode] = useState<RelationshipMode>('romantic');
   const [result, setResult] = useState<CompatibilityResult | null>(null);
+  const [forecast, setForecast] = useState<CompatibilityForecast | null>(null);
   const [partnerName, setPartnerName] = useState('');
   const [activeSection, setActiveSection] = useState('setup');
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(params.profileId ?? null);
@@ -257,6 +340,8 @@ export default function CompatibilityScreen() {
         kp: user.kp,
       };
       const nextResult = calculateCrossCompatibility(myProfile, partnerProfile, mode);
+      const nextForecast = calculateCompatibilityForecast(myProfile, partnerProfile, mode, new Date(), 30);
+      setForecast(nextForecast);
       const historyEntry: CompatibilityHistoryEntry = {
         id: `compat_${Date.now()}`,
         partnerId,
@@ -265,6 +350,7 @@ export default function CompatibilityScreen() {
         result: nextResult,
         partnerProfile,
         createdAt: new Date().toISOString(),
+        forecast: nextForecast,
       };
       setResult(nextResult);
       setPartnerName(partnerLabel);
@@ -273,6 +359,14 @@ export default function CompatibilityScreen() {
       await addCompatibilityHistory(historyEntry);
       if (partnerId) {
         await updateSavedProfile(partnerId, { lastComparedAt: historyEntry.createdAt });
+      }
+      if (nextForecast.peak.score >= nextForecast.baseScore + 4) {
+        scheduleMatchPeakNotification(
+          partnerLabel,
+          nextForecast.peak.dateKey,
+          nextForecast.peak.score,
+          nextForecast.peak.note,
+        ).catch(() => {});
       }
     },
     [addCompatibilityHistory, mode, updateSavedProfile, user]
@@ -431,13 +525,27 @@ export default function CompatibilityScreen() {
                     <TouchableOpacity
                       key={item.value}
                       onPress={() => setMode(item.value)}
-                      style={[styles.modeChip, active && styles.modeChipActive]}
+                      style={[
+                        styles.modeChip,
+                        active && { borderColor: `${item.accent}aa` },
+                      ]}
                       activeOpacity={0.84}
                       accessibilityRole="button"
                       accessibilityLabel={`${item.label} compatibility mode`}
                       accessibilityState={{ selected: active }}
                     >
-                      <Text style={[styles.modeText, active && styles.modeTextActive]}>{item.label}</Text>
+                      {active ? (
+                        <LinearGradient
+                          colors={[item.accent, `${item.accent}55`]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={StyleSheet.absoluteFill}
+                        />
+                      ) : null}
+                      <View style={styles.modeDotRow}>
+                        <View style={[styles.modeDot, { backgroundColor: active ? '#fff' : item.accent }]} />
+                        <Text style={[styles.modeText, active && { color: '#fff', fontWeight: '700' }]}>{item.label}</Text>
+                      </View>
                     </TouchableOpacity>
                   );
                 })}
@@ -540,14 +648,28 @@ export default function CompatibilityScreen() {
               <TouchableOpacity
                 onPress={() => setSavePartner((value) => !value)}
                 activeOpacity={0.84}
-                style={[styles.saveToggle, savePartner && styles.saveToggleActive]}
+                style={[
+                  styles.saveToggle,
+                  savePartner && { borderColor: `${COLORS.gold}aa` },
+                ]}
                 accessibilityRole="switch"
                 accessibilityLabel="Save partner after comparing"
                 accessibilityState={{ checked: savePartner }}
               >
-                <Text style={[styles.saveToggleText, savePartner && styles.saveToggleTextActive]}>
-                  {savePartner ? 'Saved after compare' : 'Compare once only'}
-                </Text>
+                {savePartner ? (
+                  <LinearGradient
+                    colors={[COLORS.gold, `${COLORS.gold}66`]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+                ) : null}
+                <View style={styles.saveToggleInner}>
+                  <View style={[styles.saveToggleDot, { backgroundColor: savePartner ? '#fff' : COLORS.gold }]} />
+                  <Text style={[styles.saveToggleText, savePartner && { color: '#1b1430' }]}>
+                    {savePartner ? 'Saved after compare' : 'Compare once only'}
+                  </Text>
+                </View>
               </TouchableOpacity>
             </GradientCard>
 
@@ -557,6 +679,7 @@ export default function CompatibilityScreen() {
                 onPress={canRunCheck ? () => void handleCheck() : () => router.push('/subscription')}
                 disabled={!canRunCheck && !isPremium ? false : !isValid || isRunningCheck}
                 loading={isRunningCheck}
+                colors={[COLORS.coral, COLORS.iris]}
               />
               {!isPremium && freeChecksToday >= 1 && !hasExtraCheckUnlock ? (
                 <CosmicButton
@@ -588,24 +711,53 @@ export default function CompatibilityScreen() {
 
         {activeSection === 'result' && result && activePartnerProfile ? (
           <>
-            <GradientCard accentColor={COLORS.coral}>
+            <View style={[styles.matchHero, { shadowColor: COLORS.coral }]}>
+              <LinearGradient
+                colors={[
+                  result.overall >= 75 ? '#ff7896' : result.overall >= 55 ? '#9b91ff' : '#6f7ae0',
+                  result.overall >= 75 ? '#9b91ff' : result.overall >= 55 ? '#3ee0c8' : '#3ee0c8',
+                ]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFillObject}
+              />
+              <View style={styles.matchHeroHighlight} pointerEvents="none" />
               <View style={styles.resultHero}>
                 <View style={styles.resultCopy}>
-                  <Text style={styles.resultLabel}>{mode} compatibility</Text>
-                  <Text style={styles.resultScore}>{result.overall}%</Text>
-                  <Text style={styles.resultNames}>{user.name} and {partnerName}</Text>
-                  <Text style={styles.resultSummary}>{getModeSummary(mode, result)}</Text>
+                  <Text style={styles.matchHeroLabel}>{mode} compatibility • today</Text>
+                  <Text style={styles.matchHeroScore}>{result.overall}%</Text>
+                  <Text style={styles.matchHeroNames}>{user.name} and {partnerName}</Text>
+                  <Text style={styles.matchHeroSummary}>{getModeSummary(mode, result)}</Text>
+                  {forecast ? (
+                    <View style={styles.matchForecastPill}>
+                      <Text style={styles.matchForecastText}>
+                        30-day avg <Text style={styles.matchForecastStrong}>{forecast.average}%</Text> · peak <Text style={styles.matchForecastStrong}>{forecast.peak.score}%</Text> · low <Text style={styles.matchForecastStrong}>{forecast.low.score}%</Text>
+                      </Text>
+                    </View>
+                  ) : null}
                 </View>
-                <CosmicOrb size={148} primaryColor={COLORS.coral} secondaryColor={COLORS.iris} />
+                <CosmicOrb size={128} primaryColor="#fff" secondaryColor={COLORS.gold} />
               </View>
-            </GradientCard>
+            </View>
 
             <GradientCard style={styles.scoreCard}>
               <Text style={styles.sectionLabel}>How the systems compare</Text>
-              <ScoreLine label="Western" value={result.western.score} text={result.western.details} />
-              <ScoreLine label="Vedic" value={result.vedic.score} text={result.vedic.details} />
-              <ScoreLine label="Chinese" value={result.chinese.score} text={result.chinese.details} />
+              <ScoreLine label="Western" value={result.western.score} text={result.western.details} accent={COLORS.iris} />
+              <ScoreLine label="Vedic" value={result.vedic.score} text={result.vedic.details} accent={COLORS.coral} />
+              <ScoreLine label="Chinese" value={result.chinese.score} text={result.chinese.details} accent={COLORS.tide} />
             </GradientCard>
+
+            {forecast ? (
+              <GradientCard style={styles.scoreCard} accentColor={COLORS.iris}>
+                <CompatibilityTrajectory forecast={forecast} name1={user.name} name2={partnerName} />
+              </GradientCard>
+            ) : null}
+
+            {forecast ? (
+              <GradientCard style={styles.scoreCard} accentColor={COLORS.gold}>
+                <UpcomingHighlights forecast={forecast} />
+              </GradientCard>
+            ) : null}
 
             {user.western?.planets?.length && activePartnerProfile.western?.planets?.length ? (
               <GradientCard>
@@ -621,8 +773,8 @@ export default function CompatibilityScreen() {
             ) : null}
 
             <View style={styles.resultActions}>
-              <CosmicButton title="Share this result" onPress={handleShare} />
-              <CosmicButton title="Start over" onPress={() => setResult(null)} variant="outline" />
+              <CosmicButton title="Share this result" onPress={handleShare} colors={[COLORS.gold, COLORS.coral]} />
+              <CosmicButton title="Start over" onPress={() => { setResult(null); setForecast(null); }} variant="outline" />
             </View>
 
             <View style={styles.hiddenCard}>
@@ -645,15 +797,30 @@ export default function CompatibilityScreen() {
             <Text style={styles.sectionLabel}>Recent comparisons</Text>
             {compatibilityHistory.length ? (
               compatibilityHistory.slice(0, 6).map((entry) => (
-                <View key={entry.id} style={styles.historyRow}>
+                <TouchableOpacity
+                  key={entry.id}
+                  activeOpacity={0.84}
+                  onPress={() => {
+                    setResult(entry.result);
+                    setForecast(entry.forecast ?? null);
+                    setPartnerName(entry.partnerName);
+                    setActivePartnerProfile(entry.partnerProfile);
+                    setMode(entry.mode);
+                    setActiveSection('result');
+                  }}
+                  style={styles.historyRow}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Reopen match with ${entry.partnerName}`}
+                >
                   <View style={styles.historyTop}>
                     <Text style={styles.historyName}>{entry.partnerName}</Text>
                     <Text style={styles.historyScore}>{entry.result.overall}%</Text>
                   </View>
                   <Text style={styles.historyMeta}>
                     {entry.mode} - {formatDisplayDate(entry.createdAt.slice(0, 10))}
+                    {entry.forecast ? ` - 30d avg ${entry.forecast.average}% · peak ${entry.forecast.peak.score}%` : ''}
                   </Text>
-                </View>
+                </TouchableOpacity>
               ))
             ) : (
               <Text style={styles.historyEmpty}>
@@ -710,26 +877,31 @@ const styles = StyleSheet.create({
   },
   modeChip: {
     borderWidth: 1,
-    borderColor: COLORS.glassBorder,
+    borderColor: 'rgba(255,255,255,0.3)',
     borderRadius: BORDER_RADIUS.full,
-    paddingVertical: 8,
+    paddingVertical: 9,
     paddingHorizontal: 14,
-    minHeight: 36,
+    minHeight: 38,
     justifyContent: 'center',
-    backgroundColor: COLORS.glassBg,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    overflow: 'hidden',
   },
-  modeChipActive: {
-    backgroundColor: COLORS.bgMuted,
-    borderColor: COLORS.glassBorderBright,
+  modeDotRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  modeDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
   },
   modeText: {
-    color: COLORS.textMuted,
-    fontSize: 12,
+    color: COLORS.textPrimary,
+    fontSize: 13,
     fontFamily: FONTS.accent,
     letterSpacing: 0.7,
-  },
-  modeTextActive: {
-    color: COLORS.textPrimary,
+    fontWeight: '600',
   },
   modeHelp: {
     color: COLORS.textSecondary,
@@ -778,25 +950,30 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     borderRadius: BORDER_RADIUS.full,
     borderWidth: 1,
-    borderColor: COLORS.glassBorder,
+    borderColor: 'rgba(255,255,255,0.3)',
     paddingHorizontal: 14,
     paddingVertical: 10,
     minHeight: 40,
     justifyContent: 'center',
-    backgroundColor: COLORS.glassBg,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    overflow: 'hidden',
   },
-  saveToggleActive: {
-    backgroundColor: COLORS.bgMuted,
-    borderColor: COLORS.glassBorderBright,
+  saveToggleInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  saveToggleDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
   },
   saveToggleText: {
-    color: COLORS.textMuted,
-    fontSize: 12,
+    color: COLORS.textPrimary,
+    fontSize: 13,
     fontFamily: FONTS.accent,
     letterSpacing: 0.7,
-  },
-  saveToggleTextActive: {
-    color: COLORS.textPrimary,
+    fontWeight: '600',
   },
   savedCard: {
     gap: SPACING.sm,
@@ -831,14 +1008,16 @@ const styles = StyleSheet.create({
   removeChip: {
     borderRadius: BORDER_RADIUS.full,
     borderWidth: 1,
-    borderColor: COLORS.glassBorder,
+    borderColor: `${COLORS.coral}66`,
     paddingVertical: 6,
     paddingHorizontal: 10,
+    backgroundColor: `${COLORS.coral}15`,
   },
   removeText: {
-    color: COLORS.textMuted,
+    color: COLORS.coral,
     fontSize: 11,
     fontFamily: FONTS.accent,
+    fontWeight: '700',
   },
   resultHero: {
     flexDirection: 'row',
@@ -873,12 +1052,86 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 22,
   },
+  resultForecastLine: {
+    color: COLORS.gold,
+    fontSize: 11,
+    letterSpacing: 0.4,
+    marginTop: 6,
+    fontFamily: FONTS.accent,
+  },
+  matchHero: {
+    borderRadius: BORDER_RADIUS.xxl,
+    padding: SPACING.lg,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.22)',
+    shadowOpacity: 0.4,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 6,
+  },
+  matchHeroHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1.5,
+    backgroundColor: 'rgba(255,255,255,0.45)',
+  },
+  matchHeroLabel: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 11,
+    fontFamily: FONTS.accent,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  matchHeroScore: {
+    color: '#fff',
+    fontSize: 54,
+    lineHeight: 60,
+    fontFamily: FONTS.display,
+    textShadowColor: 'rgba(0,0,0,0.25)',
+    textShadowRadius: 8,
+    textShadowOffset: { width: 0, height: 2 },
+  },
+  matchHeroNames: {
+    color: '#fff8ea',
+    fontSize: 16,
+    lineHeight: 23,
+    fontFamily: FONTS.heading,
+  },
+  matchHeroSummary: {
+    color: 'rgba(255,255,255,0.88)',
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 4,
+  },
+  matchForecastPill: {
+    marginTop: 10,
+    alignSelf: 'flex-start',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    backgroundColor: 'rgba(0,0,0,0.22)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+  },
+  matchForecastText: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 11,
+    letterSpacing: 0.3,
+    fontFamily: FONTS.accent,
+  },
+  matchForecastStrong: {
+    color: COLORS.gold,
+    fontFamily: FONTS.heading,
+  },
   scoreCard: {
     gap: SPACING.sm,
   },
   scoreLine: {
-    gap: SPACING.xs,
-    paddingVertical: 10,
+    gap: 8,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.glassBorder,
   },
@@ -887,20 +1140,80 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  scoreLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  scoreAccentDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
   scoreLabel: {
     color: COLORS.textPrimary,
-    fontSize: 18,
+    fontSize: 17,
     fontFamily: FONTS.heading,
   },
   scoreValue: {
-    color: COLORS.coral,
     fontSize: 18,
     fontFamily: FONTS.heading,
+  },
+  scoreBarTrack: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    overflow: 'hidden',
+  },
+  scoreBarFill: {
+    height: '100%',
+    borderRadius: 3,
   },
   scoreText: {
     color: COLORS.textSecondary,
     fontSize: 14,
     lineHeight: 22,
+  },
+  highlightsList: {
+    gap: SPACING.sm,
+  },
+  highlightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+  },
+  highlightRowTop: {
+    borderColor: `${COLORS.gold}55`,
+    backgroundColor: `${COLORS.gold}12`,
+  },
+  highlightAccent: {
+    width: 4,
+    alignSelf: 'stretch',
+    borderRadius: 2,
+  },
+  highlightMeta: {
+    flex: 1,
+    gap: 3,
+  },
+  highlightHeader: {
+    color: COLORS.textPrimary,
+    fontSize: 13,
+    fontFamily: FONTS.heading,
+  },
+  highlightNote: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  highlightScore: {
+    fontSize: 16,
+    fontFamily: FONTS.heading,
   },
   actions: {
     gap: SPACING.md,
