@@ -48,7 +48,7 @@ function AnimatedTab({
     backgroundColor: interpolateColor(
       active.value,
       [0, 1],
-      ['rgba(255,255,255,0.42)', 'rgba(255,255,255,0.82)']
+      ['rgba(255,255,255,0.06)', 'rgba(255,255,255,0.18)']
     ),
     borderColor: interpolateColor(
       active.value,
@@ -61,7 +61,7 @@ function AnimatedTab({
     color: interpolateColor(
       active.value,
       [0, 1],
-      [COLORS.textMuted, COLORS.textPrimary]
+      [COLORS.textSecondary, COLORS.textPrimary]
     ),
   }));
 

@@ -27,7 +27,6 @@ import { PastReadingsList } from '../../src/components/akasha/PastReadingsList';
 import { BORDER_RADIUS, COLORS, SHADOWS, SPACING, TYPE } from '../../src/constants/theme';
 import { useAkashaStore } from '../../src/store/akashaStore';
 import { useUserStore } from '../../src/store/userStore';
-import { useSubscriptionStore } from '../../src/store/subscriptionStore';
 import { askAkasha, loadPastReadings } from '../../src/services/akashaService';
 import { logAkashaEvent } from '../../src/services/akashaAnalytics';
 
@@ -57,7 +56,7 @@ export default function AkashaScreen() {
   const [showHistory, setShowHistory] = useState(false);
 
   const user = useUserStore((s) => s.user);
-  const subscription = useSubscriptionStore((s) => s.subscription);
+  const subscription = user?.subscription ?? { tier: 'free' as const, status: 'active' as const };
   const {
     status,
     currentQuestion,
@@ -240,10 +239,10 @@ function EmptyState({ onChip }: { onChip: (key: string) => void }) {
   const { t } = useTranslation();
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
-    if (hour < 5) return t('akasha.greetingNight') ?? 'The night listens';
-    if (hour < 12) return t('akasha.greetingMorning') ?? 'Good morning, seeker';
-    if (hour < 17) return t('akasha.greetingAfternoon') ?? 'The afternoon stills';
-    return t('akasha.greetingEvening') ?? 'Good evening, seeker';
+    if (hour < 5) return t('akasha.greetingNight', { defaultValue: 'The night listens' });
+    if (hour < 12) return t('akasha.greetingMorning', { defaultValue: 'Good morning, seeker' });
+    if (hour < 17) return t('akasha.greetingAfternoon', { defaultValue: 'The afternoon stills' });
+    return t('akasha.greetingEvening', { defaultValue: 'Good evening, seeker' });
   }, [t]);
 
   return (
@@ -280,7 +279,7 @@ function EmptyState({ onChip }: { onChip: (key: string) => void }) {
         entering={FadeIn.duration(600).delay(500)}
         style={styles.suggestionGrid}
       >
-        <Text style={styles.suggestLabel}>{t('akasha.tryAsking') ?? 'TRY ASKING'}</Text>
+        <Text style={styles.suggestLabel}>{t('akasha.tryAsking', { defaultValue: 'TRY ASKING' })}</Text>
         <View style={styles.suggestList}>
           {CHIP_KEYS.map((key, idx) => (
             <MotiView
@@ -333,16 +332,6 @@ function InputBar(props: {
         style={styles.inputBarGradient}
         pointerEvents="none"
       />
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chipsRow}
-        keyboardShouldPersistTaps="handled"
-      >
-        {CHIP_KEYS.map((key) => (
-          <PromptChip key={key} label={t(`akasha.chips.${key}`)} onPress={() => props.onChip(key)} />
-        ))}
-      </ScrollView>
       <View style={styles.inputRow}>
         <TextInput
           value={props.input}
@@ -648,9 +637,9 @@ const styles = StyleSheet.create({
   heroWrap: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: SPACING.md,
-    paddingTop: SPACING.md,
+    justifyContent: 'flex-start',
+    gap: SPACING.lg,
+    paddingTop: SPACING.xl,
     paddingBottom: SPACING.sm,
   },
   orbHeroBlock: {

@@ -5,12 +5,13 @@ import { getChart } from './firestoreService';
 import { buildAkashaDigest } from '../engines/unified/akashaDigest';
 import { useAkashaStore, type AkashaReading } from '../store/akashaStore';
 import { useAuthStore } from '../store/authStore';
-import { useSubscriptionStore } from '../store/subscriptionStore';
+import { useUserStore } from '../store/userStore';
 import { logAkashaEvent } from './akashaAnalytics';
 import type { AkashaAskRequest, AkashaAskResponse } from '../../functions/src/akasha/types';
 
 function currentTier(): 'free' | 'trial' | 'premium' {
-  const sub = useSubscriptionStore.getState().subscription;
+  const sub = useUserStore.getState().user?.subscription;
+  if (!sub) return 'free';
   if (sub.status === 'trial') return 'trial';
   if (sub.tier === 'premium' && sub.status === 'active') return 'premium';
   return 'free';

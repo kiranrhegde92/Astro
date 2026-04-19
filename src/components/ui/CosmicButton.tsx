@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   disabled: {
-    opacity: 0.45,
+    opacity: 0.7,
   },
   shimmer: {
     position: 'absolute',
