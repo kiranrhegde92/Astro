@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const MODEL = process.env.GEMINI_MODEL ?? 'gemini-1.5-flash-latest';
+const MODEL = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash-lite';
 const MAX_OUTPUT_TOKENS = 1500;
 
 export interface AskGeminiInput {
@@ -43,7 +43,11 @@ export async function askGemini(input: AskGeminiInput): Promise<AskGeminiResult>
     } catch (err) {
       lastErr = err;
       const msg = (err as Error)?.message ?? '';
-      if (!msg.includes('429') && !msg.toLowerCase().includes('rate')) throw err;
+      const retryable =
+        msg.includes('429') ||
+        msg.includes('503') ||
+        /rate|overload|unavailable/i.test(msg);
+      if (!retryable) throw err;
     }
   }
   throw lastErr;
