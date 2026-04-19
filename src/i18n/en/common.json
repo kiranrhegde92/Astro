@@ -132,6 +132,33 @@
     "restore": "Restore Purchase",
     "trial": "Start 7-Day Free Trial"
   },
+  "akasha": {
+    "tabLabel": "Akasha",
+    "intro": "I am Akasha. I read the four pillars of your stars. Ask what your heart seeks.",
+    "inputPlaceholder": "Ask Akasha…",
+    "askButton": "Ask",
+    "statusReading": "Reading your stars…",
+    "statusConsulting": "Consulting your dasha…",
+    "statusWeaving": "Weaving your answer…",
+    "pastReadings": "Past readings",
+    "noBirthData": "Akasha needs your birth details to read your stars.",
+    "noBirthDataCta": "Complete your profile",
+    "offline": "Akasha needs a connection to read your stars.",
+    "oracleSilent": "The stars are quiet right now. Try again in a moment.",
+    "retry": "Try again",
+    "limitFree": "Akasha rests until {{date}}. Unlock three consultations per day with Premium.",
+    "limitFreeCta": "Go Premium",
+    "limitPremium": "You've consulted Akasha 3 times today. Return tomorrow.",
+    "meditating": "Akasha is meditating. Return shortly.",
+    "readOnPrefix": "Read on",
+    "chips": {
+      "marriage": "When will I marry?",
+      "career": "How's my career this year?",
+      "moonSign": "What does my moon sign mean?",
+      "travel": "What's my best time to travel?",
+      "dasha": "Am I in a good dasha right now?"
+    }
+  },
   "common": {
     "loading": "Aligning the stars...",
     "error": "Something went cosmic. Please try again.",

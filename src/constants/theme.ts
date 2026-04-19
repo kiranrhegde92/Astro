@@ -30,6 +30,8 @@ const ACCENT = {
   plum: '#c77ad8',
   coral: '#ff7896',
   dawn: '#ff9e72',
+  violetDeep: '#5b3ea8',
+  violetSoft: '#ece3ff',
 };
 
 export const COLORS = {
@@ -82,6 +84,8 @@ export const COLORS = {
   violet: ACCENT.iris,
   violetLight: ACCENT.irisBright,
   violetBright: '#d1cbff',
+  violetDeep: ACCENT.violetDeep,
+  violetSoft: ACCENT.violetSoft,
   teal: ACCENT.tide,
   tealLight: ACCENT.tideLight,
   deepSpace: COSMOS.deep,

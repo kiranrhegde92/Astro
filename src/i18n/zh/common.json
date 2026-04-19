@@ -132,6 +132,33 @@
     "restore": "恢复购买",
     "trial": "开始7天免费试用"
   },
+  "akasha": {
+    "tabLabel": "阿卡莎",
+    "intro": "我是阿卡莎。我解读你星盘的四大支柱。问出你心中所求。",
+    "inputPlaceholder": "向阿卡莎提问…",
+    "askButton": "提问",
+    "statusReading": "正在解读你的星辰…",
+    "statusConsulting": "正在查阅你的大运…",
+    "statusWeaving": "正在编织你的答案…",
+    "pastReadings": "历次解读",
+    "noBirthData": "阿卡莎需要你的出生信息才能解读星辰。",
+    "noBirthDataCta": "完善档案",
+    "offline": "阿卡莎需要网络连接才能解读星辰。",
+    "oracleSilent": "星辰暂时沉默。片刻后再试。",
+    "retry": "重试",
+    "limitFree": "阿卡莎休息至 {{date}}。升级 Premium，每天可咨询三次。",
+    "limitFreeCta": "升级 Premium",
+    "limitPremium": "你今天已咨询阿卡莎3次。明天再来吧。",
+    "meditating": "阿卡莎正在冥想。请稍后再来。",
+    "readOnPrefix": "阅读于",
+    "chips": {
+      "marriage": "我什么时候会结婚？",
+      "career": "我今年的事业运如何？",
+      "moonSign": "我的月亮星座意味着什么？",
+      "travel": "我最适合旅行的时间是什么时候？",
+      "dasha": "我现在的大运好吗？"
+    }
+  },
   "common": {
     "loading": "星辰排列中...",
     "error": "出了点宇宙小状况，请重试。",
