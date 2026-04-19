@@ -852,8 +852,10 @@ const styles = StyleSheet.create({
     maxHeight: 120,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
+    fontSize: 15,
+    letterSpacing: 0,
     color: COLORS.textPrimary,
-    ...TYPE.body,
+    textAlignVertical: 'top',
   },
   askBtn: {
     width: 44,
