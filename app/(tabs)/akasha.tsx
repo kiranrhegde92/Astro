@@ -115,9 +115,7 @@ export default function AkashaScreen() {
   const showInputBar = status === 'idle' || status === 'error';
 
   return (
-    <View style={styles.root}>
-      <LinearGradient colors={COLORS.gradientBg} style={StyleSheet.absoluteFill} />
-      <StarField />
+    <StarField>
       <LinearGradient
         colors={['rgba(91,62,168,0.18)', 'transparent']}
         style={styles.topGlow}
@@ -189,7 +187,7 @@ export default function AkashaScreen() {
           />
         ) : null}
       </View>
-    </View>
+    </StarField>
   );
 }
 
