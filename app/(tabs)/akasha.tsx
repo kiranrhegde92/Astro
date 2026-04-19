@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native';
 import Animated, { FadeIn, FadeOut, Easing } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -49,6 +49,7 @@ function useCyclingStatus(active: boolean): { text: string; index: number } {
 export default function AkashaScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
   const [input, setInput] = useState('');
   const [showHistory, setShowHistory] = useState(false);
@@ -120,7 +121,7 @@ export default function AkashaScreen() {
         style={styles.topGlow}
         pointerEvents="none"
       />
-      <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
+      <View style={[styles.flex, { paddingTop: insets.top }]}>
         <Header
           hasHistory={pastReadings.length > 0}
           onHistoryToggle={() => setShowHistory((v) => !v)}
@@ -173,7 +174,7 @@ export default function AkashaScreen() {
                 onToggle={handleExpandReading}
               />
             ) : (
-              <EmptyState />
+              <EmptyState onChip={handleChip} />
             )}
           </ScrollView>
         </KeyboardAvoidingView>
@@ -185,7 +186,7 @@ export default function AkashaScreen() {
             onChip={handleChip}
           />
         ) : null}
-      </SafeAreaView>
+      </View>
     </View>
   );
 }
@@ -219,12 +220,12 @@ function Header({
   );
 }
 
-function EmptyState() {
+function EmptyState({ onChip }: { onChip: (key: string) => void }) {
   const { t } = useTranslation();
   return (
     <View style={styles.heroWrap}>
-      <Animated.View entering={FadeIn.duration(700)}>
-        <AkashaOrb mode="idle" size={180} />
+      <Animated.View entering={FadeIn.duration(700)} style={styles.orbHalo}>
+        <AkashaOrb mode="idle" size={160} />
       </Animated.View>
       <Animated.Text
         entering={FadeIn.duration(600).delay(220).easing(Easing.out(Easing.cubic))}
@@ -232,6 +233,30 @@ function EmptyState() {
       >
         {t('akasha.intro')}
       </Animated.Text>
+      <Animated.View
+        entering={FadeIn.duration(600).delay(380)}
+        style={styles.suggestionGrid}
+      >
+        <Text style={styles.suggestLabel}>{t('akasha.tryAsking') ?? 'TRY ASKING'}</Text>
+        <View style={styles.suggestList}>
+          {CHIP_KEYS.map((key) => (
+            <Pressable
+              key={key}
+              onPress={() => onChip(key)}
+              style={({ pressed }) => [styles.suggestCard, pressed && styles.suggestCardPressed]}
+            >
+              <Ionicons name="sparkles-outline" size={16} color={COLORS.violetLight} />
+              <Text style={styles.suggestText}>{t(`akasha.chips.${key}`)}</Text>
+              <Ionicons
+                name="arrow-forward"
+                size={14}
+                color={COLORS.textMuted}
+                style={styles.suggestArrow}
+              />
+            </Pressable>
+          ))}
+        </View>
+      </Animated.View>
     </View>
   );
 }
@@ -492,10 +517,52 @@ const styles = StyleSheet.create({
   heroWrap: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     gap: SPACING.lg,
-    minHeight: 420,
-    paddingVertical: SPACING.xl,
+    paddingTop: SPACING.xl,
+    paddingBottom: SPACING.lg,
+  },
+  orbHalo: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  suggestionGrid: {
+    width: '100%',
+    marginTop: SPACING.md,
+    gap: SPACING.sm,
+  },
+  suggestLabel: {
+    ...TYPE.label,
+    color: COLORS.violetLight,
+    letterSpacing: 1.8,
+    textAlign: 'center',
+    marginBottom: SPACING.xs,
+  },
+  suggestList: {
+    gap: SPACING.sm,
+  },
+  suggestCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    backgroundColor: 'rgba(236,227,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(236,227,255,0.14)',
+  },
+  suggestCardPressed: {
+    backgroundColor: 'rgba(236,227,255,0.12)',
+  },
+  suggestText: {
+    flex: 1,
+    color: COLORS.textPrimary,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  suggestArrow: {
+    marginLeft: SPACING.xs,
   },
   hero: {
     ...TYPE.body,
