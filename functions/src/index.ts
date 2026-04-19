@@ -11,6 +11,8 @@ import { runPredictionModel } from './ml/modelScoring';
 import type { PredictionFeedbackRecord, PredictionRunRecord, PredictionWindow } from './ml/types';
 import { geocodePlace, localToUtc } from './utils/geocoding';
 
+export { askAkasha } from './akasha/askAkasha';
+
 admin.initializeApp();
 const db = admin.firestore();
 const DAILY_READING_VERSION = 5;
