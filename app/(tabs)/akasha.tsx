@@ -460,6 +460,87 @@ function HistoryView(props: {
   );
 }
 
+function CenteredHero({
+  icon,
+  title,
+  subtitle,
+  primary,
+  secondary,
+  accent,
+}: {
+  icon?: keyof typeof Ionicons.glyphMap;
+  title: string;
+  subtitle?: string;
+  primary?: { label: string; onPress: () => void; icon?: keyof typeof Ionicons.glyphMap };
+  secondary?: { label: string; onPress: () => void };
+  accent?: readonly [string, string];
+}) {
+  return (
+    <View style={styles.centeredHero}>
+      <MotiView
+        from={{ scale: 0.92, opacity: 0.8 }}
+        animate={{ scale: 1.04, opacity: 1 }}
+        transition={{
+          loop: true,
+          type: 'timing',
+          duration: 3000,
+          easing: Easing.inOut(Easing.quad),
+        }}
+        style={styles.orbHalo}
+      >
+        <AkashaOrb mode="idle" size={140} />
+      </MotiView>
+      {icon ? (
+        <View style={styles.heroIconBubble}>
+          <Ionicons name={icon} size={22} color={COLORS.violetLight} />
+        </View>
+      ) : null}
+      <Animated.Text
+        entering={FadeIn.duration(500).delay(160)}
+        style={styles.heroTitle}
+      >
+        {title}
+      </Animated.Text>
+      {subtitle ? (
+        <Animated.Text
+          entering={FadeIn.duration(500).delay(260)}
+          style={styles.heroSubtitle}
+        >
+          {subtitle}
+        </Animated.Text>
+      ) : null}
+      {primary ? (
+        <Animated.View entering={FadeIn.duration(500).delay(380)} style={styles.heroCtaWrap}>
+          <Pressable
+            onPress={primary.onPress}
+            style={({ pressed }) => [styles.gradientBtn, pressed && styles.gradientBtnPressed]}
+          >
+            <LinearGradient
+              colors={accent ?? ['#8B5CF6', '#5B3EA8']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            {primary.icon ? (
+              <Ionicons name={primary.icon} size={18} color="#fff" />
+            ) : null}
+            <Text style={styles.gradientBtnLabel}>{primary.label}</Text>
+          </Pressable>
+        </Animated.View>
+      ) : null}
+      {secondary ? (
+        <TouchableOpacity
+          onPress={secondary.onPress}
+          style={styles.linkBtn}
+          activeOpacity={0.6}
+        >
+          <Text style={styles.linkBtnLabel}>{secondary.label}</Text>
+        </TouchableOpacity>
+      ) : null}
+    </View>
+  );
+}
+
 function LimitReachedState(props: {
   isPremium: boolean;
   nextAvailableAt: number | null;
@@ -474,34 +555,28 @@ function LimitReachedState(props: {
       })
     : '';
   return (
-    <View style={styles.heroWrap}>
-      <AkashaOrb mode="idle" size={140} />
-      <Text style={styles.limitText}>
-        {props.isPremium ? t('akasha.limitPremium') : t('akasha.limitFree', { date: dateStr })}
-      </Text>
-      {!props.isPremium ? (
-        <TouchableOpacity onPress={props.onUpgrade} style={styles.primaryBtn} activeOpacity={0.8}>
-          <Text style={styles.primaryBtnLabel}>{t('akasha.limitFreeCta')}</Text>
-        </TouchableOpacity>
-      ) : (
-        <TouchableOpacity onPress={props.onDismiss} style={styles.secondaryBtn} activeOpacity={0.8}>
-          <Text style={styles.secondaryBtnLabel}>{t('akasha.retry')}</Text>
-        </TouchableOpacity>
-      )}
-    </View>
+    <CenteredHero
+      icon="moon-outline"
+      title={
+        props.isPremium ? t('akasha.limitPremium') : t('akasha.limitFree', { date: dateStr })
+      }
+      primary={
+        !props.isPremium
+          ? { label: t('akasha.limitFreeCta'), onPress: props.onUpgrade, icon: 'sparkles' }
+          : { label: t('akasha.retry'), onPress: props.onDismiss }
+      }
+    />
   );
 }
 
 function NoBirthState({ onComplete }: { onComplete: () => void }) {
   const { t } = useTranslation();
   return (
-    <View style={styles.heroWrap}>
-      <AkashaOrb mode="idle" size={140} />
-      <Text style={styles.hero}>{t('akasha.noBirthData')}</Text>
-      <TouchableOpacity onPress={onComplete} style={styles.primaryBtn} activeOpacity={0.8}>
-        <Text style={styles.primaryBtnLabel}>{t('akasha.noBirthDataCta')}</Text>
-      </TouchableOpacity>
-    </View>
+    <CenteredHero
+      icon="star-outline"
+      title={t('akasha.noBirthData')}
+      primary={{ label: t('akasha.noBirthDataCta'), onPress: onComplete, icon: 'arrow-forward' }}
+    />
   );
 }
 
@@ -514,13 +589,11 @@ function ErrorState({ message, onRetry }: { message: string | null; onRetry: () 
       ? t('akasha.noBirthData')
       : t('akasha.oracleSilent');
   return (
-    <View style={styles.heroWrap}>
-      <AkashaOrb mode="idle" size={140} />
-      <Text style={styles.hero}>{copy}</Text>
-      <TouchableOpacity onPress={onRetry} style={styles.secondaryBtn} activeOpacity={0.8}>
-        <Text style={styles.secondaryBtnLabel}>{t('akasha.retry')}</Text>
-      </TouchableOpacity>
-    </View>
+    <CenteredHero
+      icon="alert-circle-outline"
+      title={copy}
+      primary={{ label: t('akasha.retry'), onPress: onRetry, icon: 'refresh' }}
+    />
   );
 }
 
@@ -586,6 +659,74 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: SPACING.sm,
     width: '100%',
+  },
+  centeredHero: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.md,
+    paddingVertical: SPACING.xl,
+    minHeight: 460,
+  },
+  heroIconBubble: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(196,167,255,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(196,167,255,0.3)',
+    marginTop: SPACING.sm,
+  },
+  heroTitle: {
+    ...TYPE.body,
+    color: COLORS.textPrimary,
+    textAlign: 'center',
+    fontSize: 17,
+    lineHeight: 26,
+    fontWeight: '600',
+    paddingHorizontal: SPACING.md,
+  },
+  heroSubtitle: {
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    fontSize: 14,
+    lineHeight: 20,
+    paddingHorizontal: SPACING.md,
+  },
+  heroCtaWrap: {
+    marginTop: SPACING.md,
+  },
+  gradientBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.md,
+    borderRadius: BORDER_RADIUS.xl,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+    minWidth: 200,
+  },
+  gradientBtnPressed: {
+    transform: [{ scale: 0.97 }],
+  },
+  gradientBtnLabel: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 15,
+    letterSpacing: 0.6,
+  },
+  linkBtn: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+  },
+  linkBtnLabel: {
+    color: COLORS.textMuted,
+    fontSize: 14,
   },
   orbHalo: {
     alignItems: 'center',
