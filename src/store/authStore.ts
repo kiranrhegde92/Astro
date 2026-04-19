@@ -148,6 +148,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     const unsubscribe = onAuthChange(async (user) => {
       clearTimeout(timeout);
       const emailVerified = isUserEmailVerified(user);
+      useReadingStore.getState().setActiveUid(user?.uid ?? null);
       set({
         firebaseUser: user,
         authReady: true,
