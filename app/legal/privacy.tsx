@@ -1,10 +1,13 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
 import { StarField } from '../../src/components/ui/StarField';
 import { GradientCard } from '../../src/components/ui/GradientCard';
+import { WebLegalPage } from '../../src/components/web/WebLegalPage';
 import { COLORS, FONTS, SPACING } from '../../src/constants/theme';
+
+const UPDATED = 'Last updated April 19, 2026.';
 
 const SECTIONS = [
   {
@@ -40,18 +43,31 @@ const SECTIONS = [
   {
     title: 'Contact',
     body:
-      'Until a dedicated support contact is published, use the app distribution channel or project support contact listed with the build you received to request help, privacy clarification, or account assistance.',
+      'Questions, privacy requests, or account help? Email admin@cosmicself.app and we will reply within 2 business days.',
   },
 ];
 
 export default function PrivacyPolicyScreen() {
+  if (Platform.OS === 'web') {
+    return (
+      <WebLegalPage
+        eyebrow="COSMICSELF LEGAL"
+        title="Privacy Policy"
+        headline="A short, readable overview of how your data is handled."
+        updated={UPDATED}
+        sections={SECTIONS}
+        metaDescription="How CosmicSelf collects, uses, and protects the data you enter across Western, Vedic, Chinese, and KP astrology features."
+      />
+    );
+  }
+
   return (
     <StarField>
       <ScreenHeader title="Privacy Policy" accentColor={COLORS.tide} />
       <ResetScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <Text style={styles.eyebrow}>COSMICSELF LEGAL</Text>
         <Text style={styles.headline}>A short, readable overview of how your data is handled.</Text>
-        <Text style={styles.updated}>Last updated for the CosmicSelf v2 rollout.</Text>
+        <Text style={styles.updated}>{UPDATED}</Text>
 
         {SECTIONS.map((section) => (
           <GradientCard key={section.title} style={styles.card} accentColor={COLORS.tide}>

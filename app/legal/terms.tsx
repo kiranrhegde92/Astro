@@ -1,10 +1,13 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
 import { StarField } from '../../src/components/ui/StarField';
 import { GradientCard } from '../../src/components/ui/GradientCard';
+import { WebLegalPage } from '../../src/components/web/WebLegalPage';
 import { COLORS, FONTS, SPACING } from '../../src/constants/theme';
+
+const UPDATED = 'Last updated April 19, 2026.';
 
 const SECTIONS = [
   {
@@ -45,13 +48,26 @@ const SECTIONS = [
 ];
 
 export default function TermsOfServiceScreen() {
+  if (Platform.OS === 'web') {
+    return (
+      <WebLegalPage
+        eyebrow="COSMICSELF LEGAL"
+        title="Terms of Service"
+        headline="The simple rules for using the app and its premium features."
+        updated={UPDATED}
+        sections={SECTIONS}
+        metaDescription="Terms for using CosmicSelf — personal astrology reflection tools across Western, Vedic, Chinese, and KP systems."
+      />
+    );
+  }
+
   return (
     <StarField>
       <ScreenHeader title="Terms of Service" accentColor={COLORS.plum} />
       <ResetScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <Text style={styles.eyebrow}>COSMICSELF LEGAL</Text>
         <Text style={styles.headline}>The simple rules for using the app and its premium features.</Text>
-        <Text style={styles.updated}>Last updated for the CosmicSelf v2 rollout.</Text>
+        <Text style={styles.updated}>{UPDATED}</Text>
 
         {SECTIONS.map((section) => (
           <GradientCard key={section.title} style={styles.card} accentColor={COLORS.plum}>

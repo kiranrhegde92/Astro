@@ -13,6 +13,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import Head from 'expo-router/head';
 import { ZodiacThreeScene } from '../src/components/web/ZodiacThreeScene';
+import { WebFooter } from '../src/components/web/WebFooter';
 import { COLORS, FONTS, SHADOWS } from '../src/constants/theme';
 
 const SYSTEMS = [
@@ -31,6 +32,57 @@ const DAILY_FLOW = [
 const DOWNLOAD_OPTIONS = [
   ['Android', 'Google Play', 'Coming soon'],
   ['iPhone', 'App Store', 'Coming soon'],
+] as const;
+
+const FEATURES = [
+  [
+    'Today Brief',
+    'Daily',
+    'A short, calm reading that blends transit, nakshatra, element, and KP signal for the day ahead.',
+  ],
+  [
+    'Self Chart',
+    'Birth pattern',
+    'Four-system profile with plain-English takes on your Western, Vedic, Chinese, and KP signatures.',
+  ],
+  [
+    'Ask Akasha',
+    'AI oracle',
+    'Ask a real question and get a grounded, personal answer rooted in your actual chart — not a horoscope blog.',
+  ],
+  [
+    'Compatibility',
+    'Match',
+    'Deeper compatibility reading between any two saved people, with strengths, friction, and timing.',
+  ],
+  [
+    'Cosmic QR',
+    'Share',
+    'A shareable cosmic identity — QR code, profile card, and link — that only shows what you pick.',
+  ],
+] as const;
+
+const FAQ = [
+  [
+    'Is CosmicSelf free to use?',
+    'Yes. The daily brief, self chart, and compatibility basics are free. Premium unlocks deeper readings, transit alerts, and reduced ads.',
+  ],
+  [
+    'Which astrology systems does it use?',
+    'Western, Vedic (sidereal), Chinese four pillars, and KP. Every reading draws from all four so you see a fuller picture, not just a sun sign.',
+  ],
+  [
+    'Do I need to know my exact birth time?',
+    'A time helps — KP and Vedic houses rely on it. If you are unsure, you can still use Today, compatibility, and most readings with a date-only profile.',
+  ],
+  [
+    'Where is my birth data stored?',
+    'On your device for speed and offline use, and in your signed-in account so it can sync across devices. We never sell it, and you can delete it from Settings at any time.',
+  ],
+  [
+    'When will the app launch?',
+    'CosmicSelf is in final pre-launch on Google Play and the App Store. The download buttons above will light up as soon as store review is complete.',
+  ],
 ] as const;
 
 export default function LaunchScreen() {
@@ -179,6 +231,37 @@ export default function LaunchScreen() {
           </View>
         </View>
 
+        <View style={styles.featuresSection}>
+          <Text style={styles.sectionKicker}>WHAT'S INSIDE</Text>
+          <Text style={[styles.featuresTitle, !isWide && styles.featuresTitleCompact]}>
+            Five rituals, one quiet app.
+          </Text>
+          <View style={[styles.featureGrid, isWide && styles.featureGridWide]}>
+            {FEATURES.map(([title, tag, body]) => (
+              <View key={title} style={[styles.featureCard, !isWide && styles.featureCardCompact]}>
+                <Text style={styles.featureTag}>{tag}</Text>
+                <Text style={styles.featureTitle}>{title}</Text>
+                <Text style={styles.featureBody}>{body}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.faqSection}>
+          <Text style={styles.sectionKicker}>FAQ</Text>
+          <Text style={[styles.faqTitle, !isWide && styles.faqTitleCompact]}>
+            The quick answers.
+          </Text>
+          <View style={styles.faqList}>
+            {FAQ.map(([q, a], idx) => (
+              <View key={q} style={[styles.faqItem, idx === FAQ.length - 1 && styles.faqItemLast]}>
+                <Text style={styles.faqQuestion}>{q}</Text>
+                <Text style={styles.faqAnswer}>{a}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
         <LinearGradient colors={['rgba(255,248,242,0.18)', 'rgba(255,138,91,0.14)', 'rgba(18,200,178,0.10)']} style={styles.downloadSection}>
           <Text style={[styles.downloadTitle, !isWide && styles.downloadTitleCompact]}>Download the mobile app</Text>
           <Text style={styles.downloadBody}>
@@ -194,6 +277,8 @@ export default function LaunchScreen() {
             ))}
           </View>
         </LinearGradient>
+
+        <WebFooter />
       </ScrollView>
     </View>
   );
@@ -584,6 +669,121 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 24,
     marginTop: 4,
+  },
+  sectionKicker: {
+    color: COLORS.starGold,
+    fontFamily: FONTS.accent,
+    fontSize: 12,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+    marginBottom: 18,
+  },
+  featuresSection: {
+    width: '100%',
+    maxWidth: 1200,
+    alignSelf: 'center',
+    paddingVertical: 72,
+  },
+  featuresTitle: {
+    color: COLORS.white,
+    fontFamily: FONTS.display,
+    fontSize: 52,
+    lineHeight: 58,
+    letterSpacing: -1.8,
+    maxWidth: 720,
+    marginBottom: 34,
+  },
+  featuresTitleCompact: {
+    fontSize: 36,
+    lineHeight: 42,
+    letterSpacing: -1.1,
+  },
+  featureGrid: {
+    gap: 16,
+  },
+  featureGridWide: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+  },
+  featureCard: {
+    flexGrow: 1,
+    flexBasis: 220,
+    minHeight: 192,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(255,248,242,0.16)',
+    backgroundColor: 'rgba(23,24,45,0.58)',
+    padding: 22,
+    gap: 10,
+  },
+  featureCardCompact: {
+    flexBasis: 'auto',
+  },
+  featureTag: {
+    color: COLORS.tide,
+    fontFamily: FONTS.accent,
+    fontSize: 11,
+    letterSpacing: 1.6,
+    textTransform: 'uppercase',
+  },
+  featureTitle: {
+    color: COLORS.white,
+    fontFamily: FONTS.heading,
+    fontSize: 24,
+    lineHeight: 30,
+    letterSpacing: -0.4,
+  },
+  featureBody: {
+    color: 'rgba(255,248,242,0.66)',
+    fontSize: 15,
+    lineHeight: 24,
+    marginTop: 2,
+  },
+  faqSection: {
+    width: '100%',
+    maxWidth: 900,
+    alignSelf: 'center',
+    paddingTop: 40,
+    paddingBottom: 72,
+  },
+  faqTitle: {
+    color: COLORS.white,
+    fontFamily: FONTS.display,
+    fontSize: 48,
+    lineHeight: 54,
+    letterSpacing: -1.6,
+    marginBottom: 28,
+  },
+  faqTitleCompact: {
+    fontSize: 34,
+    lineHeight: 40,
+    letterSpacing: -1,
+  },
+  faqList: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,248,242,0.16)',
+  },
+  faqItem: {
+    paddingVertical: 22,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,248,242,0.14)',
+  },
+  faqItemLast: {
+    borderBottomWidth: 0,
+  },
+  faqQuestion: {
+    color: COLORS.white,
+    fontFamily: FONTS.heading,
+    fontSize: 19,
+    lineHeight: 26,
+    letterSpacing: -0.2,
+    marginBottom: 8,
+  },
+  faqAnswer: {
+    color: 'rgba(255,248,242,0.72)',
+    fontSize: 15,
+    lineHeight: 25,
   },
   downloadSection: {
     width: '100%',
