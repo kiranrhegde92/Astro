@@ -13,6 +13,7 @@
   "main": "lib/index.js",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.90.0",
+    "@google/generative-ai": "^0.24.1",
     "astronomy-engine": "^2.1.19",
     "axios": "^1.6.0",
     "firebase-admin": "^13.8.0",

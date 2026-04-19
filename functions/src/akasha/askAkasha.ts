@@ -2,7 +2,7 @@ import { onCall } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import { logger } from 'firebase-functions';
 import { evaluateRateLimit } from './rateLimit';
-import { askClaude } from './claudeClient';
+import { askOracle, resolveProvider } from './oracleClient';
 import { STATIC_SYSTEM_PROMPT, buildUserMessage } from './systemPrompt';
 import type {
   AkashaAskRequest,
@@ -26,7 +26,7 @@ interface AkashaStateDoc {
 }
 
 export const askAkasha = onCall<AkashaAskRequest, Promise<AkashaAskResponse>>(
-  { region: 'us-central1', secrets: ['ANTHROPIC_API_KEY'], timeoutSeconds: 60 },
+  { region: 'us-central1', secrets: ['ANTHROPIC_API_KEY', 'GEMINI_API_KEY'], timeoutSeconds: 60 },
   async (request) => {
     const uid = request.auth?.uid;
     if (!uid) {
@@ -98,18 +98,24 @@ export const askAkasha = onCall<AkashaAskRequest, Promise<AkashaAskResponse>>(
       };
     }
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      logger.error('ANTHROPIC_API_KEY missing');
+    const provider = resolveProvider();
+    const anthropicKey = process.env.ANTHROPIC_API_KEY;
+    const geminiKey = process.env.GEMINI_API_KEY;
+    const keyMissing =
+      (provider === 'claude' && !anthropicKey) || (provider === 'gemini' && !geminiKey);
+    if (keyMissing) {
+      logger.error('oracle key missing', { provider });
       await rollback(stateRef, now);
       return { ok: false, error: 'oracle_silent', message: 'configuration error' };
     }
 
     try {
-      const result = await askClaude({
+      const result = await askOracle({
         systemPrompt: STATIC_SYSTEM_PROMPT,
         userMessage: buildUserMessage({ digest, question, locale }),
-        apiKey,
+        provider,
+        anthropicKey,
+        geminiKey,
       });
 
       const readingRef = db.collection(`users/${uid}/akashaReadings`).doc();
@@ -121,6 +127,7 @@ export const askAkasha = onCall<AkashaAskRequest, Promise<AkashaAskResponse>>(
         digestSnapshot: digest,
         inputTokens: result.inputTokens,
         outputTokens: result.outputTokens,
+        provider: result.provider,
       });
 
       return {
@@ -131,7 +138,7 @@ export const askAkasha = onCall<AkashaAskRequest, Promise<AkashaAskResponse>>(
         nextAvailableAt: null,
       };
     } catch (err) {
-      logger.error('askClaude failed', { err });
+      logger.error('askOracle failed', { err, provider });
       await rollback(stateRef, now);
       return { ok: false, error: 'oracle_silent', message: 'llm error' };
     }
