@@ -180,25 +180,49 @@ export default function LaunchScreen() {
               and QR profiles you can share from the mobile app.
             </Text>
 
-            {webFullAppEnabled ? (
-              <Pressable
-                onPress={() => router.push((firebaseUser ? '/(tabs)/today' : '/(auth)/login') as any)}
-                style={({ hovered, pressed }: any) => [
-                  styles.primaryWebCta,
-                  hovered && styles.primaryWebCtaHover,
-                  pressed && styles.primaryWebCtaPressed,
-                ]}
-              >
-                <Text style={styles.primaryWebCtaLabel}>
-                  {firebaseUser ? 'Open web app' : 'Sign in to the web app'}
-                </Text>
-                <Text style={styles.primaryWebCtaHint}>
-                  {firebaseUser
-                    ? 'Pick up where the mobile app left off — today, chart, match, and share.'
-                    : 'Use your CosmicSelf account to access the full app right in the browser.'}
-                </Text>
-              </Pressable>
-            ) : null}
+            <View style={styles.webCtaStack}>
+              {firebaseUser ? (
+                <Pressable
+                  onPress={() => router.push('/(tabs)/today' as any)}
+                  style={({ hovered, pressed }: any) => [
+                    styles.primaryWebCta,
+                    hovered && styles.primaryWebCtaHover,
+                    pressed && styles.primaryWebCtaPressed,
+                  ]}
+                >
+                  <Text style={styles.primaryWebCtaLabel}>Open web app</Text>
+                  <Text style={styles.primaryWebCtaHint}>
+                    Pick up where the mobile app left off — today, chart, match, and share.
+                  </Text>
+                </Pressable>
+              ) : (
+                <>
+                  <Pressable
+                    onPress={() => router.push('/(auth)/signup' as any)}
+                    style={({ hovered, pressed }: any) => [
+                      styles.primaryWebCta,
+                      hovered && styles.primaryWebCtaHover,
+                      pressed && styles.primaryWebCtaPressed,
+                    ]}
+                  >
+                    <Text style={styles.primaryWebCtaLabel}>Create your cosmic profile</Text>
+                    <Text style={styles.primaryWebCtaHint}>
+                      Free to start — Western, Vedic, Chinese, and KP in one quiet app.
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => router.push('/(auth)/login' as any)}
+                    style={({ hovered, pressed }: any) => [
+                      styles.secondaryWebCta,
+                      hovered && styles.secondaryWebCtaHover,
+                      pressed && styles.secondaryWebCtaPressed,
+                    ]}
+                  >
+                    <Text style={styles.secondaryWebCtaLabel}>Already have an account? Sign in →</Text>
+                  </Pressable>
+                </>
+              )}
+            </View>
 
             <View style={[styles.downloadRow, !isWide && styles.downloadRowCompact]}>
               {DOWNLOAD_OPTIONS.map(({ platform, store, status, url }) => {
@@ -357,7 +381,7 @@ export default function LaunchScreen() {
         <LinearGradient colors={['rgba(255,248,242,0.18)', 'rgba(255,138,91,0.14)', 'rgba(18,200,178,0.10)']} style={styles.downloadSection}>
           <Text style={[styles.downloadTitle, !isWide && styles.downloadTitleCompact]}>Download the mobile app</Text>
           <Text style={styles.downloadBody}>
-            No web registration. No browser login. CosmicSelf is a mobile-first astrology experience for Android and iPhone.
+            CosmicSelf is mobile-first, but your account syncs everywhere. Sign in on web or download the app for Android and iPhone.
           </Text>
           <View style={styles.finalDownloadRow}>
             {DOWNLOAD_OPTIONS.map(({ platform, store, status, url }) => {
@@ -511,8 +535,41 @@ const styles = StyleSheet.create({
     lineHeight: 29,
     marginTop: 22,
   },
-  primaryWebCta: {
+  webCtaStack: {
     marginTop: 30,
+    gap: 12,
+  },
+  secondaryWebCta: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,248,242,0.28)',
+    backgroundColor: 'rgba(255,248,242,0.04)',
+    ...(Platform.OS === 'web'
+      ? {
+          cursor: 'pointer' as any,
+          transitionProperty: 'transform, border-color, background-color' as any,
+          transitionDuration: '200ms' as any,
+          transitionTimingFunction: 'cubic-bezier(0.2, 0.8, 0.2, 1)' as any,
+        }
+      : {}),
+  },
+  secondaryWebCtaHover: {
+    borderColor: 'rgba(255,248,242,0.72)',
+    backgroundColor: 'rgba(255,248,242,0.08)',
+    transform: [{ translateY: -1 }],
+  },
+  secondaryWebCtaPressed: { opacity: 0.92 },
+  secondaryWebCtaLabel: {
+    color: COLORS.textPrimary,
+    fontSize: 14,
+    fontFamily: FONTS.accentBold,
+    letterSpacing: 0.6,
+  },
+  primaryWebCta: {
+    marginTop: 0,
     paddingHorizontal: 22,
     paddingVertical: 18,
     borderRadius: 22,

@@ -23,7 +23,15 @@ export function WebNav() {
   const segments = useSegments();
   const { width } = useWindowDimensions();
   const firebaseUser = useAuthStore((s) => s.firebaseUser);
+  const logout = useAuthStore((s) => s.logout);
   const { enabled: fullAppEnabled } = useWebFullAppEnabled();
+
+  const handleSignOut = async () => {
+    try {
+      await logout();
+    } catch {}
+    router.replace('/' as any);
+  };
 
   const isCompact = width < 720;
 
@@ -51,24 +59,7 @@ export function WebNav() {
   }, [segments]);
 
   const links = inAppArea && fullAppEnabled && firebaseUser ? APP_LINKS : MARKETING_LINKS;
-
-  const ctaLabel = fullAppEnabled
-    ? firebaseUser
-      ? 'Open Web App'
-      : 'Sign in'
-    : 'Get the App';
-
-  const handleCta = () => {
-    if (fullAppEnabled && firebaseUser) {
-      router.push('/(tabs)/today' as any);
-      return;
-    }
-    if (fullAppEnabled) {
-      router.push('/(auth)/login' as any);
-      return;
-    }
-    router.push('/#download' as any);
-  };
+  const showAuthSplit = !firebaseUser;
 
   return (
     <View style={styles.bar}>
@@ -86,14 +77,66 @@ export function WebNav() {
                 </Link>
               );
             })}
-            <Pressable onPress={handleCta} style={({ hovered }: any) => [styles.cta, hovered && styles.ctaHover]}>
-              <Text style={styles.ctaText}>{ctaLabel}</Text>
+            {showAuthSplit ? (
+              <>
+                <Pressable onPress={() => router.push('/(auth)/login' as any)} style={({ hovered }: any) => [styles.ghost, hovered && styles.ghostHover]}>
+                  <Text style={styles.ghostText}>Sign in</Text>
+                </Pressable>
+                <Pressable onPress={() => router.push('/(auth)/signup' as any)} style={({ hovered }: any) => [styles.cta, hovered && styles.ctaHover]}>
+                  <Text style={styles.ctaText}>Create account</Text>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <Pressable
+                  onPress={() => {
+                    if (firebaseUser) router.push('/(tabs)/today' as any);
+                    else router.push('/#download' as any);
+                  }}
+                  style={({ hovered }: any) => [styles.cta, hovered && styles.ctaHover]}
+                >
+                  <Text style={styles.ctaText}>{firebaseUser ? 'Open Web App' : 'Get the App'}</Text>
+                </Pressable>
+                {firebaseUser ? (
+                  <Pressable
+                    onPress={handleSignOut}
+                    style={({ hovered }: any) => [styles.ghost, hovered && styles.ghostHover]}
+                  >
+                    <Text style={styles.ghostText}>Sign out</Text>
+                  </Pressable>
+                ) : null}
+              </>
+            )}
+          </View>
+        ) : showAuthSplit ? (
+          <View style={styles.compactAuthRow}>
+            <Pressable onPress={() => router.push('/(auth)/login' as any)} style={({ hovered }: any) => [styles.ghost, hovered && styles.ghostHover]}>
+              <Text style={styles.ghostText}>Sign in</Text>
+            </Pressable>
+            <Pressable onPress={() => router.push('/(auth)/signup' as any)} style={({ hovered }: any) => [styles.cta, hovered && styles.ctaHover]}>
+              <Text style={styles.ctaText}>Create account</Text>
             </Pressable>
           </View>
         ) : (
-          <Pressable onPress={handleCta} style={({ hovered }: any) => [styles.cta, hovered && styles.ctaHover]}>
-            <Text style={styles.ctaText}>{ctaLabel}</Text>
-          </Pressable>
+          <View style={styles.compactAuthRow}>
+            <Pressable
+              onPress={() => {
+                if (firebaseUser) router.push('/(tabs)/today' as any);
+                else router.push('/#download' as any);
+              }}
+              style={({ hovered }: any) => [styles.cta, hovered && styles.ctaHover]}
+            >
+              <Text style={styles.ctaText}>{firebaseUser ? 'Open Web App' : 'Get the App'}</Text>
+            </Pressable>
+            {firebaseUser ? (
+              <Pressable
+                onPress={handleSignOut}
+                style={({ hovered }: any) => [styles.ghost, hovered && styles.ghostHover]}
+              >
+                <Text style={styles.ghostText}>Sign out</Text>
+              </Pressable>
+            ) : null}
+          </View>
         )}
       </View>
     </View>
@@ -157,5 +200,31 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: FONTS.accentBold,
     letterSpacing: 0.6,
+  },
+  ghost: {
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,248,242,0.28)',
+    backgroundColor: 'rgba(255,248,242,0.04)',
+    transitionProperty: 'transform, border-color, background-color' as any,
+    transitionDuration: '200ms' as any,
+    transitionTimingFunction: 'cubic-bezier(0.2, 0.8, 0.2, 1)' as any,
+  },
+  ghostHover: {
+    borderColor: 'rgba(255,248,242,0.64)',
+    backgroundColor: 'rgba(255,248,242,0.08)',
+  },
+  ghostText: {
+    color: COLORS.textPrimary,
+    fontSize: 14,
+    fontFamily: FONTS.accentBold,
+    letterSpacing: 0.6,
+  },
+  compactAuthRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
   },
 });

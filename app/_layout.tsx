@@ -154,6 +154,21 @@ export default function RootLayout() {
     const onboardingScreen = segments.slice(1)[0];
     const entryRoute = getEntryRoute(user);
 
+    const MARKETING_ROUTES = new Set([
+      'features',
+      'pricing',
+      'blog',
+      'about',
+      'legal',
+      'changelog',
+      'contact',
+      'share',
+      'invite',
+      'reading',
+    ]);
+    const onMarketingRoute =
+      Platform.OS === 'web' && !!segments[0] && MARKETING_ROUTES.has(segments[0] as string);
+
     if (onWebLanding) {
       return;
     }
@@ -166,7 +181,7 @@ export default function RootLayout() {
     };
 
     if (!firebaseUser) {
-      if (!inAuth) {
+      if (!inAuth && !onMarketingRoute) {
         navigate('/(auth)/login');
       }
       return;

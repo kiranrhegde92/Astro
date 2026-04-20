@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { WebNav } from './WebNav';
 import { WebFooter } from './WebFooter';
 import { useAkashaEnabled } from '../../services/akashaFlag';
+import { useAuthStore } from '../../store/authStore';
 import { mountPlausible } from '../../utils/plausible';
 import { BORDER_RADIUS, COLORS, FONTS, SPACING } from '../../constants/theme';
 
@@ -12,10 +13,6 @@ export type WebAppShellVariant = 'landing' | 'app';
 
 const APP_TABS = [
   { href: '/(tabs)/today', label: 'Today', segment: 'today', icon: 'sunny' as const },
-  { href: '/(tabs)/akasha', label: 'Akasha', segment: 'akasha', icon: 'sparkles' as const },
-  { href: '/(tabs)/profile', label: 'Profile', segment: 'profile', icon: 'person' as const },
-  { href: '/(tabs)/compatibility', label: 'Compatibility', segment: 'compatibility', icon: 'heart' as const },
-  { href: '/(tabs)/share', label: 'Share', segment: 'share', icon: 'share-social' as const },
   { href: '/settings', label: 'Settings', segment: 'settings', icon: 'settings-outline' as const },
 ];
 
@@ -38,9 +35,10 @@ export function WebAppShell({
   const router = useRouter();
   const segments = useSegments();
   const akashaEnabled = useAkashaEnabled();
+  const isAdmin = useAuthStore((s) => s.isAdmin);
 
   const isWide = width >= 720;
-  const isDesktop = width >= 980;
+  const isDesktop = width >= 900;
 
   const currentSegment = useMemo(() => {
     // e.g. ["(tabs)", "today"] or ["settings"] or []
@@ -51,8 +49,13 @@ export function WebAppShell({
   }, [segments]);
 
   const visibleTabs = useMemo(
-    () => APP_TABS.filter((tab) => (tab.segment === 'akasha' ? akashaEnabled : true)),
-    [akashaEnabled],
+    () =>
+      APP_TABS.filter((tab) => {
+        if (tab.segment === 'akasha') return akashaEnabled;
+        if (tab.segment === 'settings') return isAdmin;
+        return true;
+      }),
+    [akashaEnabled, isAdmin],
   );
 
   if (Platform.OS !== 'web') {
@@ -106,7 +109,11 @@ export function WebAppShell({
     return (
       <View style={styles.root}>
         {chrome}
-        <View style={styles.appBody}>{children}</View>
+        <View style={styles.appBody}>
+          <View style={[styles.appFrame, isDesktop && styles.appFrameDesktop]}>
+            {children}
+          </View>
+        </View>
       </View>
     );
   }
@@ -137,6 +144,16 @@ const styles = StyleSheet.create({
     marginHorizontal: 'auto' as any,
   },
   appBody: { flex: 1 },
+  appFrame: {
+    flex: 1,
+    width: '100%',
+  },
+  appFrameDesktop: {
+    width: '100%',
+    maxWidth: 1080,
+    alignSelf: 'center',
+    paddingHorizontal: 24,
+  },
   appNavOuter: {
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,248,242,0.08)',
@@ -160,8 +177,10 @@ const styles = StyleSheet.create({
   appNavChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    minWidth: 120,
     borderRadius: BORDER_RADIUS.full,
     borderWidth: 1,
     borderColor: 'rgba(255,248,242,0.16)',
