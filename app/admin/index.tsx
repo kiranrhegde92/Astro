@@ -22,6 +22,10 @@ import {
   sendAdminBroadcastNotification,
   updateAdminGlobalSettings,
 } from '../../src/services/adminService';
+import {
+  getWebFullAppEnabled,
+  setWebFullAppEnabled,
+} from '../../src/services/webConfigService';
 import { useAuthStore } from '../../src/store/authStore';
 import type { AdminBroadcastNotificationInput, AdminDashboardSummary, AdminUserListItem } from '../../src/types/admin';
 
@@ -100,6 +104,9 @@ export default function AdminIndexScreen() {
   const [broadcastTitle, setBroadcastTitle] = useState('');
   const [broadcastBody, setBroadcastBody] = useState('');
   const [broadcastTarget, setBroadcastTarget] = useState<AdminBroadcastNotificationInput['target']>('all');
+  const [webFullAppEnabled, setWebFullAppEnabledState] = useState(false);
+  const [webAccessLoading, setWebAccessLoading] = useState(false);
+  const [webAccessSaving, setWebAccessSaving] = useState(false);
 
   const ready = authReady && !profileLoading;
   const trimmedQuery = query.trim();
@@ -133,8 +140,33 @@ export default function AdminIndexScreen() {
   useEffect(() => {
     if (ready && firebaseUser && isAdmin) {
       void loadSummary();
+      setWebAccessLoading(true);
+      getWebFullAppEnabled()
+        .then((value) => setWebFullAppEnabledState(value))
+        .catch(() => setWebFullAppEnabledState(false))
+        .finally(() => setWebAccessLoading(false));
     }
   }, [ready, firebaseUser, isAdmin]);
+
+  const handleSaveWebAccess = async () => {
+    try {
+      setWebAccessSaving(true);
+      await setWebFullAppEnabled(webFullAppEnabled);
+      showAlert(
+        'Web access updated',
+        webFullAppEnabled
+          ? 'The full web app is now available to visitors.'
+          : 'Web visitors will see the marketing home only.',
+      );
+    } catch (error: any) {
+      const message = typeof error?.message === 'string'
+        ? error.message
+        : 'Could not save the web access setting.';
+      showAlert('Save failed', message);
+    } finally {
+      setWebAccessSaving(false);
+    }
+  };
 
   const handleRefreshClaims = async () => {
     try {
@@ -319,6 +351,31 @@ export default function AdminIndexScreen() {
             </Pressable>
           </View>
           <CosmicButton title="Save admin settings" onPress={handleSaveSettings} loading={settingsSaving} />
+        </GradientCard>
+
+        <GradientCard style={styles.section} accentColor={COLORS.western}>
+          <Text style={styles.kicker}>Web access</Text>
+          <Text style={styles.body}>
+            Choose what the browser build exposes. Off = marketing home only. On = the full app (auth, onboarding, tabs, readings, profile) is reachable on the web.
+          </Text>
+          <View style={styles.toggleRow}>
+            <Text style={styles.toggleLabel}>{webFullAppEnabled ? 'Full app' : 'Home only'}</Text>
+            <Pressable
+              onPress={() => setWebFullAppEnabledState((current) => !current)}
+              disabled={webAccessLoading || webAccessSaving}
+              style={[styles.toggleChip, webFullAppEnabled && styles.toggleChipActive]}
+            >
+              <Text style={[styles.toggleChipText, webFullAppEnabled && styles.toggleChipTextActive]}>
+                {webFullAppEnabled ? 'On' : 'Off'}
+              </Text>
+            </Pressable>
+          </View>
+          <CosmicButton
+            title="Save web access"
+            onPress={handleSaveWebAccess}
+            loading={webAccessSaving}
+            disabled={webAccessLoading}
+          />
         </GradientCard>
 
         <GradientCard style={styles.section} accentColor={COLORS.tide}>

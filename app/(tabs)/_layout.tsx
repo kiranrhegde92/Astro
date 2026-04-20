@@ -14,6 +14,7 @@ import * as Haptics from 'expo-haptics';
 import { BORDER_RADIUS, COLORS, SHADOWS, SPACING } from '../../src/constants/theme';
 import { OrbIcon } from '../../src/components/ui/OrbIcon';
 import { useAkashaEnabled } from '../../src/services/akashaFlag';
+import { WebAppShell } from '../../src/components/web/WebAppShell';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
 const TABS = [
@@ -124,6 +125,20 @@ function BottomBar({ state, navigation }: BottomTabBarProps) {
 
 export default function TabsLayout() {
   const { t } = useTranslation();
+
+  if (Platform.OS === 'web') {
+    return (
+      <WebAppShell variant="app">
+        <Tabs tabBar={() => null} screenOptions={{ headerShown: false }}>
+          <Tabs.Screen name="today" options={{ title: t('tabs.today') }} />
+          <Tabs.Screen name="akasha" options={{ title: t('akasha.tabLabel') }} />
+          <Tabs.Screen name="profile" options={{ title: t('tabs.profile') }} />
+          <Tabs.Screen name="compatibility" options={{ title: t('tabs.compatibility') }} />
+          <Tabs.Screen name="share" options={{ title: t('tabs.share') }} />
+        </Tabs>
+      </WebAppShell>
+    );
+  }
 
   return (
     <Tabs tabBar={(props) => <BottomBar {...props} />} screenOptions={{ headerShown: false }}>

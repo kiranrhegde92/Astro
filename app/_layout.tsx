@@ -33,6 +33,7 @@ import {
 } from '../src/utils/notifications';
 import i18n from '../src/i18n';
 import { normalizeLanguage } from '../src/i18n/language';
+import { useWebFullAppEnabled } from '../src/hooks/useWebFullAppEnabled';
 import '../src/services/firebase';
 
 function hasBirthDate(user: ReturnType<typeof useUserStore.getState>['user']) {
@@ -108,8 +109,10 @@ export default function RootLayout() {
     Cinzel_900Black,
   });
   const atRoot = !segments[0]; // root index.tsx
-  const onWebLanding = Platform.OS === 'web' && atRoot;
+  const webFullApp = useWebFullAppEnabled();
+  const onWebLanding = Platform.OS === 'web' && atRoot && !webFullApp.enabled;
   const fontReady = fontsLoaded || Boolean(fontError);
+  const webConfigReady = Platform.OS !== 'web' || webFullApp.ready;
 
   useEffect(() => {
     // Expo Go keeps the screen awake by default in dev — disable it
@@ -141,6 +144,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (!authReady || profileLoading || (!fontReady && !onWebLanding)) return;
+    if (!webConfigReady) return;
 
     const inAuth = segments[0] === '(auth)';
     const inOnboarding = segments[0] === '(onboarding)';
@@ -196,7 +200,7 @@ export default function RootLayout() {
       }
       return;
     }
-  }, [authReady, firebaseUser, fontReady, isEmailVerified, onWebLanding, pendingReferral, profileLoading, router, segments, user]);
+  }, [authReady, firebaseUser, fontReady, isEmailVerified, onWebLanding, pendingReferral, profileLoading, router, segments, user, webConfigReady]);
 
   useEffect(() => {
     const handleDeepLink = (event: { url: string }) => {
@@ -274,7 +278,7 @@ export default function RootLayout() {
 
   const rootBg = COLORS.bgDeep;
 
-  if ((!authReady || !fontReady) && !onWebLanding) {
+  if ((!authReady || !fontReady || !webConfigReady) && !onWebLanding) {
     return (
       <View style={{ flex: 1, backgroundColor: rootBg, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator color={COLORS.western} />

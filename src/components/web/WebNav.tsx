@@ -1,32 +1,100 @@
-import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Link } from 'expo-router';
+import React, { useMemo } from 'react';
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Link, useRouter, useSegments } from 'expo-router';
 import { COLORS, FONTS, SPACING } from '../../constants/theme';
+import { useAuthStore } from '../../store/authStore';
+import { useWebFullAppEnabled } from '../../hooks/useWebFullAppEnabled';
 
-const LINKS = [
-  { href: '/features', label: 'Features' },
-  { href: '/pricing', label: 'Pricing' },
-  { href: '/blog', label: 'Blog' },
-  { href: '/about', label: 'About' },
+const MARKETING_LINKS = [
+  { href: '/features', label: 'Features', segment: 'features' },
+  { href: '/pricing', label: 'Pricing', segment: 'pricing' },
+  { href: '/blog', label: 'Blog', segment: 'blog' },
+  { href: '/about', label: 'About', segment: 'about' },
+];
+
+const APP_LINKS = [
+  { href: '/(tabs)/today', label: 'Today', segment: 'today' },
+  { href: '/(tabs)/profile', label: 'Profile', segment: 'profile' },
+  { href: '/settings', label: 'Settings', segment: 'settings' },
 ];
 
 export function WebNav() {
+  const router = useRouter();
+  const segments = useSegments();
+  const { width } = useWindowDimensions();
+  const firebaseUser = useAuthStore((s) => s.firebaseUser);
+  const { enabled: fullAppEnabled } = useWebFullAppEnabled();
+
+  const isCompact = width < 720;
+
+  const currentSegment = useMemo(() => {
+    const flat = segments as string[];
+    if (flat[0] === '(tabs)' && flat[1]) return flat[1];
+    if (flat[0]) return flat[0];
+    return '';
+  }, [segments]);
+
+  const inAppArea = useMemo(() => {
+    const flat = segments as string[];
+    return (
+      flat[0] === '(tabs)' ||
+      flat[0] === '(onboarding)' ||
+      flat[0] === 'reading' ||
+      flat[0] === 'profile' ||
+      flat[0] === 'settings' ||
+      flat[0] === 'journal' ||
+      flat[0] === 'journal-insights' ||
+      flat[0] === 'subscription' ||
+      flat[0] === 'moon-calendar' ||
+      flat[0] === 'retrograde'
+    );
+  }, [segments]);
+
+  const links = inAppArea && fullAppEnabled && firebaseUser ? APP_LINKS : MARKETING_LINKS;
+
+  const ctaLabel = fullAppEnabled
+    ? firebaseUser
+      ? 'Open Web App'
+      : 'Sign in'
+    : 'Get the App';
+
+  const handleCta = () => {
+    if (fullAppEnabled && firebaseUser) {
+      router.push('/(tabs)/today' as any);
+      return;
+    }
+    if (fullAppEnabled) {
+      router.push('/(auth)/login' as any);
+      return;
+    }
+    router.push('/#download' as any);
+  };
+
   return (
     <View style={styles.bar}>
       <View style={styles.inner}>
         <Link href="/" style={styles.brand}>
           <Text style={styles.brandText}>CosmicSelf</Text>
         </Link>
-        <View style={styles.links}>
-          {LINKS.map((l) => (
-            <Link key={l.href} href={l.href as any} style={styles.link}>
-              <Text style={styles.linkText}>{l.label}</Text>
-            </Link>
-          ))}
-          <Link href="/" style={styles.cta}>
-            <Text style={styles.ctaText}>Open App</Text>
-          </Link>
-        </View>
+        {!isCompact ? (
+          <View style={styles.links}>
+            {links.map((l) => {
+              const active = currentSegment === l.segment;
+              return (
+                <Link key={l.href} href={l.href as any} style={styles.link}>
+                  <Text style={[styles.linkText, active && styles.linkTextActive]}>{l.label}</Text>
+                </Link>
+              );
+            })}
+            <Pressable onPress={handleCta} style={({ hovered }: any) => [styles.cta, hovered && styles.ctaHover]}>
+              <Text style={styles.ctaText}>{ctaLabel}</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <Pressable onPress={handleCta} style={({ hovered }: any) => [styles.cta, hovered && styles.ctaHover]}>
+            <Text style={styles.ctaText}>{ctaLabel}</Text>
+          </Pressable>
+        )}
       </View>
     </View>
   );
@@ -37,7 +105,7 @@ const styles = StyleSheet.create({
     position: 'sticky' as any,
     top: 0,
     zIndex: 50,
-    backdropFilter: 'blur(12px)' as any,
+    backdropFilter: 'blur(14px)' as any,
     backgroundColor: 'rgba(10,8,22,0.72)',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,248,242,0.08)',
@@ -53,16 +121,41 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   brand: { textDecorationLine: 'none' as any },
-  brandText: { color: COLORS.textPrimary, fontSize: 18, fontFamily: FONTS.display, letterSpacing: 0.5 },
+  brandText: {
+    color: COLORS.textPrimary,
+    fontSize: 20,
+    fontFamily: FONTS.display,
+    letterSpacing: 0.5,
+  },
   links: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
-  link: { textDecorationLine: 'none' as any },
-  linkText: { color: COLORS.textSecondary, fontSize: 14, fontFamily: FONTS.body },
+  link: { textDecorationLine: 'none' as any, paddingVertical: 4 },
+  linkText: {
+    color: COLORS.textSecondary,
+    fontSize: 14,
+    fontFamily: FONTS.body,
+  },
+  linkTextActive: {
+    color: COLORS.textPrimary,
+    fontFamily: FONTS.accentBold,
+  },
   cta: {
     backgroundColor: COLORS.tide,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
     borderRadius: 999,
     textDecorationLine: 'none' as any,
+    transitionProperty: 'transform, box-shadow, background-color' as any,
+    transitionDuration: '200ms' as any,
+    transitionTimingFunction: 'cubic-bezier(0.2, 0.8, 0.2, 1)' as any,
   },
-  ctaText: { color: '#0a0816', fontSize: 14, fontFamily: FONTS.accent, letterSpacing: 0.4 },
+  ctaHover: {
+    transform: [{ translateY: -1 }],
+    boxShadow: '0 16px 32px -18px rgba(62,224,200,0.8)' as any,
+  },
+  ctaText: {
+    color: '#0a0816',
+    fontSize: 14,
+    fontFamily: FONTS.accentBold,
+    letterSpacing: 0.6,
+  },
 });
