@@ -2,7 +2,8 @@ import { onCall } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import { logger } from 'firebase-functions';
 import { evaluateRateLimit } from './rateLimit';
-import { askOracle, resolveProvider } from './oracleClient';
+import { askOracle } from './oracleClient';
+import { getActiveProvider } from './oracleConfig';
 import { STATIC_SYSTEM_PROMPT, buildUserMessage } from './systemPrompt';
 import type {
   AkashaAskRequest,
@@ -98,7 +99,7 @@ export const askAkasha = onCall<AkashaAskRequest, Promise<AkashaAskResponse>>(
       };
     }
 
-    const provider = resolveProvider();
+    const provider = await getActiveProvider(db);
     const anthropicKey = process.env.ANTHROPIC_API_KEY;
     const geminiKey = process.env.GEMINI_API_KEY;
     const keyMissing =
