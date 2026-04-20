@@ -13,6 +13,7 @@ import { geocodePlace, localToUtc } from './utils/geocoding';
 
 export { askAkasha } from './akasha/askAkasha';
 export { getSharedReading } from './sharing/getSharedReading';
+export { getInviteMeta } from './sharing/getInviteMeta';
 
 admin.initializeApp();
 const db = admin.firestore();
