@@ -27,7 +27,7 @@ interface AkashaStateDoc {
 }
 
 export const askAkasha = onCall<AkashaAskRequest, Promise<AkashaAskResponse>>(
-  { region: 'us-central1', secrets: ['ANTHROPIC_API_KEY', 'GEMINI_API_KEY'], timeoutSeconds: 60 },
+  { region: 'us-central1', secrets: ['ANTHROPIC_API_KEY'], timeoutSeconds: 60 },
   async (request) => {
     const uid = request.auth?.uid;
     if (!uid) {
@@ -109,7 +109,6 @@ export const askAkasha = onCall<AkashaAskRequest, Promise<AkashaAskResponse>>(
       await rollback(stateRef, now);
       return { ok: false, error: 'oracle_silent', message: 'configuration error' };
     }
-
     try {
       const result = await askOracle({
         systemPrompt: STATIC_SYSTEM_PROMPT,

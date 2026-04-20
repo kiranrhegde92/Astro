@@ -12,15 +12,15 @@ interface CacheEntry {
 let cache: CacheEntry | null = null;
 
 function fallbackProvider(): OracleProvider {
-  const env = (process.env.MODEL_PROVIDER ?? 'gemini').toLowerCase();
-  if (env === 'claude' || env === 'anthropic') return 'claude';
-  return 'gemini';
+  const env = (process.env.MODEL_PROVIDER ?? 'claude').toLowerCase();
+  if (env === 'gemini') return 'gemini';
+  return 'claude';
 }
 
 function sanitize(raw: unknown): OracleProvider {
   const v = typeof raw === 'string' ? raw.toLowerCase() : '';
-  if (v === 'claude' || v === 'anthropic') return 'claude';
   if (v === 'gemini') return 'gemini';
+  if (v === 'claude' || v === 'anthropic') return 'claude';
   return fallbackProvider();
 }
 

@@ -13,8 +13,8 @@ import {
 import { COLORS, FONTS, SPACING } from '../../src/constants/theme';
 
 const OPTIONS: Array<{ value: OracleProvider; title: string; subtitle: string }> = [
-  { value: 'gemini', title: 'Google Gemini', subtitle: 'Default. Lower cost, high throughput.' },
-  { value: 'claude', title: 'Anthropic Claude', subtitle: 'Higher reasoning for nuanced questions.' },
+  { value: 'claude', title: 'Anthropic Claude', subtitle: 'Active. Higher reasoning for nuanced questions.' },
+  // Gemini temporarily hidden — re-enable once GEMINI_API_KEY is set in Firebase Secrets.
 ];
 
 export default function AdminOracleScreen() {
@@ -33,7 +33,7 @@ export default function AdminOracleScreen() {
     }
     getOracleProvider()
       .then((p) => setProvider(p))
-      .catch(() => setProvider('gemini'))
+      .catch(() => setProvider('claude'))
       .finally(() => setLoading(false));
   }, [authReady, isAdmin, router]);
 

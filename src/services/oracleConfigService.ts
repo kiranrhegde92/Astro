@@ -6,7 +6,7 @@ export type OracleProvider = 'gemini' | 'claude';
 const DOC_PATH = 'config/oracle';
 
 function sanitize(raw: unknown): OracleProvider {
-  return raw === 'claude' ? 'claude' : 'gemini';
+  return raw === 'gemini' ? 'gemini' : 'claude';
 }
 
 export async function getOracleProvider(): Promise<OracleProvider> {
