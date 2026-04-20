@@ -1,164 +1,60 @@
 import React from 'react';
-import { Linking, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Link } from 'expo-router';
-import { COLORS, FONTS } from '../../constants/theme';
-
-const SUPPORT_EMAIL = 'admin@cosmicself.app';
+import { COLORS, FONTS, SPACING } from '../../constants/theme';
 
 export function WebFooter() {
-  const { width } = useWindowDimensions();
-  const isWide = width >= 720;
-
-  if (Platform.OS !== 'web') return null;
-
-  const year = new Date().getFullYear();
-
   return (
-    <View style={styles.outer}>
-      <View style={styles.trustStrip}>
-        <Text style={styles.trustText}>
-          Your birth data is yours. We never sell it, and you can export or delete it from Settings at any time.
-        </Text>
-      </View>
-
-      <View style={[styles.footer, isWide && styles.footerWide]}>
-        <View style={styles.brandColumn}>
-          <Text style={styles.brand}>CosmicSelf</Text>
-          <Text style={styles.tagline}>
-            A calm astrology ritual — Western, Vedic, Chinese, and KP, in one mobile app.
-          </Text>
+    <View style={styles.wrap}>
+      <View style={styles.inner}>
+        <View style={styles.col}>
+          <Text style={styles.heading}>CosmicSelf</Text>
+          <Text style={styles.muted}>Daily readings, charts, and the wisdom of the stars.</Text>
         </View>
-
-        <View style={[styles.linkGroups, isWide && styles.linkGroupsWide]}>
-          <FooterColumn heading="Navigate">
-            <FooterLink href="/" label="Home" />
-            <FooterLink href="/legal/privacy" label="Privacy" />
-            <FooterLink href="/legal/terms" label="Terms" />
-          </FooterColumn>
-          <FooterColumn heading="Support">
-            <Pressable onPress={() => Linking.openURL(`mailto:${SUPPORT_EMAIL}`)}>
-              <Text style={styles.link}>{SUPPORT_EMAIL}</Text>
-            </Pressable>
-            <Text style={styles.muted}>We reply within 2 business days.</Text>
-          </FooterColumn>
+        <View style={styles.col}>
+          <Text style={styles.heading}>Product</Text>
+          <Link href="/features" style={styles.link}><Text style={styles.linkText}>Features</Text></Link>
+          <Link href="/pricing" style={styles.link}><Text style={styles.linkText}>Pricing</Text></Link>
+          <Link href="/changelog" style={styles.link}><Text style={styles.linkText}>Changelog</Text></Link>
+        </View>
+        <View style={styles.col}>
+          <Text style={styles.heading}>Company</Text>
+          <Link href="/about" style={styles.link}><Text style={styles.linkText}>About</Text></Link>
+          <Link href="/contact" style={styles.link}><Text style={styles.linkText}>Contact</Text></Link>
+          <Link href="/blog" style={styles.link}><Text style={styles.linkText}>Blog</Text></Link>
+        </View>
+        <View style={styles.col}>
+          <Text style={styles.heading}>Legal</Text>
+          <Link href="/legal/privacy" style={styles.link}><Text style={styles.linkText}>Privacy</Text></Link>
+          <Link href="/legal/terms" style={styles.link}><Text style={styles.linkText}>Terms</Text></Link>
         </View>
       </View>
-
-      <View style={styles.bottom}>
-        <Text style={styles.copyright}>© {year} CosmicSelf. All rights reserved.</Text>
-        <Text style={styles.muted}>cosmicself.app</Text>
-      </View>
+      <Text style={styles.copy}>© {new Date().getFullYear()} CosmicSelf. All rights reserved.</Text>
     </View>
-  );
-}
-
-function FooterColumn({ heading, children }: { heading: string; children: React.ReactNode }) {
-  return (
-    <View style={styles.column}>
-      <Text style={styles.columnHeading}>{heading}</Text>
-      <View style={styles.columnLinks}>{children}</View>
-    </View>
-  );
-}
-
-function FooterLink({ href, label }: { href: string; label: string }) {
-  return (
-    <Link href={href as any} style={styles.link as any}>
-      {label}
-    </Link>
   );
 }
 
 const styles = StyleSheet.create({
-  outer: {
-    width: '100%',
+  wrap: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,248,242,0.08)',
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.xl,
+    paddingBottom: SPACING.lg,
+    gap: SPACING.lg,
+  },
+  inner: {
     maxWidth: 1200,
-    alignSelf: 'center',
-    paddingTop: 52,
-    paddingBottom: 32,
-    gap: 40,
-  },
-  trustStrip: {
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,248,242,0.16)',
-    paddingTop: 32,
-  },
-  trustText: {
-    color: 'rgba(255,248,242,0.74)',
-    fontFamily: FONTS.heading,
-    fontSize: 17,
-    lineHeight: 26,
-    maxWidth: 720,
-  },
-  footer: {
-    gap: 32,
-  },
-  footerWide: {
+    width: '100%',
+    marginHorizontal: 'auto' as any,
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 64,
-  },
-  brandColumn: {
-    flex: 1,
-    maxWidth: 420,
-    gap: 10,
-  },
-  brand: {
-    color: COLORS.white,
-    fontFamily: FONTS.display,
-    fontSize: 26,
-    letterSpacing: -0.6,
-  },
-  tagline: {
-    color: 'rgba(255,248,242,0.62)',
-    fontSize: 14,
-    lineHeight: 22,
-  },
-  linkGroups: {
-    gap: 28,
-  },
-  linkGroupsWide: {
-    flexDirection: 'row',
-    gap: 64,
-  },
-  column: {
-    gap: 12,
-    minWidth: 160,
-  },
-  columnHeading: {
-    color: COLORS.starGold,
-    fontFamily: FONTS.accent,
-    fontSize: 11,
-    letterSpacing: 1.6,
-    textTransform: 'uppercase',
-  },
-  columnLinks: {
-    gap: 8,
-  },
-  link: {
-    color: 'rgba(255,248,242,0.88)',
-    fontFamily: FONTS.heading,
-    fontSize: 15,
-    lineHeight: 22,
-    textDecorationLine: 'none',
-  },
-  muted: {
-    color: 'rgba(255,248,242,0.54)',
-    fontSize: 13,
-    lineHeight: 20,
-  },
-  bottom: {
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,248,242,0.14)',
-    paddingTop: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: SPACING.xl,
   },
-  copyright: {
-    color: 'rgba(255,248,242,0.56)',
-    fontSize: 13,
-  },
+  col: { gap: 8, minWidth: 160 },
+  heading: { color: COLORS.textPrimary, fontSize: 14, fontFamily: FONTS.accent, letterSpacing: 1.2 },
+  muted: { color: COLORS.textMuted, fontSize: 13, maxWidth: 280 },
+  link: { textDecorationLine: 'none' as any },
+  linkText: { color: COLORS.textSecondary, fontSize: 13 },
+  copy: { textAlign: 'center', color: COLORS.textMuted, fontSize: 12 },
 });
