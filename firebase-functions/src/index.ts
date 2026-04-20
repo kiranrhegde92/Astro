@@ -12,6 +12,7 @@ import type { PredictionFeedbackRecord, PredictionRunRecord, PredictionWindow } 
 import { geocodePlace, localToUtc } from './utils/geocoding';
 
 export { askAkasha } from './akasha/askAkasha';
+export { getSharedReading } from './sharing/getSharedReading';
 
 admin.initializeApp();
 const db = admin.firestore();
