@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -101,6 +101,8 @@ export default function WelcomeScreen() {
     return normalizeLanguage(i18n.language);
   });
   const copy = useMemo(() => WELCOME_COPY[selectedLang] ?? WELCOME_COPY.en, [selectedLang]);
+  const { width } = useWindowDimensions();
+  const isDesktop = Platform.OS === 'web' && width >= 900;
 
   const handleLogout = () => {
     showAlert(
@@ -134,69 +136,135 @@ export default function WelcomeScreen() {
       </TouchableOpacity>
 
       <ResetScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <AnimatedCard index={0}>
-          <View style={styles.posterWrap}>
-            <LinearGradient colors={COLORS.gradientInk} style={styles.poster}>
-              <Text style={styles.brand}>COSMICSELF</Text>
-              <Text style={styles.headline}>{copy.headline}</Text>
-              <Text style={styles.copy}>{copy.copy}</Text>
-
-              <View style={styles.ctaWrap}>
-                <CosmicButton title={copy.cta} onPress={() => router.push('/(onboarding)/birth-details')} />
+        <View style={[styles.frame, isDesktop && styles.frameDesktop]}>
+          {isDesktop ? (
+            <View style={styles.desktopGrid}>
+              <View style={styles.desktopLeft}>
+                <AnimatedCard index={0}>
+                  <View style={styles.posterWrap}>
+                    <LinearGradient colors={COLORS.gradientInk} style={[styles.poster, styles.posterDesktop]}>
+                      <Text style={styles.brand}>COSMICSELF</Text>
+                      <Text style={[styles.headline, styles.headlineDesktop]}>{copy.headline}</Text>
+                      <Text style={[styles.copy, styles.copyDesktop]}>{copy.copy}</Text>
+                      <View style={[styles.ctaWrap, styles.ctaWrapDesktop]}>
+                        <CosmicButton title={copy.cta} onPress={() => router.push('/(onboarding)/birth-details')} />
+                      </View>
+                    </LinearGradient>
+                    <View style={styles.posterOrbDesktop}>
+                      <CosmicOrb size={220} />
+                    </View>
+                  </View>
+                </AnimatedCard>
               </View>
-            </LinearGradient>
-
-            <View style={styles.posterOrb}>
-              <CosmicOrb size={182} />
-            </View>
-          </View>
-        </AnimatedCard>
-
-        <AnimatedCard index={1}>
-          <View style={styles.systemGrid}>
-            {SYSTEMS.map((system) => (
-              <View key={system.label.en} style={[styles.systemTile, { borderColor: `${system.accent}55` }]}>
-                <OrbIcon icon={system.icon} size={34} accentColor={system.accent} secondaryColor={system.orbSecondary} />
-                <Text style={styles.systemText}>{system.label[selectedLang]}</Text>
+              <View style={styles.desktopRight}>
+                <AnimatedCard index={1}>
+                  <View style={styles.systemGrid}>
+                    {SYSTEMS.map((system) => (
+                      <View key={system.label.en} style={[styles.systemTile, { borderColor: `${system.accent}55` }]}>
+                        <OrbIcon icon={system.icon} size={34} accentColor={system.accent} secondaryColor={system.orbSecondary} />
+                        <Text style={styles.systemText}>{system.label[selectedLang]}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </AnimatedCard>
+                <AnimatedCard index={2}>
+                  <View style={styles.languageBlock}>
+                    <Text style={styles.sectionLabel}>{copy.languageLabel}</Text>
+                    <View style={styles.languageGrid}>
+                      {LANGUAGE_OPTIONS.map((lang) => {
+                        const active = selectedLang === lang.code;
+                        return (
+                          <TouchableOpacity
+                            key={lang.code}
+                            onPress={() => {
+                              setSelectedLang(lang.code);
+                              i18n.changeLanguage(lang.code);
+                              if (user) setLanguage(lang.code);
+                            }}
+                            style={[styles.languageChip, active && styles.languageChipActive]}
+                            activeOpacity={0.8}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Choose ${lang.nativeName} language`}
+                            accessibilityState={{ selected: active }}
+                          >
+                            <Text style={[styles.languageText, active && styles.languageTextActive]}>{lang.nativeName}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                </AnimatedCard>
+                <AnimatedCard index={3}>
+                  <GradientCard style={styles.promiseCard} colors={COLORS.gradientSunset}>
+                    <Text style={styles.promiseTitle}>{copy.promiseTitle}</Text>
+                    <Text style={styles.promiseCopy}>{copy.promiseCopy}</Text>
+                  </GradientCard>
+                </AnimatedCard>
               </View>
-            ))}
-          </View>
-        </AnimatedCard>
-
-        <AnimatedCard index={2}>
-          <View style={styles.languageBlock}>
-            <Text style={styles.sectionLabel}>{copy.languageLabel}</Text>
-            <View style={styles.languageGrid}>
-              {LANGUAGE_OPTIONS.map((lang) => {
-                const active = selectedLang === lang.code;
-                return (
-                  <TouchableOpacity
-                    key={lang.code}
-                    onPress={() => {
-                      setSelectedLang(lang.code);
-                      i18n.changeLanguage(lang.code);
-                      if (user) setLanguage(lang.code);
-                    }}
-                    style={[styles.languageChip, active && styles.languageChipActive]}
-                    activeOpacity={0.8}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Choose ${lang.nativeName} language`}
-                    accessibilityState={{ selected: active }}
-                  >
-                    <Text style={[styles.languageText, active && styles.languageTextActive]}>{lang.nativeName}</Text>
-                  </TouchableOpacity>
-                );
-              })}
             </View>
-          </View>
-        </AnimatedCard>
-
-        <AnimatedCard index={3}>
-          <GradientCard style={styles.promiseCard} colors={COLORS.gradientSunset}>
-            <Text style={styles.promiseTitle}>{copy.promiseTitle}</Text>
-            <Text style={styles.promiseCopy}>{copy.promiseCopy}</Text>
-          </GradientCard>
-        </AnimatedCard>
+          ) : (
+            <>
+              <AnimatedCard index={0}>
+                <View style={styles.posterWrap}>
+                  <LinearGradient colors={COLORS.gradientInk} style={styles.poster}>
+                    <Text style={styles.brand}>COSMICSELF</Text>
+                    <Text style={styles.headline}>{copy.headline}</Text>
+                    <Text style={styles.copy}>{copy.copy}</Text>
+                    <View style={styles.ctaWrap}>
+                      <CosmicButton title={copy.cta} onPress={() => router.push('/(onboarding)/birth-details')} />
+                    </View>
+                  </LinearGradient>
+                  <View style={styles.posterOrb}>
+                    <CosmicOrb size={182} />
+                  </View>
+                </View>
+              </AnimatedCard>
+              <AnimatedCard index={1}>
+                <View style={styles.systemGrid}>
+                  {SYSTEMS.map((system) => (
+                    <View key={system.label.en} style={[styles.systemTile, { borderColor: `${system.accent}55` }]}>
+                      <OrbIcon icon={system.icon} size={34} accentColor={system.accent} secondaryColor={system.orbSecondary} />
+                      <Text style={styles.systemText}>{system.label[selectedLang]}</Text>
+                    </View>
+                  ))}
+                </View>
+              </AnimatedCard>
+              <AnimatedCard index={2}>
+                <View style={styles.languageBlock}>
+                  <Text style={styles.sectionLabel}>{copy.languageLabel}</Text>
+                  <View style={styles.languageGrid}>
+                    {LANGUAGE_OPTIONS.map((lang) => {
+                      const active = selectedLang === lang.code;
+                      return (
+                        <TouchableOpacity
+                          key={lang.code}
+                          onPress={() => {
+                            setSelectedLang(lang.code);
+                            i18n.changeLanguage(lang.code);
+                            if (user) setLanguage(lang.code);
+                          }}
+                          style={[styles.languageChip, active && styles.languageChipActive]}
+                          activeOpacity={0.8}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Choose ${lang.nativeName} language`}
+                          accessibilityState={{ selected: active }}
+                        >
+                          <Text style={[styles.languageText, active && styles.languageTextActive]}>{lang.nativeName}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              </AnimatedCard>
+              <AnimatedCard index={3}>
+                <GradientCard style={styles.promiseCard} colors={COLORS.gradientSunset}>
+                  <Text style={styles.promiseTitle}>{copy.promiseTitle}</Text>
+                  <Text style={styles.promiseCopy}>{copy.promiseCopy}</Text>
+                </GradientCard>
+              </AnimatedCard>
+            </>
+          )}
+        </View>
       </ResetScrollView>
       {alertModal}
     </StarField>
@@ -217,6 +285,51 @@ const styles = StyleSheet.create({
     paddingTop: 28,
     paddingBottom: SPACING.xxl,
     gap: SPACING.lg,
+  },
+  frame: {
+    width: '100%',
+    gap: SPACING.lg,
+  },
+  frameDesktop: {
+    maxWidth: 1080,
+    alignSelf: 'center',
+    paddingTop: 8,
+  },
+  desktopGrid: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 24,
+  },
+  desktopLeft: {
+    flex: 1.1,
+    minWidth: 0,
+  },
+  desktopRight: {
+    flex: 1,
+    minWidth: 0,
+    gap: SPACING.lg,
+  },
+  posterDesktop: {
+    minHeight: 460,
+    padding: 40,
+  },
+  headlineDesktop: {
+    fontSize: 52,
+    lineHeight: 58,
+    maxWidth: 420,
+  },
+  copyDesktop: {
+    fontSize: 17,
+    lineHeight: 26,
+    maxWidth: 420,
+  },
+  ctaWrapDesktop: {
+    maxWidth: 280,
+  },
+  posterOrbDesktop: {
+    position: 'absolute',
+    right: -20,
+    bottom: 10,
   },
   posterWrap: {
     position: 'relative',
