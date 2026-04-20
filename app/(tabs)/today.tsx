@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { Linking, Platform, Pressable, RefreshControl, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -28,6 +28,7 @@ import {
   SPACING,
   TYPE,
 } from '../../src/constants/theme';
+import { APP_STORE_URL, PLAY_STORE_URL } from '../../src/constants/storeLinks';
 import { generateDailyReading } from '../../src/content/dailyTemplates';
 import { buildForecastProfile } from '../../src/content/predictionSignals';
 import { fetchDailyReading } from '../../src/services/functionsService';
@@ -89,6 +90,9 @@ function getToneFallback(supportCount: number, tensionCount: number): 'Opening' 
 export default function TodayScreen() {
   const router = useRouter();
   const { i18n, t } = useTranslation();
+  const { width } = useWindowDimensions();
+  const isWeb = Platform.OS === 'web';
+  const isDesktop = isWeb && width >= 900;
   const accountUser = useUserStore((state) => state.user);
   const user = useActiveProfile();
   const transitAlertsEnabled = useSettingsStore((state) => state.transitAlertsEnabled);
@@ -509,218 +513,294 @@ export default function TodayScreen() {
           </View>
         </AnimatedCard>
 
-        <AnimatedCard index={1}>
-          <View style={styles.duoGrid}>
-            <GlassCard accentColor={COLORS.tide} style={styles.duoCard}>
-              <SectionLabel accent={COLORS.tide}>{todayCopy.leanInto}</SectionLabel>
-              <Text style={styles.cardTitle}>{focusArea}</Text>
-              <Text style={styles.cardBody}>{bestUse}</Text>
-            </GlassCard>
-            <GlassCard accentColor={COLORS.coral} style={styles.duoCard}>
-              <SectionLabel accent={COLORS.coral}>{todayCopy.watchFor}</SectionLabel>
-              <Text style={styles.cardTitle}>{todayCopy.watchForTitle}</Text>
-              <Text style={styles.cardBody}>{watchFor}</Text>
-            </GlassCard>
-          </View>
-        </AnimatedCard>
-
-        {!isPremium ? (
-          <AnimatedCard index={2}>
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                router.push('/subscription');
-              }}
-              style={({ pressed }) => [styles.upgradeCard, pressed && { opacity: 0.92 }]}
-              accessibilityRole="button"
-              accessibilityLabel="See Premium"
-            >
-              <LinearGradient
-                colors={['rgba(255,208,120,0.18)', 'rgba(172,132,255,0.14)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={StyleSheet.absoluteFillObject}
-              />
-              <View style={styles.upgradeRow}>
-                <View style={styles.upgradeIcon}>
-                  <Ionicons name="sparkles" size={18} color={COLORS.starGold} />
-                </View>
-                <View style={styles.upgradeBody}>
-                  <Text style={styles.upgradeTitle}>7 days of Premium, on us ✨</Text>
-                  <Text style={styles.upgradeCopy}>
-                    Unwrap the 30-day forecast, Antardasha deep-dives, journal insights, and zero ads.
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={COLORS.starGold} />
+        {(() => {
+          const duoJsx = (
+            <AnimatedCard index={1}>
+              <View style={styles.duoGrid}>
+                <GlassCard accentColor={COLORS.tide} style={styles.duoCard}>
+                  <SectionLabel accent={COLORS.tide}>{todayCopy.leanInto}</SectionLabel>
+                  <Text style={styles.cardTitle}>{focusArea}</Text>
+                  <Text style={styles.cardBody}>{bestUse}</Text>
+                </GlassCard>
+                <GlassCard accentColor={COLORS.coral} style={styles.duoCard}>
+                  <SectionLabel accent={COLORS.coral}>{todayCopy.watchFor}</SectionLabel>
+                  <Text style={styles.cardTitle}>{todayCopy.watchForTitle}</Text>
+                  <Text style={styles.cardBody}>{watchFor}</Text>
+                </GlassCard>
               </View>
-            </Pressable>
-          </AnimatedCard>
-        ) : null}
+            </AnimatedCard>
+          );
 
-        {highImpactTransit ? (
-          <AnimatedCard index={3}>
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                router.push('/subscription');
-              }}
-              style={({ pressed }) => [styles.alertCard, pressed && { opacity: 0.92 }]}
-              accessibilityRole="button"
-              accessibilityLabel="Unlock transit alerts with Premium"
-            >
-              <LinearGradient
-                colors={['rgba(172,132,255,0.22)', 'rgba(255,120,150,0.14)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={StyleSheet.absoluteFillObject}
-              />
-              <View style={styles.alertHeaderRow}>
-                <View style={styles.alertIcon}>
-                  <Ionicons name="notifications" size={16} color={COLORS.iris} />
-                </View>
-                <Text style={styles.alertKicker}>High-impact transit · Premium alert</Text>
-              </View>
-              <Text style={styles.alertTitle}>
-                {highImpactTransit.transitPlanet} {highImpactTransit.aspect} {highImpactTransit.natalPlanet}
-              </Text>
-              <Text style={styles.alertBody} numberOfLines={3}>{highImpactTransit.brief}</Text>
-              <Text style={styles.alertCta}>
-                Premium would send you a push the moment this peaks → upgrade
-              </Text>
-            </Pressable>
-          </AnimatedCard>
-        ) : null}
-
-        <AnimatedCard index={!isPremium ? 4 : 2}>
-          <GlassCard accentColor={COLORS.gold}>
-            <SectionLabel accent={COLORS.gold}>{todayCopy.timingNote}</SectionLabel>
-            <Text style={styles.timingText}>{timingNote}</Text>
-            {remedyText ? (
-              <Text style={styles.timingSupport}>
-                <Text style={styles.timingSupportStrong}>{todayCopy.remedyPrefix}: </Text>
-                {remedyText}
-              </Text>
-            ) : null}
-          </GlassCard>
-        </AnimatedCard>
-
-        {transits.length > 0 ? (
-          <AnimatedCard index={3}>
-            <GlassCard accentColor={COLORS.iris}>
-              <SectionLabel accent={COLORS.iris}>LIVE TRANSITS</SectionLabel>
-              <View style={styles.transitSummaryRow}>
-                <SummaryCell count={supportCount} label="Support" color={COLORS.tide} />
-                <View style={styles.transitSummaryDivider} />
-                <SummaryCell count={tensionCount} label="Tension" color={COLORS.coral} />
-                <View style={styles.transitSummaryDivider} />
-                <SummaryCell
-                  count={Math.max(0, transits.length - supportCount - tensionCount)}
-                  label="Neutral"
-                  color={COLORS.textSecondary}
+          const upgradeJsx = !isPremium ? (
+            <AnimatedCard index={2}>
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                  router.push('/subscription');
+                }}
+                style={({ pressed }) => [styles.upgradeCard, pressed && { opacity: 0.92 }]}
+                accessibilityRole="button"
+                accessibilityLabel="See Premium"
+              >
+                <LinearGradient
+                  colors={['rgba(255,208,120,0.18)', 'rgba(172,132,255,0.14)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={StyleSheet.absoluteFillObject}
                 />
-              </View>
-              {transits.slice(0, 2).map((transit, i) => (
-                <View
-                  key={`${transit.transitPlanet}-${transit.natalPlanet}-${i}`}
-                  style={styles.transitRow}
-                >
+                <View style={styles.upgradeRow}>
+                  <View style={styles.upgradeIcon}>
+                    <Ionicons name="sparkles" size={18} color={COLORS.starGold} />
+                  </View>
+                  <View style={styles.upgradeBody}>
+                    <Text style={styles.upgradeTitle}>7 days of Premium, on us ✨</Text>
+                    <Text style={styles.upgradeCopy}>
+                      Unwrap the 30-day forecast, Antardasha deep-dives, journal insights, and zero ads.
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={COLORS.starGold} />
+                </View>
+              </Pressable>
+            </AnimatedCard>
+          ) : null;
+
+          const alertJsx = highImpactTransit ? (
+            <AnimatedCard index={3}>
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                  router.push('/subscription');
+                }}
+                style={({ pressed }) => [styles.alertCard, pressed && { opacity: 0.92 }]}
+                accessibilityRole="button"
+                accessibilityLabel="Unlock transit alerts with Premium"
+              >
+                <LinearGradient
+                  colors={['rgba(172,132,255,0.22)', 'rgba(255,120,150,0.14)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={StyleSheet.absoluteFillObject}
+                />
+                <View style={styles.alertHeaderRow}>
+                  <View style={styles.alertIcon}>
+                    <Ionicons name="notifications" size={16} color={COLORS.iris} />
+                  </View>
+                  <Text style={styles.alertKicker}>High-impact transit · Premium alert</Text>
+                </View>
+                <Text style={styles.alertTitle}>
+                  {highImpactTransit.transitPlanet} {highImpactTransit.aspect} {highImpactTransit.natalPlanet}
+                </Text>
+                <Text style={styles.alertBody} numberOfLines={3}>{highImpactTransit.brief}</Text>
+                <Text style={styles.alertCta}>
+                  Premium would send you a push the moment this peaks → upgrade
+                </Text>
+              </Pressable>
+            </AnimatedCard>
+          ) : null;
+
+          const timingJsx = (
+            <AnimatedCard index={!isPremium ? 4 : 2}>
+              <GlassCard accentColor={COLORS.gold}>
+                <SectionLabel accent={COLORS.gold}>{todayCopy.timingNote}</SectionLabel>
+                <Text style={styles.timingText}>{timingNote}</Text>
+                {remedyText ? (
+                  <Text style={styles.timingSupport}>
+                    <Text style={styles.timingSupportStrong}>{todayCopy.remedyPrefix}: </Text>
+                    {remedyText}
+                  </Text>
+                ) : null}
+              </GlassCard>
+            </AnimatedCard>
+          );
+
+          const transitsJsx = transits.length > 0 ? (
+            <AnimatedCard index={3}>
+              <GlassCard accentColor={COLORS.iris}>
+                <SectionLabel accent={COLORS.iris}>LIVE TRANSITS</SectionLabel>
+                <View style={styles.transitSummaryRow}>
+                  <SummaryCell count={supportCount} label="Support" color={COLORS.tide} />
+                  <View style={styles.transitSummaryDivider} />
+                  <SummaryCell count={tensionCount} label="Tension" color={COLORS.coral} />
+                  <View style={styles.transitSummaryDivider} />
+                  <SummaryCell
+                    count={Math.max(0, transits.length - supportCount - tensionCount)}
+                    label="Neutral"
+                    color={COLORS.textSecondary}
+                  />
+                </View>
+                {transits.slice(0, isDesktop ? 6 : 2).map((transit, i) => (
                   <View
-                    style={[
-                      styles.transitNature,
-                      {
-                        backgroundColor:
-                          transit.nature === 'support'
-                            ? `${COLORS.tide}22`
-                            : transit.nature === 'tension'
-                            ? `${COLORS.coral}22`
-                            : 'rgba(255,255,255,0.06)',
-                      },
-                    ]}
+                    key={`${transit.transitPlanet}-${transit.natalPlanet}-${i}`}
+                    style={styles.transitRow}
                   >
-                    <Text
+                    <View
                       style={[
-                        styles.transitAspect,
+                        styles.transitNature,
                         {
-                          color:
+                          backgroundColor:
                             transit.nature === 'support'
-                              ? COLORS.tide
+                              ? `${COLORS.tide}22`
                               : transit.nature === 'tension'
-                              ? COLORS.coral
-                              : COLORS.textSecondary,
+                              ? `${COLORS.coral}22`
+                              : 'rgba(255,255,255,0.06)',
                         },
                       ]}
                     >
-                      {transit.transitPlanet} {transit.aspect} {transit.natalPlanet}
-                    </Text>
+                      <Text
+                        style={[
+                          styles.transitAspect,
+                          {
+                            color:
+                              transit.nature === 'support'
+                                ? COLORS.tide
+                                : transit.nature === 'tension'
+                                ? COLORS.coral
+                                : COLORS.textSecondary,
+                          },
+                        ]}
+                      >
+                        {transit.transitPlanet} {transit.aspect} {transit.natalPlanet}
+                      </Text>
+                    </View>
+                    <Text style={styles.transitBrief} numberOfLines={2}>{transit.brief}</Text>
                   </View>
-                  <Text style={styles.transitBrief} numberOfLines={2}>{transit.brief}</Text>
+                ))}
+              </GlassCard>
+            </AnimatedCard>
+          ) : null;
+
+          const systemsJsx = systems.length > 0 ? (
+            <AnimatedCard index={4}>
+              <View style={styles.systemsHeader}>
+                <SectionLabel>{todayCopy.bySystem}</SectionLabel>
+              </View>
+              <View style={styles.systemList}>
+                {systems.map((system) => (
+                  <Pressable
+                    key={system.key}
+                    onPress={() => {
+                      Haptics.selectionAsync().catch(() => {});
+                      router.push(system.route as never);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Open ${system.label} reading`}
+                    style={({ pressed }) => [
+                      styles.systemRow,
+                      { borderColor: `${system.accent}55` },
+                      pressed && { opacity: 0.9 },
+                    ]}
+                  >
+                    <OrbIcon icon={system.icon} size={36} accentColor={system.accent} secondaryColor={system.secondary} />
+                    <View style={styles.systemBody}>
+                      <Text style={styles.systemLabel}>{system.label}</Text>
+                      <Text style={styles.systemText} numberOfLines={2}>{system.text}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+                  </Pressable>
+                ))}
+              </View>
+            </AnimatedCard>
+          ) : null;
+
+          const actionsJsx = (
+            <AnimatedCard index={5}>
+              <View style={styles.actions}>
+                {user.activeSystems.length >= 2 ? (
+                  <CosmicButton title={todayCopy.openFull} onPress={() => router.push('/reading/unified')} />
+                ) : null}
+                <CosmicButton title={todayCopy.shareReading} onPress={() => router.push('/share/card')} variant="outline" />
+              </View>
+            </AnimatedCard>
+          );
+
+          const mobileAppJsx = Platform.OS === 'web' ? (
+            <AnimatedCard index={6}>
+              <LinearGradient
+                colors={[COLORS.western, COLORS.tide]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.mobilePromoCard}
+              >
+                <View style={styles.mobilePromoHeader}>
+                  <Ionicons name="phone-portrait-outline" size={20} color="#0a0816" />
+                  <Text style={styles.mobilePromoTitle}>Unlock the full cosmos</Text>
                 </View>
-              ))}
-            </GlassCard>
-          </AnimatedCard>
-        ) : null}
+                <Text style={styles.mobilePromoBody}>
+                  Deeper chart readings, compatibility, Akasha oracle, and cosmic QR sharing live in the mobile app.
+                </Text>
+                <View style={styles.mobilePromoButtons}>
+                  <Pressable
+                    onPress={() => Linking.openURL(PLAY_STORE_URL).catch(() => {})}
+                    style={({ hovered }: any) => [styles.mobilePromoBtn, hovered && styles.mobilePromoBtnHover]}
+                  >
+                    <Ionicons name="logo-google-playstore" size={14} color="#fff8f2" />
+                    <Text style={styles.mobilePromoBtnLabel}>Google Play</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => Linking.openURL(APP_STORE_URL).catch(() => {})}
+                    style={({ hovered }: any) => [styles.mobilePromoBtn, hovered && styles.mobilePromoBtnHover]}
+                  >
+                    <Ionicons name="logo-apple" size={14} color="#fff8f2" />
+                    <Text style={styles.mobilePromoBtnLabel}>App Store</Text>
+                  </Pressable>
+                </View>
+              </LinearGradient>
+            </AnimatedCard>
+          ) : null;
 
-        {systems.length > 0 ? (
-          <AnimatedCard index={4}>
-            <View style={styles.systemsHeader}>
-              <SectionLabel>{todayCopy.bySystem}</SectionLabel>
-            </View>
-            <View style={styles.systemList}>
-              {systems.map((system) => (
-                <Pressable
-                  key={system.key}
-                  onPress={() => {
-                    Haptics.selectionAsync().catch(() => {});
-                    router.push(system.route as never);
-                  }}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Open ${system.label} reading`}
-                  style={({ pressed }) => [
-                    styles.systemRow,
-                    { borderColor: `${system.accent}55` },
-                    pressed && { opacity: 0.9 },
-                  ]}
-                >
-                  <OrbIcon icon={system.icon} size={36} accentColor={system.accent} secondaryColor={system.secondary} />
-                  <View style={styles.systemBody}>
-                    <Text style={styles.systemLabel}>{system.label}</Text>
-                    <Text style={styles.systemText} numberOfLines={2}>{system.text}</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
-                </Pressable>
-              ))}
-            </View>
-          </AnimatedCard>
-        ) : null}
+          const quickLinksJsx = (
+            <AnimatedCard index={6}>
+              <View style={styles.quickLinks}>
+                <QuickLink
+                  icon="moon-outline"
+                  label="Moon tonight"
+                  onPress={() => router.push('/moon-calendar')}
+                />
+                <QuickLink
+                  icon="refresh-outline"
+                  label="Retrogrades"
+                  onPress={() => router.push('/retrograde')}
+                />
+                <QuickLink
+                  icon="sparkles-outline"
+                  label="Your archive"
+                  onPress={() => router.push('/reading/archive')}
+                />
+              </View>
+            </AnimatedCard>
+          );
 
-        <AnimatedCard index={5}>
-          <View style={styles.actions}>
-            {user.activeSystems.length >= 2 ? (
-              <CosmicButton title={todayCopy.openFull} onPress={() => router.push('/reading/unified')} />
-            ) : null}
-            <CosmicButton title={todayCopy.shareReading} onPress={() => router.push('/share/card')} variant="outline" />
-          </View>
-        </AnimatedCard>
+          if (isDesktop) {
+            return (
+              <View style={styles.desktopGrid}>
+                <View style={styles.desktopMain}>
+                  {duoJsx}
+                  {timingJsx}
+                  {transitsJsx}
+                </View>
+                <View style={styles.desktopSide}>
+                  {upgradeJsx}
+                  {alertJsx}
+                  {mobileAppJsx}
+                </View>
+              </View>
+            );
+          }
 
-        <AnimatedCard index={6}>
-          <View style={styles.quickLinks}>
-            <QuickLink
-              icon="moon-outline"
-              label="Moon tonight"
-              onPress={() => router.push('/moon-calendar')}
-            />
-            <QuickLink
-              icon="refresh-outline"
-              label="Retrogrades"
-              onPress={() => router.push('/retrograde')}
-            />
-            <QuickLink
-              icon="sparkles-outline"
-              label="Your archive"
-              onPress={() => router.push('/reading/archive')}
-            />
-          </View>
-        </AnimatedCard>
+          return (
+            <>
+              {duoJsx}
+              {upgradeJsx}
+              {alertJsx}
+              {timingJsx}
+              {transitsJsx}
+              {mobileAppJsx}
+              {!isWeb ? systemsJsx : null}
+              {!isWeb ? actionsJsx : null}
+              {!isWeb ? quickLinksJsx : null}
+            </>
+          );
+        })()}
 
         <View style={styles.bottomPad} />
       </ResetScrollView>
@@ -781,6 +861,68 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'ios' ? 64 : 48,
     paddingBottom: 120,
     gap: SPACING.lg,
+  },
+  desktopGrid: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 20,
+  },
+  desktopMain: {
+    flex: 1.7,
+    gap: SPACING.lg,
+    minWidth: 0,
+  },
+  desktopSide: {
+    flex: 1,
+    gap: SPACING.lg,
+    minWidth: 0,
+  },
+  mobilePromoCard: {
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.lg,
+    gap: 10,
+  },
+  mobilePromoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  mobilePromoTitle: {
+    color: '#0a0816',
+    fontFamily: FONTS.accentBold,
+    fontSize: 15,
+    letterSpacing: 0.6,
+  },
+  mobilePromoBody: {
+    color: '#0a0816',
+    fontFamily: FONTS.body,
+    fontSize: 13,
+    lineHeight: 18,
+    opacity: 0.85,
+  },
+  mobilePromoButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+    marginTop: 4,
+  },
+  mobilePromoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: 'rgba(10,8,22,0.85)',
+  },
+  mobilePromoBtnHover: {
+    backgroundColor: '#0a0816',
+  },
+  mobilePromoBtnLabel: {
+    color: '#fff8f2',
+    fontFamily: FONTS.accentBold,
+    fontSize: 12,
+    letterSpacing: 0.6,
   },
   emptyWrap: {
     flex: 1,

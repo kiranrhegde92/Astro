@@ -59,6 +59,14 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.token.admin == true;
     }
 
+    // Public web-access flag. Read by any visitor so the web bundle can
+    // decide between marketing-only and full-app routing at boot.
+    // Only admins may flip it.
+    match /config/web {
+      allow get, list: if true;
+      allow write: if request.auth != null && request.auth.token.admin == true;
+    }
+
     // Shared readings: reads only via getSharedReading callable (server-sanitized).
     match /sharedReadings/{id} {
       allow read: if false;

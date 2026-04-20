@@ -13,12 +13,15 @@ import {
   View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
 import { ZodiacThreeScene } from '../src/components/web/ZodiacThreeScene';
 import { WebFooter } from '../src/components/web/WebFooter';
 import { WebNav } from '../src/components/web/WebNav';
 import { SEOHead } from '../src/components/web/SEOHead';
 import { PLAY_STORE_URL, APP_STORE_URL } from '../src/constants/storeLinks';
 import { COLORS, FONTS, SHADOWS } from '../src/constants/theme';
+import { useWebFullAppEnabled } from '../src/hooks/useWebFullAppEnabled';
+import { useAuthStore } from '../src/store/authStore';
 
 const SYSTEMS = [
   ['Western', 'Transit mood', 'What the sky is pressing on today.'],
@@ -89,12 +92,36 @@ const FAQ = [
   ],
 ] as const;
 
+const WEB_APP_SHORTCUTS = [
+  {
+    href: '/(tabs)/today',
+    kicker: 'DAILY',
+    title: 'Today',
+    body: 'Today bend, transit, nakshatra, and KP signal in one calm brief.',
+  },
+  {
+    href: '/(tabs)/akasha',
+    kicker: 'ORACLE',
+    title: 'Ask Akasha',
+    body: 'Ask a grounded question and get an answer rooted in your chart.',
+  },
+  {
+    href: '/(tabs)/profile',
+    kicker: 'BIRTH PATTERN',
+    title: 'Self Chart',
+    body: 'Your Western, Vedic, Chinese, and KP chart in plain English.',
+  },
+] as const;
+
 export default function LaunchScreen() {
   const { width } = useWindowDimensions();
   const reveal = useRef(new Animated.Value(0)).current;
   const isDesktop = width >= 980;
   const isWide = width >= 720;
   const compactContentWidth = !isWide ? Math.max(280, Math.min(width, 390) - 52) : undefined;
+  const router = useRouter();
+  const { enabled: webFullAppEnabled } = useWebFullAppEnabled();
+  const firebaseUser = useAuthStore((s) => s.firebaseUser);
 
   useEffect(() => {
     if (Platform.OS !== 'web') return;
@@ -152,6 +179,50 @@ export default function LaunchScreen() {
               CosmicSelf blends four astrology systems into a calm daily reading, deeper self insight, compatibility,
               and QR profiles you can share from the mobile app.
             </Text>
+
+            <View style={styles.webCtaStack}>
+              {firebaseUser ? (
+                <Pressable
+                  onPress={() => router.push('/(tabs)/today' as any)}
+                  style={({ hovered, pressed }: any) => [
+                    styles.primaryWebCta,
+                    hovered && styles.primaryWebCtaHover,
+                    pressed && styles.primaryWebCtaPressed,
+                  ]}
+                >
+                  <Text style={styles.primaryWebCtaLabel}>Open web app</Text>
+                  <Text style={styles.primaryWebCtaHint}>
+                    Pick up where the mobile app left off — today, chart, match, and share.
+                  </Text>
+                </Pressable>
+              ) : (
+                <>
+                  <Pressable
+                    onPress={() => router.push('/(auth)/signup' as any)}
+                    style={({ hovered, pressed }: any) => [
+                      styles.primaryWebCta,
+                      hovered && styles.primaryWebCtaHover,
+                      pressed && styles.primaryWebCtaPressed,
+                    ]}
+                  >
+                    <Text style={styles.primaryWebCtaLabel}>Create your cosmic profile</Text>
+                    <Text style={styles.primaryWebCtaHint}>
+                      Free to start — Western, Vedic, Chinese, and KP in one quiet app.
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => router.push('/(auth)/login' as any)}
+                    style={({ hovered, pressed }: any) => [
+                      styles.secondaryWebCta,
+                      hovered && styles.secondaryWebCtaHover,
+                      pressed && styles.secondaryWebCtaPressed,
+                    ]}
+                  >
+                    <Text style={styles.secondaryWebCtaLabel}>Already have an account? Sign in →</Text>
+                  </Pressable>
+                </>
+              )}
+            </View>
 
             <View style={[styles.downloadRow, !isWide && styles.downloadRowCompact]}>
               {DOWNLOAD_OPTIONS.map(({ platform, store, status, url }) => {
@@ -276,10 +347,41 @@ export default function LaunchScreen() {
           </View>
         </View>
 
+        {webFullAppEnabled ? (
+          <View style={styles.webAppSection}>
+            <Text style={styles.sectionKicker}>ALSO AVAILABLE IN THE BROWSER</Text>
+            <Text style={[styles.featuresTitle, !isWide && styles.featuresTitleCompact]}>
+              The full app, right from a tab.
+            </Text>
+            <Text style={styles.webAppBody}>
+              Every mobile feature is now in the web — same account, same chart, same rhythm. Open a shortcut below or launch the whole experience.
+            </Text>
+            <View style={[styles.webAppGrid, isWide && styles.webAppGridWide]}>
+              {WEB_APP_SHORTCUTS.map((shortcut) => (
+                <Pressable
+                  key={shortcut.href}
+                  onPress={() => router.push((firebaseUser ? shortcut.href : '/(auth)/login') as any)}
+                  style={({ hovered, pressed }: any) => [
+                    styles.webAppCard,
+                    !isWide && styles.featureCardCompact,
+                    hovered && styles.webAppCardHover,
+                    pressed && styles.webAppCardPressed,
+                  ]}
+                >
+                  <Text style={styles.featureTag}>{shortcut.kicker}</Text>
+                  <Text style={styles.featureTitle}>{shortcut.title}</Text>
+                  <Text style={styles.featureBody}>{shortcut.body}</Text>
+                  <Text style={styles.webAppCardLink}>Open →</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        ) : null}
+
         <LinearGradient colors={['rgba(255,248,242,0.18)', 'rgba(255,138,91,0.14)', 'rgba(18,200,178,0.10)']} style={styles.downloadSection}>
           <Text style={[styles.downloadTitle, !isWide && styles.downloadTitleCompact]}>Download the mobile app</Text>
           <Text style={styles.downloadBody}>
-            No web registration. No browser login. CosmicSelf is a mobile-first astrology experience for Android and iPhone.
+            CosmicSelf is mobile-first, but your account syncs everywhere. Sign in on web or download the app for Android and iPhone.
           </Text>
           <View style={styles.finalDownloadRow}>
             {DOWNLOAD_OPTIONS.map(({ platform, store, status, url }) => {
@@ -432,6 +534,80 @@ const styles = StyleSheet.create({
     fontSize: 17,
     lineHeight: 29,
     marginTop: 22,
+  },
+  webCtaStack: {
+    marginTop: 30,
+    gap: 12,
+  },
+  secondaryWebCta: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,248,242,0.28)',
+    backgroundColor: 'rgba(255,248,242,0.04)',
+    ...(Platform.OS === 'web'
+      ? {
+          cursor: 'pointer' as any,
+          transitionProperty: 'transform, border-color, background-color' as any,
+          transitionDuration: '200ms' as any,
+          transitionTimingFunction: 'cubic-bezier(0.2, 0.8, 0.2, 1)' as any,
+        }
+      : {}),
+  },
+  secondaryWebCtaHover: {
+    borderColor: 'rgba(255,248,242,0.72)',
+    backgroundColor: 'rgba(255,248,242,0.08)',
+    transform: [{ translateY: -1 }],
+  },
+  secondaryWebCtaPressed: { opacity: 0.92 },
+  secondaryWebCtaLabel: {
+    color: COLORS.textPrimary,
+    fontSize: 14,
+    fontFamily: FONTS.accentBold,
+    letterSpacing: 0.6,
+  },
+  primaryWebCta: {
+    marginTop: 0,
+    paddingHorizontal: 22,
+    paddingVertical: 18,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(62,224,200,0.55)',
+    backgroundColor: 'rgba(62,224,200,0.14)',
+    ...(Platform.OS === 'web'
+      ? {
+          cursor: 'pointer' as any,
+          transitionProperty: 'transform, box-shadow, border-color, background-color' as any,
+          transitionDuration: '220ms' as any,
+          transitionTimingFunction: 'cubic-bezier(0.2, 0.8, 0.2, 1)' as any,
+          backgroundImage:
+            'linear-gradient(110deg, rgba(62,224,200,0.22) 0%, rgba(155,145,255,0.20) 60%, rgba(241,183,79,0.16) 100%)' as any,
+        }
+      : {}),
+  },
+  primaryWebCtaHover: {
+    transform: [{ translateY: -2 }],
+    borderColor: 'rgba(62,224,200,0.95)',
+    boxShadow: '0 22px 42px -20px rgba(62,224,200,0.65)' as any,
+  },
+  primaryWebCtaPressed: {
+    transform: [{ translateY: 0 }],
+    opacity: 0.95,
+  },
+  primaryWebCtaLabel: {
+    color: COLORS.white,
+    fontFamily: FONTS.heading,
+    fontSize: 22,
+    lineHeight: 28,
+    letterSpacing: -0.3,
+  },
+  primaryWebCtaHint: {
+    color: 'rgba(255,248,242,0.78)',
+    fontSize: 14,
+    lineHeight: 22,
+    marginTop: 6,
   },
   downloadRow: {
     width: '100%',
@@ -833,6 +1009,57 @@ const styles = StyleSheet.create({
     color: 'rgba(255,248,242,0.72)',
     fontSize: 15,
     lineHeight: 25,
+  },
+  webAppSection: {
+    width: '100%',
+    maxWidth: 1200,
+    alignSelf: 'center',
+    paddingVertical: 72,
+  },
+  webAppBody: {
+    color: 'rgba(255,248,242,0.72)',
+    fontSize: 16,
+    lineHeight: 26,
+    maxWidth: 720,
+    marginBottom: 28,
+  },
+  webAppGrid: { gap: 14 },
+  webAppGridWide: { flexDirection: 'row', flexWrap: 'wrap' },
+  webAppCard: {
+    flexGrow: 1,
+    flexBasis: 260,
+    minHeight: 180,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(255,248,242,0.16)',
+    backgroundColor: 'rgba(23,24,45,0.62)',
+    padding: 22,
+    gap: 8,
+    ...(Platform.OS === 'web'
+      ? {
+          cursor: 'pointer' as any,
+          transitionProperty: 'transform, box-shadow, border-color, background-color' as any,
+          transitionDuration: '220ms' as any,
+          transitionTimingFunction: 'cubic-bezier(0.2, 0.8, 0.2, 1)' as any,
+        }
+      : SHADOWS.deep),
+  },
+  webAppCardHover: {
+    transform: [{ translateY: -3 }],
+    borderColor: 'rgba(62,224,200,0.55)',
+    backgroundColor: 'rgba(62,224,200,0.10)',
+    boxShadow: '0 22px 40px -20px rgba(62,224,200,0.45)' as any,
+  },
+  webAppCardPressed: {
+    transform: [{ translateY: -1 }],
+    opacity: 0.96,
+  },
+  webAppCardLink: {
+    color: COLORS.tide,
+    fontFamily: FONTS.accentBold,
+    fontSize: 13,
+    letterSpacing: 0.4,
+    marginTop: 10,
   },
   downloadSection: {
     width: '100%',
