@@ -3,7 +3,9 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
+  Linking,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,9 +13,11 @@ import {
   View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Head from 'expo-router/head';
 import { ZodiacThreeScene } from '../src/components/web/ZodiacThreeScene';
 import { WebFooter } from '../src/components/web/WebFooter';
+import { WebNav } from '../src/components/web/WebNav';
+import { SEOHead } from '../src/components/web/SEOHead';
+import { PLAY_STORE_URL, APP_STORE_URL } from '../src/constants/storeLinks';
 import { COLORS, FONTS, SHADOWS } from '../src/constants/theme';
 
 const SYSTEMS = [
@@ -30,8 +34,8 @@ const DAILY_FLOW = [
 ] as const;
 
 const DOWNLOAD_OPTIONS = [
-  ['Android', 'Google Play', 'Coming soon'],
-  ['iPhone', 'App Store', 'Coming soon'],
+  { platform: 'Android', store: 'Google Play', status: 'Download', url: PLAY_STORE_URL },
+  { platform: 'iPhone', store: 'App Store', status: 'Coming soon', url: APP_STORE_URL },
 ] as const;
 
 const FEATURES = [
@@ -117,23 +121,17 @@ export default function LaunchScreen() {
 
   return (
     <View style={styles.webShell}>
-      <Head>
-        <title>CosmicSelf - Daily Astrology App</title>
-        <meta
-          name="description"
-          content="CosmicSelf is a mobile astrology app for daily guidance, self-knowledge, compatibility, and cosmic QR sharing across Western, Vedic, Chinese, and KP systems."
-        />
-        <style>{'html, body, #root { background: #17182d; min-height: 100%; } body { margin: 0; }'}</style>
-      </Head>
+      <SEOHead
+        title="CosmicSelf — Daily Astrology Across Four Systems"
+        description="A quiet mobile astrology ritual — daily readings, natal chart, compatibility, and cosmic QR, drawn from Western, Vedic, Chinese, and KP systems."
+        canonical="https://cosmicself.app/"
+      />
 
       <ZodiacThreeScene variant="page" />
       <LinearGradient pointerEvents="none" colors={['rgba(23,24,45,0.38)', 'rgba(23,24,45,0.76)']} style={styles.sceneVeil} />
+      <WebNav />
 
       <ScrollView style={styles.page} contentContainerStyle={styles.pageContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.nav}>
-          <Text style={styles.navBrand}>CosmicSelf</Text>
-          {isWide ? <Text style={styles.navDomain}>cosmicself.app</Text> : null}
-        </View>
 
         <Animated.View
           style={[
@@ -156,13 +154,29 @@ export default function LaunchScreen() {
             </Text>
 
             <View style={[styles.downloadRow, !isWide && styles.downloadRowCompact]}>
-              {DOWNLOAD_OPTIONS.map(([platform, store, status]) => (
-                <View key={platform} style={[styles.downloadButton, !isWide && styles.downloadButtonCompact]}>
-                  <Text style={styles.downloadPlatform}>{platform}</Text>
-                  <Text style={styles.downloadStore}>{store}</Text>
-                  <Text style={styles.downloadStatus}>{status}</Text>
-                </View>
-              ))}
+              {DOWNLOAD_OPTIONS.map(({ platform, store, status, url }) => {
+                const live = status === 'Download';
+                return (
+                  <Pressable
+                    key={platform}
+                    onPress={() => { if (live) Linking.openURL(url); }}
+                    disabled={!live}
+                    style={({ hovered, pressed }: any) => [
+                      styles.downloadButton,
+                      !isWide && styles.downloadButtonCompact,
+                      live && styles.downloadButtonLive,
+                      hovered && live && styles.downloadButtonHover,
+                      pressed && live && styles.downloadButtonPressed,
+                    ]}
+                  >
+                    <Text style={styles.downloadPlatform}>{platform}</Text>
+                    <Text style={styles.downloadStore}>{store}</Text>
+                    <Text style={[styles.downloadStatus, live && styles.downloadStatusLive]}>
+                      {live ? `${status} →` : status}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
           </View>
 
@@ -268,13 +282,29 @@ export default function LaunchScreen() {
             No web registration. No browser login. CosmicSelf is a mobile-first astrology experience for Android and iPhone.
           </Text>
           <View style={styles.finalDownloadRow}>
-            {DOWNLOAD_OPTIONS.map(([platform, store, status]) => (
-              <View key={platform} style={[styles.finalDownloadButton, !isWide && styles.finalDownloadButtonCompact]}>
-                <Text style={styles.finalPlatform}>{platform}</Text>
-                <Text style={styles.finalStore}>{store}</Text>
-                <Text style={styles.finalStatus}>{status}</Text>
-              </View>
-            ))}
+            {DOWNLOAD_OPTIONS.map(({ platform, store, status, url }) => {
+              const live = status === 'Download';
+              return (
+                <Pressable
+                  key={platform}
+                  onPress={() => { if (live) Linking.openURL(url); }}
+                  disabled={!live}
+                  style={({ hovered, pressed }: any) => [
+                    styles.finalDownloadButton,
+                    !isWide && styles.finalDownloadButtonCompact,
+                    live && styles.finalDownloadButtonLive,
+                    hovered && live && styles.finalDownloadButtonHover,
+                    pressed && live && styles.finalDownloadButtonPressed,
+                  ]}
+                >
+                  <Text style={styles.finalPlatform}>{platform}</Text>
+                  <Text style={styles.finalStore}>{store}</Text>
+                  <Text style={[styles.finalStatus, live && styles.finalStatusLive]}>
+                    {live ? `${status} →` : status}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
         </LinearGradient>
 
@@ -315,30 +345,8 @@ const styles = StyleSheet.create({
   pageContent: {
     backgroundColor: 'rgba(23,24,45,0.04)',
     paddingHorizontal: 20,
+    paddingTop: 24,
     paddingBottom: 28,
-  },
-  nav: {
-    width: '100%',
-    maxWidth: 1200,
-    alignSelf: 'center',
-    minHeight: 68,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 16,
-    paddingTop: 20,
-  },
-  navBrand: {
-    color: COLORS.white,
-    fontFamily: FONTS.heading,
-    fontSize: 24,
-    letterSpacing: -0.2,
-  },
-  navDomain: {
-    color: 'rgba(255,248,242,0.68)',
-    fontFamily: FONTS.accent,
-    fontSize: 12,
-    letterSpacing: 1.4,
   },
   hero: {
     width: '100%',
@@ -379,6 +387,16 @@ const styles = StyleSheet.create({
     fontSize: 70,
     lineHeight: 74,
     letterSpacing: -2.5,
+    ...(Platform.OS === 'web'
+      ? {
+          backgroundImage:
+            'linear-gradient(120deg, #fff8f2 0%, #ffd9b8 38%, #12c8b2 72%, #a78bfa 100%)' as any,
+          backgroundClip: 'text' as any,
+          WebkitBackgroundClip: 'text' as any,
+          WebkitTextFillColor: 'transparent' as any,
+          textShadow: '0 0 46px rgba(18,200,178,0.18)' as any,
+        }
+      : {}),
   },
   brandTitleCompact: {
     fontSize: 52,
@@ -441,6 +459,24 @@ const styles = StyleSheet.create({
     width: '100%',
     minWidth: 0,
   },
+  downloadButtonLive: {
+    borderColor: 'rgba(18,200,178,0.48)',
+    backgroundColor: 'rgba(18,200,178,0.08)',
+    cursor: 'pointer' as any,
+    transitionProperty: 'transform, box-shadow, border-color, background-color' as any,
+    transitionDuration: '220ms' as any,
+    transitionTimingFunction: 'cubic-bezier(0.2, 0.8, 0.2, 1)' as any,
+  },
+  downloadButtonHover: {
+    transform: [{ translateY: -2 }],
+    borderColor: 'rgba(18,200,178,0.85)',
+    backgroundColor: 'rgba(18,200,178,0.14)',
+    boxShadow: '0 18px 38px -18px rgba(18,200,178,0.55)' as any,
+  },
+  downloadButtonPressed: {
+    transform: [{ translateY: 0 }],
+    opacity: 0.92,
+  },
   downloadPlatform: {
     color: COLORS.tide,
     fontFamily: FONTS.accent,
@@ -459,6 +495,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     marginTop: 4,
+  },
+  downloadStatusLive: {
+    color: COLORS.tide,
   },
   instrumentPanel: {
     width: '100%',
@@ -502,6 +541,9 @@ const styles = StyleSheet.create({
     fontSize: 78,
     lineHeight: 82,
     letterSpacing: -2.4,
+    ...(Platform.OS === 'web'
+      ? { textShadow: '0 0 28px rgba(255,208,138,0.35)' as any }
+      : {}),
   },
   instrumentScoreCompact: {
     fontSize: 60,
@@ -716,6 +758,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(23,24,45,0.58)',
     padding: 22,
     gap: 10,
+    ...(Platform.OS === 'web'
+      ? {
+          backgroundImage:
+            'radial-gradient(140% 100% at 0% 0%, rgba(18,200,178,0.10) 0%, rgba(23,24,45,0.58) 45%, rgba(18,16,38,0.74) 100%)' as any,
+          boxShadow: '0 22px 48px -28px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,248,242,0.06)' as any,
+        }
+      : SHADOWS.deep),
   },
   featureCardCompact: {
     flexBasis: 'auto',
@@ -844,6 +893,24 @@ const styles = StyleSheet.create({
     width: '100%',
     minWidth: 0,
   },
+  finalDownloadButtonLive: {
+    borderColor: 'rgba(18,200,178,0.52)',
+    backgroundColor: 'rgba(18,200,178,0.10)',
+    cursor: 'pointer' as any,
+    transitionProperty: 'transform, box-shadow, border-color, background-color' as any,
+    transitionDuration: '220ms' as any,
+    transitionTimingFunction: 'cubic-bezier(0.2, 0.8, 0.2, 1)' as any,
+  },
+  finalDownloadButtonHover: {
+    transform: [{ translateY: -3 }],
+    borderColor: 'rgba(18,200,178,0.88)',
+    backgroundColor: 'rgba(18,200,178,0.16)',
+    boxShadow: '0 22px 44px -20px rgba(18,200,178,0.60)' as any,
+  },
+  finalDownloadButtonPressed: {
+    transform: [{ translateY: -1 }],
+    opacity: 0.94,
+  },
   finalPlatform: {
     color: COLORS.starGold,
     fontFamily: FONTS.accent,
@@ -862,5 +929,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     marginTop: 4,
+  },
+  finalStatusLive: {
+    color: COLORS.tide,
   },
 });
