@@ -57,6 +57,7 @@ export default function TermsOfServiceScreen() {
         updated={UPDATED}
         sections={SECTIONS}
         metaDescription="Terms for using CosmicSelf — personal astrology reflection tools across Western, Vedic, Chinese, and KP systems."
+        canonical="https://cosmicself.app/legal/terms"
       />
     );
   }

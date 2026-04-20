@@ -57,6 +57,7 @@ export default function PrivacyPolicyScreen() {
         updated={UPDATED}
         sections={SECTIONS}
         metaDescription="How CosmicSelf collects, uses, and protects the data you enter across Western, Vedic, Chinese, and KP astrology features."
+        canonical="https://cosmicself.app/legal/privacy"
       />
     );
   }
