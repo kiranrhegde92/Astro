@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator,
+  View, Text, TextInput, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, useWindowDimensions,
 } from 'react-native';
 import Animated, { FadeInDown, interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
@@ -45,6 +45,8 @@ function FocusInput({ error, children }: { error?: boolean; children: React.Reac
 }
 
 export default function ReferralEntryScreen() {
+  const { width } = useWindowDimensions();
+  const isDesktop = Platform.OS === 'web' && width >= 900;
   const fbUser = currentUser();
   const setPendingReferral = useAuthStore((s) => s.setPendingReferral);
   const logout = useAuthStore((s) => s.logout);
@@ -135,7 +137,7 @@ export default function ReferralEntryScreen() {
   return (
     <StarField>
       <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ResetScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <ResetScrollView contentContainerStyle={[styles.container, isDesktop && styles.containerDesktop]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
           <Animated.View entering={FadeInDown.delay(80).duration(420).springify().damping(20)} style={styles.header}>
             <Ionicons name="sparkles" size={48} color={COLORS.western} />
@@ -195,6 +197,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xl,
     paddingTop: 60,
     gap: SPACING.lg,
+  },
+  containerDesktop: {
+    maxWidth: 460,
+    width: '100%',
+    alignSelf: 'center',
+    paddingHorizontal: 32,
   },
   header: { gap: SPACING.sm, alignItems: 'center' },
   title: { fontFamily: FONTS.display, fontSize: 26, color: COLORS.textPrimary, letterSpacing: 1, textAlign: 'center' },

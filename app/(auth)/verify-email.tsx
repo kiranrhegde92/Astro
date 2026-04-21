@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { StarField } from '../../src/components/ui/StarField';
@@ -11,6 +11,8 @@ import { sendCurrentUserVerificationEmail } from '../../src/services/authService
 import { useAuthStore } from '../../src/store/authStore';
 
 export default function VerifyEmailScreen() {
+  const { width } = useWindowDimensions();
+  const isDesktop = Platform.OS === 'web' && width >= 900;
   const firebaseUser = useAuthStore((s) => s.firebaseUser);
   const refreshEmailVerification = useAuthStore((s) => s.refreshEmailVerification);
   const logout = useAuthStore((s) => s.logout);
@@ -59,7 +61,7 @@ export default function VerifyEmailScreen() {
 
   return (
     <StarField>
-      <ResetScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <ResetScrollView contentContainerStyle={[styles.container, isDesktop && styles.containerDesktop]} showsVerticalScrollIndicator={false}>
         <Animated.View entering={FadeInDown.delay(80).duration(420).springify().damping(20)} style={styles.header}>
           <View style={styles.iconWrap}>
             <Ionicons name="mail-unread-outline" size={42} color={COLORS.starGold} />
@@ -110,6 +112,12 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: SPACING.xxl,
     gap: SPACING.lg,
+  },
+  containerDesktop: {
+    maxWidth: 480,
+    width: '100%',
+    alignSelf: 'center',
+    paddingHorizontal: 32,
   },
   header: {
     alignItems: 'center',
