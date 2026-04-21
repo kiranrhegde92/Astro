@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { Platform, View, Text, StyleSheet, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { StarField } from '../../src/components/ui/StarField';
@@ -49,6 +49,8 @@ function toDate(value?: string) {
 
 export default function CosmicRevealScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const isDesktop = Platform.OS === 'web' && width >= 900;
   const user = useUserStore((state) => state.user);
   const setWesternProfile = useUserStore((s) => s.setWesternProfile);
   const setVedicProfile = useUserStore((s) => s.setVedicProfile);
@@ -279,7 +281,7 @@ export default function CosmicRevealScreen() {
   return (
     <StarField>
       <ScreenHeader title="Your reveal" />
-      <ResetScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <ResetScrollView contentContainerStyle={[styles.container, isDesktop && styles.containerDesktop]} showsVerticalScrollIndicator={false}>
         <Text style={styles.step}>Step 3 of 3</Text>
         <Text style={styles.headline}>This is the shape of your sky.</Text>
 
@@ -448,6 +450,7 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.heading, letterSpacing: 1,
   },
   container: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.xxl, gap: SPACING.lg },
+  containerDesktop: { maxWidth: 720, width: '100%', alignSelf: 'center', paddingHorizontal: 32, paddingTop: SPACING.lg },
   step: { color: COLORS.textMuted, fontSize: 11, fontFamily: FONTS.accent, letterSpacing: 1.2 },
   headline: {
     color: COLORS.textPrimary, fontSize: 36, lineHeight: 44,

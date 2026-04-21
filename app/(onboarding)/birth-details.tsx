@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import Animated, {
@@ -39,6 +40,8 @@ import { normalizeLanguage } from '../../src/i18n/language';
 export default function BirthDetailsScreen() {
   const router = useRouter();
   const { t, i18n } = useTranslation();
+  const { width } = useWindowDimensions();
+  const isDesktop = Platform.OS === 'web' && width >= 900;
   const setUser = useUserStore((state) => state.setUser);
   const firebaseUser = useAuthStore((s) => s.firebaseUser);
 
@@ -216,7 +219,7 @@ export default function BirthDetailsScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ResetScrollView
-          contentContainerStyle={styles.container}
+          contentContainerStyle={[styles.container, isDesktop && styles.containerDesktop]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -494,6 +497,13 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.sm,
     paddingBottom: SPACING.xxl,
     gap: SPACING.lg,
+  },
+  containerDesktop: {
+    maxWidth: 560,
+    width: '100%',
+    alignSelf: 'center',
+    paddingHorizontal: 32,
+    paddingTop: SPACING.lg,
   },
   headline: {
     ...TYPE.title,

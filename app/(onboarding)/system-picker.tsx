@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Platform, View, Text, StyleSheet, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { StarField } from '../../src/components/ui/StarField';
@@ -52,6 +52,8 @@ export default function SystemPickerScreen() {
   const { t } = useTranslation();
   const setActiveSystems = useUserStore((state) => state.setActiveSystems);
   const [selected, setSelected] = useState<Set<AstrologySystem>>(new Set(SYSTEMS.map((system) => system.key)));
+  const { width } = useWindowDimensions();
+  const isDesktop = Platform.OS === 'web' && width >= 900;
 
   const toggle = (system: AstrologySystem) => {
     const next = new Set(selected);
@@ -66,11 +68,12 @@ export default function SystemPickerScreen() {
   return (
     <StarField>
       <ScreenHeader title={t('onboarding.systemPicker.title')} />
-      <ResetScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <ResetScrollView contentContainerStyle={[styles.container, isDesktop && styles.containerDesktop]} showsVerticalScrollIndicator={false}>
         <Text style={styles.step}>{t('onboarding.systemPicker.step')}</Text>
         <Text style={styles.headline}>{t('onboarding.systemPicker.headline')}</Text>
-        <Text style={styles.copy}>{t('onboarding.systemPicker.copy')}</Text>
+        <Text style={[styles.copy, isDesktop && styles.copyDesktop]}>{t('onboarding.systemPicker.copy')}</Text>
 
+        <View style={[isDesktop && styles.systemsGridDesktop]}>
         {SYSTEMS.map((system) => {
           const active = selected.has(system.key);
           return (
@@ -81,6 +84,7 @@ export default function SystemPickerScreen() {
               accessibilityRole="switch"
               accessibilityLabel={t(system.titleKey)}
               accessibilityState={{ checked: active }}
+              style={isDesktop ? styles.systemTileDesktop : undefined}
             >
               <GradientCard style={[styles.row, active && styles.rowActive]} accentColor={system.accent}>
                 <View style={styles.rowTop}>
@@ -103,6 +107,7 @@ export default function SystemPickerScreen() {
             </TouchableOpacity>
           );
         })}
+        </View>
 
         <CosmicButton
           title={t('onboarding.systemPicker.continue')}
@@ -121,6 +126,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingBottom: SPACING.xxl,
     gap: SPACING.lg,
+  },
+  containerDesktop: {
+    maxWidth: 880,
+    width: '100%',
+    alignSelf: 'center',
+    paddingHorizontal: 32,
+    paddingTop: SPACING.lg,
+  },
+  copyDesktop: {
+    maxWidth: 560,
+  },
+  systemsGridDesktop: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.md,
+    marginTop: SPACING.sm,
+  },
+  systemTileDesktop: {
+    flexBasis: '48%',
+    flexGrow: 1,
   },
   step: {
     color: COLORS.textMuted,
