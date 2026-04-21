@@ -1,0 +1,86 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users can read/write their own profile.
+    // Referral transactions may increment only the referrer's visible invite count.
+    match /users/{uid} {
+      allow read, create, delete: if request.auth != null && request.auth.uid == uid;
+      allow update: if request.auth != null && request.auth.uid == uid;
+      allow update: if request.auth != null
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly(['referralCount'])
+        && resource.data.referralCount is int
+        && request.resource.data.referralCount == resource.data.referralCount + 1
+        && request.resource.data.referralCount <= 3;
+    }
+
+    // Invite codes are readable for signup validation and tightly writable by owners.
+    match /referralCodes/{code} {
+      allow get: if true;
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(['uid', 'usedCount', 'createdAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.usedCount == 0;
+      allow update: if request.auth != null
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly(['usedCount'])
+        && resource.data.uid is string
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.usedCount == resource.data.usedCount + 1
+        && request.resource.data.usedCount <= 3;
+    }
+
+    // Charts are private to each user
+    match /charts/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false; // Only Cloud Functions write charts
+    }
+
+    // Daily readings are private, read-only for user
+    match /dailyReadings/{uid}/dates/{date} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false; // Only Cloud Functions write readings
+    }
+
+    // Akasha state: private, read-only by user; only Cloud Functions write
+    match /users/{uid}/akasha/state {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    // Akasha readings: private, read-only by user; only Cloud Functions write
+    match /users/{uid}/akashaReadings/{readingId} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    // Runtime oracle config (provider toggle). Admin-only via custom claim.
+    // Keys stay in Firebase Secrets — this doc only holds {provider: 'gemini'|'claude'}.
+    match /config/oracle {
+      allow read, write: if request.auth != null && request.auth.token.admin == true;
+    }
+
+    // Public web-access flag. Read by any visitor so the web bundle can
+    // decide between marketing-only and full-app routing at boot.
+    // Only admins may flip it.
+    match /config/web {
+      allow get, list: if true;
+      allow write: if request.auth != null && request.auth.token.admin == true;
+    }
+
+    // Shared readings: reads only via getSharedReading callable (server-sanitized).
+    match /sharedReadings/{id} {
+      allow read: if false;
+      allow create: if request.auth != null
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['ownerUid','question','answer','locale','createdAt']);
+      allow update, delete: if request.auth != null && resource.data.ownerUid == request.auth.uid;
+    }
+
+    // Public QR tokens: reads only via getPublicCosmicCard callable.
+    match /publicQr/{token} {
+      allow read: if false;
+      allow create, update, delete: if request.auth != null
+        && request.resource.data.ownerUid == request.auth.uid;
+    }
+  }
+}

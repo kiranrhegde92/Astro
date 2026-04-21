@@ -1,622 +1,1411 @@
-import React, { useMemo, useRef, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Dimensions, Animated, TouchableOpacity } from 'react-native';
-import { useTranslation } from 'react-i18next';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Linking, Platform, Pressable, RefreshControl, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
+import { ConfettiBurst } from '../../src/components/ui/ConfettiBurst';
+import { AnimalMascot } from '../../src/components/ui/AnimalMascot';
+import type { DailyReading } from '../../src/types/astrology';
+import { CosmicButton } from '../../src/components/ui/CosmicButton';
+import { useCosmicAlert } from '../../src/components/ui/CosmicAlert';
+import { GlassCard } from '../../src/components/ui/GlassCard';
+import { SectionLabel } from '../../src/components/ui/SectionLabel';
+import { OrbIcon } from '../../src/components/ui/OrbIcon';
+import { AnimatedCard } from '../../src/components/ui/AnimatedScreen';
+import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
 import { StarField } from '../../src/components/ui/StarField';
-import { GradientCard } from '../../src/components/ui/GradientCard';
-import { AnimatedPressable } from '../../src/components/ui/AnimatedPressable';
+import { EmptyState } from '../../src/components/ui/EmptyState';
+import { NetworkBanner } from '../../src/components/ui/NetworkBanner';
+import { TutorialOverlay } from '../../src/components/ui/TutorialOverlay';
 import { ProgressRing } from '../../src/components/ui/ProgressRing';
-import { CosmicOrb } from '../../src/components/ui/CosmicOrb';
-import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../../src/constants/theme';
-import { useUserStore } from '../../src/store/userStore';
+import {
+  BORDER_RADIUS,
+  COLORS,
+  FONTS,
+  SHADOWS,
+  SPACING,
+  TYPE,
+} from '../../src/constants/theme';
+import { APP_STORE_URL, PLAY_STORE_URL } from '../../src/constants/storeLinks';
 import { generateDailyReading } from '../../src/content/dailyTemplates';
+import { buildForecastProfile } from '../../src/content/predictionSignals';
+import { fetchDailyReading } from '../../src/services/functionsService';
+import { Config } from '../../src/config';
+import { speakReading, stopReadingAudio } from '../../src/services/ttsService';
+import {
+  cancelTransitAlerts,
+  getHighImpactTransit,
+  scheduleHighImpactTransitAlert,
+} from '../../src/utils/notifications';
+import { useActiveProfile } from '../../src/hooks/useActiveProfile';
+import { useReadingStore } from '../../src/store/readingStore';
+import { useSettingsStore } from '../../src/store/settingsStore';
+import { useUserStore } from '../../src/store/userStore';
+import { getDateKey } from '../../src/utils/dateUtils';
+import { normalizeUserProfile } from '../../src/utils/normalizeUserProfile';
+import { normalizeLanguage } from '../../src/i18n/language';
+import {
+  formatSignature,
+  getGreetingLabel,
+  getSpokenTodayCopy,
+  getSystemPreviewCopy,
+  getTodayShellCopy,
+} from '../../src/i18n/spokenContent';
+import { hasPremiumEntitlement } from '../../src/utils/subscription';
 
-const { width } = Dimensions.get('window');
-const CARD_W = width * 0.74;
+const READING_VERSION = 5;
 
-const SYSTEM_META: Record<string, {
-  icon: any; gradient: readonly string[]; color: string; route: string; accentBorder: string;
-}> = {
-  western: { icon: 'planet-outline',   gradient: COLORS.gradientWestern, color: COLORS.western, route: '/reading/western', accentBorder: 'rgba(124,109,255,0.5)' },
-  vedic:   { icon: 'flame-outline',    gradient: COLORS.gradientVedic,   color: COLORS.vedic,   route: '/reading/vedic',   accentBorder: 'rgba(255,107,53,0.5)' },
-  chinese: { icon: 'navigate-outline', gradient: COLORS.gradientChinese, color: COLORS.chinese, route: '/reading/chinese', accentBorder: 'rgba(255,58,92,0.5)' },
-  kp:      { icon: 'telescope-outline',gradient: COLORS.gradientKP,      color: COLORS.kp,      route: '/reading/kp',      accentBorder: 'rgba(0,229,209,0.5)' },
+const TONE_GRADIENTS: Record<'Opening' | 'Mixed' | 'Pressurized', readonly [string, string, string]> = {
+  Opening: ['#0f2739', '#13576b', '#1e8a76'],
+  Mixed: ['#1b1535', '#3b256f', '#7a3f60'],
+  Pressurized: ['#220d2c', '#5a1d4a', '#a4414b'],
 };
 
-function getCosmicEnergy(date: Date): number {
-  const day = date.getFullYear() * 1000 + date.getMonth() * 32 + date.getDate();
-  const x = Math.sin(day * 9973) * 10000;
-  return 0.62 + (x - Math.floor(x)) * 0.33;
-}
+const TONE_ACCENTS: Record<'Opening' | 'Mixed' | 'Pressurized', string> = {
+  Opening: COLORS.tide,
+  Mixed: COLORS.gold,
+  Pressurized: COLORS.coral,
+};
 
-// ── Shimmer skeleton block ──────────────────────────────────────────────────
-function SkeletonBlock({ width: w, height: h, style }: { width: number | string; height: number; style?: any }) {
-  const shimmer = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(shimmer, { toValue: 1, duration: 900, useNativeDriver: true }),
-        Animated.timing(shimmer, { toValue: 0, duration: 900, useNativeDriver: true }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, []);
-  const opacity = shimmer.interpolate({ inputRange: [0, 1], outputRange: [0.06, 0.18] });
-  return (
-    <Animated.View style={[{ width: w as any, height: h, borderRadius: 8, backgroundColor: '#ffffff' }, style, { opacity }]} />
-  );
-}
+type SystemKey = 'western' | 'vedic' | 'chinese' | 'kp';
 
-function TodaySkeleton() {
-  return (
-    <StarField>
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false} scrollEnabled={false}>
-        {/* Hero */}
-        <View style={[styles.hero, { gap: 12 }]}>
-          <SkeletonBlock width={92} height={92} style={{ borderRadius: 46 }} />
-          <SkeletonBlock width={140} height={13} />
-          <SkeletonBlock width={220} height={22} />
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <SkeletonBlock width={90} height={40} style={{ borderRadius: 20 }} />
-            <SkeletonBlock width={90} height={40} style={{ borderRadius: 20 }} />
-          </View>
-        </View>
-        {/* Energy card */}
-        <SkeletonBlock width="100%" height={84} style={{ borderRadius: 16 }} />
-        {/* Affirmation */}
-        <View style={{ gap: 8 }}>
-          <SkeletonBlock width="90%" height={17} />
-          <SkeletonBlock width="70%" height={17} />
-        </View>
-        {/* System cards */}
-        <View style={{ flexDirection: 'row', gap: 12 }}>
-          <SkeletonBlock width={CARD_W} height={255} style={{ borderRadius: 16 }} />
-          <SkeletonBlock width={40} height={255} style={{ borderRadius: 16 }} />
-        </View>
-      </ScrollView>
-    </StarField>
-  );
-}
+type SystemPreview = {
+  key: SystemKey;
+  label: string;
+  route: string;
+  text: string;
+  accent: string;
+  icon: React.ComponentProps<typeof OrbIcon>['icon'];
+  secondary: string;
+};
 
-// ── Error state ─────────────────────────────────────────────────────────────
-function TodayError({ onRetry }: { onRetry: () => void }) {
-  return (
-    <StarField>
-      <View style={styles.center}>
-        <Ionicons name="alert-circle-outline" size={48} color="rgba(255,255,255,0.35)" />
-        <Text style={styles.errorTitle}>Reading Unavailable</Text>
-        <Text style={styles.errorSub}>Your cosmic data couldn't be loaded right now.</Text>
-        <TouchableOpacity onPress={onRetry} activeOpacity={0.75} style={styles.retryBtn}>
-          <Text style={styles.retryText}>Try Again</Text>
-        </TouchableOpacity>
-      </View>
-    </StarField>
-  );
+function getToneFallback(supportCount: number, tensionCount: number): 'Opening' | 'Mixed' | 'Pressurized' {
+  if (supportCount >= tensionCount + 2) return 'Opening';
+  if (tensionCount > supportCount) return 'Pressurized';
+  return 'Mixed';
 }
-
-// ────────────────────────────────────────────────────────────────────────────
 
 export default function TodayScreen() {
-  const { t } = useTranslation();
   const router = useRouter();
-  const user = useUserStore((s) => s.user);
-  const today = new Date();
+  const { i18n, t } = useTranslation();
+  const { width } = useWindowDimensions();
+  const isWeb = Platform.OS === 'web';
+  const isDesktop = isWeb && width >= 900;
+  const accountUser = useUserStore((state) => state.user);
+  const user = useActiveProfile();
+  const transitAlertsEnabled = useSettingsStore((state) => state.transitAlertsEnabled);
+  const hasSeenTutorial = useSettingsStore((state) => state.hasSeenTutorial);
+  const incrementStreak = useUserStore((state) => state.incrementStreak);
+  const todayReading = useReadingStore((state) => state.todayReading);
+  const getCachedReading = useReadingStore((state) => state.getCachedReading);
+  const setTodayReading = useReadingStore((state) => state.setTodayReading);
   const [retryKey, setRetryKey] = useState(0);
+  const [loadingTimedOut, setLoadingTimedOut] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [confettiOn, setConfettiOn] = useState(false);
+  const lastCelebratedStreak = useRef<number | null>(null);
+  const [usedLocalFallback, setUsedLocalFallback] = useState(false);
+  const [fallbackDismissed, setFallbackDismissed] = useState(false);
+  const { showAlert, alertModal } = useCosmicAlert();
+
+  const today = useMemo(() => new Date(), []);
+  const language = normalizeLanguage(user?.language ?? i18n.language);
+  const shellCopy = useMemo(() => getTodayShellCopy(language), [language]);
+  const todayKey = getDateKey(today);
+  const safeUser = useMemo(() => (user ? normalizeUserProfile(user) : null), [user]);
+  const forecastProfile = useMemo(
+    () => (safeUser ? buildForecastProfile(safeUser) : null),
+    [safeUser],
+  );
+  const isManagedProfile = Boolean(user?.isManagedProfile);
+  const isPremium = hasPremiumEntitlement(accountUser?.subscription);
+
+  const profile = useMemo(() => {
+    if (!forecastProfile?.western || !forecastProfile?.vedic || !forecastProfile?.chinese) return null;
+    return {
+      western: forecastProfile.western,
+      vedic: forecastProfile.vedic,
+      chinese: forecastProfile.chinese,
+      kp: forecastProfile.kp,
+    };
+  }, [forecastProfile]);
 
   const reading = useMemo(() => {
-    if (!user?.western?.sun || !user?.vedic?.rashi || !user?.chinese?.animal) return null;
-    try {
-      return generateDailyReading(today, user.western.sun, user.vedic.rashi, user.chinese.animal);
-    } catch {
-      return 'error' as const;
-    }
-  }, [today.toDateString(), user?.western?.sun, retryKey]);
-
-  const cosmicEnergy = useMemo(() => getCosmicEnergy(today), [today.toDateString()]);
-
-  const heroOpacity = useRef(new Animated.Value(0)).current;
-  const heroY = useRef(new Animated.Value(28)).current;
-  const cardsOpacity = useRef(new Animated.Value(0)).current;
-  const affirmOpacity = useRef(new Animated.Value(0)).current;
+    if (!profile) return null;
+    if (isManagedProfile && forecastProfile) return generateDailyReading(today, forecastProfile);
+    if (todayReading?.date === todayKey && (todayReading.version ?? 0) >= READING_VERSION) return todayReading;
+    return null;
+  }, [forecastProfile, isManagedProfile, profile, today, todayKey, todayReading]);
 
   useEffect(() => {
-    Animated.sequence([
-      Animated.parallel([
-        Animated.timing(heroOpacity, { toValue: 1, duration: 600, useNativeDriver: true }),
-        Animated.spring(heroY, { toValue: 0, tension: 55, friction: 9, useNativeDriver: true }),
-      ]),
-      Animated.timing(cardsOpacity, { toValue: 1, duration: 420, useNativeDriver: true }),
-      Animated.timing(affirmOpacity, { toValue: 1, duration: 380, useNativeDriver: true }),
-    ]).start();
+    if (reading) {
+      setLoadingTimedOut(false);
+      return;
+    }
+    const timer = setTimeout(() => setLoadingTimedOut(true), 15000);
+    return () => clearTimeout(timer);
+  }, [reading, retryKey]);
+
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+    setLoadingTimedOut(false);
+    setRetryKey((v) => v + 1);
   }, []);
 
-  const timeOfDay = (() => {
-    const h = today.getHours();
-    if (h < 12) return t('common.morning');
-    if (h < 17) return t('common.afternoon');
-    return t('common.evening');
+  useEffect(() => {
+    let cancelled = false;
+    if (isManagedProfile) {
+      if (refreshing) setRefreshing(false);
+      return;
+    }
+    if (!forecastProfile?.western?.sun || !forecastProfile?.vedic?.rashi || !forecastProfile?.chinese?.animal) {
+      if (refreshing) setRefreshing(false);
+      return;
+    }
+    const finish = () => {
+      if (!cancelled) setRefreshing(false);
+    };
+    const cached = refreshing ? null : getCachedReading(todayKey);
+    if (cached?.unified?.shareText && cached.references?.length && (cached.version ?? 0) >= READING_VERSION) {
+      setTodayReading(cached);
+      incrementStreak().catch(() => {});
+      finish();
+      return;
+    }
+    const hasBackend = Boolean(Config.firebase.apiKey && Config.firebase.projectId);
+    if (!hasBackend) {
+      const generated = generateDailyReading(today, forecastProfile);
+      setTodayReading(generated);
+      setUsedLocalFallback(false);
+      incrementStreak().catch(() => {});
+      finish();
+      return;
+    }
+    fetchDailyReading()
+      .then(({ reading }) => {
+        if (cancelled) return;
+        if ((reading?.version ?? 0) < READING_VERSION) {
+          const generated = generateDailyReading(today, forecastProfile);
+          setTodayReading(generated);
+          setUsedLocalFallback(true);
+          incrementStreak().catch(() => {});
+          return;
+        }
+        setUsedLocalFallback(false);
+        setFallbackDismissed(false);
+        const merged = {
+          version: typeof reading.version === 'number' ? reading.version : READING_VERSION,
+          date: todayKey,
+          western: reading.western,
+          vedic: reading.vedic,
+          chinese: reading.chinese,
+          kp: reading.kp,
+          unified: {
+            shareText: reading.unified?.shareText ?? reading.unified?.cosmicVibe ?? "Today's reading is ready.",
+            ...reading.unified,
+          },
+          activeTransits: reading.activeTransits ?? [],
+          transitPositions: reading.transitPositions ?? [],
+          references: reading.references ?? [],
+          positivityScore: reading.positivityScore ?? 0.78,
+        };
+        setTodayReading(merged as DailyReading);
+        incrementStreak().catch(() => {});
+      })
+      .catch(() => {
+        if (cancelled) return;
+        try {
+          const generated = generateDailyReading(today, forecastProfile);
+          setTodayReading(generated);
+          setUsedLocalFallback(true);
+          incrementStreak().catch(() => {});
+        } catch {
+          setRetryKey((value) => value + 1);
+        }
+      })
+      .finally(finish);
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    forecastProfile,
+    getCachedReading,
+    incrementStreak,
+    isManagedProfile,
+    retryKey,
+    setTodayReading,
+    today,
+    todayKey,
+    refreshing,
+  ]);
+
+  useEffect(() => {
+    if (!reading || !accountUser || !isPremium || !transitAlertsEnabled) {
+      cancelTransitAlerts().catch(() => {});
+      return;
+    }
+    scheduleHighImpactTransitAlert(reading, accountUser).catch(() => {});
+  }, [accountUser, isPremium, reading, transitAlertsEnabled]);
+
+  useEffect(() => () => { stopReadingAudio().catch(() => {}); }, []);
+
+  useEffect(() => {
+    const streak = accountUser?.streak ?? 0;
+    if (streak <= 0) return;
+    const milestones = [3, 7, 14, 30, 60, 90, 180, 365];
+    if (!milestones.includes(streak)) {
+      lastCelebratedStreak.current = streak;
+      return;
+    }
+    if (lastCelebratedStreak.current === streak) return;
+    lastCelebratedStreak.current = streak;
+    setConfettiOn(true);
+  }, [accountUser?.streak]);
+
+  const greeting = useMemo(() => getGreetingLabel(today, language), [language, today]);
+  const firstName = safeUser?.name?.split(' ')[0] ?? user?.name?.split(' ')[0] ?? 'you';
+
+  if (!user || !reading) {
+    return (
+      <StarField>
+        <View style={styles.emptyWrap}>
+          <EmptyState
+            variant="loading"
+            title={shellCopy.loadingTitle}
+            body={shellCopy.loadingCopy}
+            ctaLabel={loadingTimedOut ? shellCopy.retry : undefined}
+            onCta={loadingTimedOut ? () => { setLoadingTimedOut(false); setRetryKey((v) => v + 1); } : undefined}
+          />
+        </View>
+      </StarField>
+    );
+  }
+
+  const transits = reading.activeTransits ?? [];
+  const supportCount = transits.filter((transit) => transit.nature === 'support').length;
+  const tensionCount = transits.filter((transit) => transit.nature === 'tension').length;
+  const tone = (reading.unified?.tone ?? getToneFallback(supportCount, tensionCount)) as 'Opening' | 'Mixed' | 'Pressurized';
+  const alignmentScore = Math.round((reading.positivityScore ?? 0.78) * 100);
+  const heroGradient = TONE_GRADIENTS[tone];
+  const toneAccent = TONE_ACCENTS[tone];
+  const topSupport = transits.find((transit) => transit.nature === 'support') ?? transits[0];
+  const topTension = transits.find((transit) => transit.nature === 'tension');
+  const highImpactTransit = !isPremium ? getHighImpactTransit(reading) : undefined;
+  const subscription = accountUser?.subscription;
+  const trialDaysLeft = (() => {
+    if (subscription?.status !== 'trial' || !subscription.trialEndsAt) return null;
+    const end = new Date(subscription.trialEndsAt).getTime();
+    const diff = Math.ceil((end - Date.now()) / (1000 * 60 * 60 * 24));
+    return diff > 0 ? diff : 0;
   })();
 
-  if (!user) return <TodaySkeleton />;
-  if (reading === 'error') return <TodayError onRetry={() => setRetryKey(k => k + 1)} />;
-  if (!reading) return <TodaySkeleton />;
+  const todayCopy = getSpokenTodayCopy({
+    language,
+    reading,
+    firstName,
+    tone,
+    focusArea: reading.unified.focusArea,
+    alignmentScore,
+    transitsCount: transits.length,
+    topSupport,
+    topTension,
+    timingFallback: reading.kp?.eventTiming ?? reading.vedic?.dasha,
+  });
 
-  const systemReadings = [
-    user.activeSystems.includes('western') && reading.western && {
-      key: 'western',
-      title: `Western · ${user.western?.sun}`,
-      lines: [
-        { label: 'OVERALL', text: reading.western.overall },
-        { label: 'LOVE', text: reading.western.love },
-        { label: 'CAREER', text: reading.western.career },
-      ],
-      extra: `Lucky #${reading.western.luckyNumber}`,
-    },
-    user.activeSystems.includes('vedic') && reading.vedic && {
-      key: 'vedic',
-      title: `Vedic · ${user.vedic?.rashi}`,
-      lines: [
-        { label: 'DASHA', text: reading.vedic.dasha },
-        { label: 'NAKSHATRA', text: reading.vedic.nakshatra },
-        { label: 'MANTRA', text: reading.vedic.mantra },
-      ],
-      extra: reading.vedic.remedy.source,
-    },
-    user.activeSystems.includes('chinese') && reading.chinese && {
-      key: 'chinese',
-      title: `Chinese · ${user.chinese?.element} ${user.chinese?.animal}`,
-      lines: [
-        { label: 'ANIMAL', text: reading.chinese.animal },
-        { label: 'ELEMENT', text: reading.chinese.element },
-      ],
-      extra: `Lucky: ${reading.chinese.luckyDirection}`,
-    },
-    user.activeSystems.includes('kp') && reading.kp && {
-      key: 'kp',
-      title: 'KP Insight',
-      lines: [
-        { label: 'TIMING', text: reading.kp.eventTiming },
-        { label: 'SIGNIFICATOR', text: reading.kp.significatorInsight },
-      ],
-      extra: reading.kp.sublordGuidance,
-    },
-  ].filter(Boolean) as Array<{
-    key: string; title: string;
-    lines: Array<{ label: string; text: string }>;
-    extra: string;
-  }>;
+  const headline = todayCopy.headline;
+  const heroBody = todayCopy.heroBody;
+  const evidenceLine = todayCopy.evidenceLine;
+  const bestUse = todayCopy.bestUse;
+  const watchFor = todayCopy.watchForText;
+  const timingNote = todayCopy.timingNoteText;
+  const remedyText = todayCopy.remedyText;
+  const focusArea = todayCopy.focusArea;
+
+  const handleToggleAudio = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    if (isSpeaking) {
+      await stopReadingAudio();
+      setIsSpeaking(false);
+      return;
+    }
+    const started = await speakReading(
+      {
+        headline,
+        heroBody,
+        bestUse,
+        watchFor,
+        affirmation: reading?.unified?.affirmation,
+      },
+      {
+        onDone: () => setIsSpeaking(false),
+        onError: () => setIsSpeaking(false),
+      }
+    );
+    if (!started) {
+      showAlert('Audio unavailable', 'Spoken playback is not supported on this device.');
+      return;
+    }
+    setIsSpeaking(true);
+  };
+
+  const signatureChips = [
+    formatSignature(profile?.western?.sun, 'sun', language),
+    formatSignature(profile?.vedic?.rashi, 'rashi', language),
+    formatSignature(profile?.chinese?.animal, 'year', language),
+  ].filter(Boolean) as string[];
+
+  const systems = [
+    user.activeSystems.includes('western') && reading.western
+      ? { key: 'western', label: t('systems.western'), route: '/reading/western', text: getSystemPreviewCopy('western', language, reading.western.overall), accent: COLORS.western, icon: 'sunny', secondary: '#d6d1ff' }
+      : null,
+    user.activeSystems.includes('vedic') && reading.vedic
+      ? { key: 'vedic', label: t('systems.vedic'), route: '/reading/vedic', text: getSystemPreviewCopy('vedic', language, reading.vedic.dasha), accent: COLORS.vedic, icon: 'moon', secondary: '#ffd9c2' }
+      : null,
+    user.activeSystems.includes('chinese') && reading.chinese
+      ? { key: 'chinese', label: t('systems.chinese'), route: '/reading/chinese', text: getSystemPreviewCopy('chinese', language, reading.chinese.element), accent: COLORS.chinese, icon: 'leaf', secondary: '#ffd3e0' }
+      : null,
+    user.activeSystems.includes('kp') && reading.kp
+      ? { key: 'kp', label: t('systems.kp'), route: '/reading/kp', text: getSystemPreviewCopy('kp', language, reading.kp.eventTiming), accent: COLORS.kp, icon: 'sparkles', secondary: '#c6f5ea' }
+      : null,
+  ].filter(Boolean) as SystemPreview[];
 
   return (
     <StarField>
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <ResetScrollView
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={COLORS.gold}
+            colors={[COLORS.gold]}
+          />
+        }
+      >
+        {usedLocalFallback && !fallbackDismissed ? (
+          <NetworkBanner
+            variant="info"
+            title="Using offline reading"
+            body="We couldn't reach the server, so today's reading was generated locally. Pull down to retry."
+            ctaLabel="Retry"
+            onCta={handleRefresh}
+            onDismiss={() => setFallbackDismissed(true)}
+          />
+        ) : null}
 
-        {/* ── Hero ── */}
-        <Animated.View style={[styles.hero, { opacity: heroOpacity, transform: [{ translateY: heroY }] }]}>
-          <CosmicOrb size={92} />
-          <Text style={styles.dateText}>
-            {today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-          </Text>
-          <Text style={styles.greeting}>
-            {t('today.greeting', { timeOfDay, name: user.name })}
-          </Text>
-
-          {/* Stats */}
-          <View style={styles.pillsRow}>
-            {user.streak > 0 && (
-              <View style={styles.statPill}>
-                <Ionicons name="flame" size={14} color={COLORS.vedic} />
-                <Text style={[styles.statVal, { color: COLORS.vedic }]}>{user.streak}</Text>
-                <Text style={styles.statLabel}>streak</Text>
-              </View>
-            )}
-            <View style={[styles.statPill, styles.statPillWhite]}>
-              <Ionicons name="sparkles" size={13} color={COLORS.gold} />
-              <Text style={[styles.statVal, { color: COLORS.gold }]}>{user.cosmicPoints}</Text>
-              <Text style={styles.statLabel}>points</Text>
-            </View>
-          </View>
-        </Animated.View>
-
-        {/* ── Cosmic Energy ── */}
-        <Animated.View style={{ opacity: cardsOpacity }}>
-          <GradientCard accentColor={COLORS.gold}>
-            <View style={styles.energyRow}>
-              <ProgressRing
-                progress={cosmicEnergy}
-                size={74}
-                strokeWidth={4}
-                color={COLORS.gold}
-                value={`${Math.round(cosmicEnergy * 100)}%`}
-                label="ENERGY"
-              />
-              <View style={styles.energyText}>
-                <Text style={styles.vibeLabel}>TODAY'S COSMIC VIBE</Text>
-                <Text style={styles.vibeText}>{reading.unified.cosmicVibe}</Text>
-              </View>
-            </View>
-          </GradientCard>
-        </Animated.View>
-
-        {/* ── Affirmation ── */}
-        <Animated.View style={[styles.affirmSection, { opacity: affirmOpacity }]}>
-          <View style={styles.affirmBar} />
-          <Text style={styles.affirmQuote}>"{reading.unified.affirmation}"</Text>
-          <Text style={styles.affirmLabel}>Daily Affirmation</Text>
-        </Animated.View>
-
-        {/* ── Unified CTA ── */}
-        {user.activeSystems.length >= 2 && (
-          <AnimatedPressable onPress={() => router.push('/reading/unified')}>
-            <View style={styles.unifiedShadow}>
-              <LinearGradient
-                colors={['rgba(255,255,255,0.12)', 'rgba(255,255,255,0.04)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.unifiedCta}
-              >
-                <LinearGradient
-                  colors={['rgba(255,255,255,0.15)', 'rgba(255,255,255,0)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 0, y: 1 }}
-                  style={[StyleSheet.absoluteFillObject, { borderRadius: BORDER_RADIUS.xl }]}
-                  pointerEvents="none"
-                />
-                <Ionicons name="planet" size={32} color={COLORS.western} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.unifiedTitle}>Unified Cosmic Reading</Text>
-                  <Text style={styles.unifiedSub}>All systems aligned into one insight</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.40)" />
-              </LinearGradient>
-            </View>
-          </AnimatedPressable>
-        )}
-
-        {/* ── System Cards ── */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>YOUR SYSTEMS</Text>
-          <Text style={styles.sectionHint}>swipe →</Text>
-        </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.hScroll}
-          decelerationRate="fast"
-          snapToInterval={CARD_W + SPACING.md}
-        >
-          {systemReadings.map((sr) => {
-            const meta = SYSTEM_META[sr.key];
-            return (
-              <AnimatedPressable
-                key={sr.key}
-                onPress={() => router.push(meta.route as any)}
-                style={{ width: CARD_W }}
-              >
-                <View style={[styles.sysCardShadow, { shadowColor: meta.color }]}>
-                  <LinearGradient
-                    colors={meta.gradient as [string, string]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.sysCard}
-                  >
-                    {/* Glossy top highlight */}
-                    <LinearGradient
-                      colors={['rgba(255,255,255,0.18)', 'rgba(255,255,255,0)']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 0, y: 1 }}
-                      style={[StyleSheet.absoluteFillObject, { borderRadius: BORDER_RADIUS.xl }]}
-                      pointerEvents="none"
-                    />
-                    <Ionicons name={meta.icon} size={28} color="rgba(255,255,255,0.90)" />
-                    <Text style={styles.sysTitle}>{sr.title}</Text>
-                    {sr.lines.map((l, i) => (
-                      <View key={i} style={styles.sysLine}>
-                        <Text style={styles.sysLineLabel}>{l.label}</Text>
-                        <Text style={styles.sysLineText} numberOfLines={2}>{l.text}</Text>
-                      </View>
-                    ))}
-                    <View style={styles.sysExtra}>
-                      <Text style={styles.sysExtraText}>{sr.extra}</Text>
-                    </View>
-                    <View style={styles.sysReadMore}>
-                      <Text style={styles.sysReadMoreText}>Read more</Text>
-                      <Ionicons name="arrow-forward" size={12} color="rgba(255,255,255,0.6)" />
-                    </View>
-                  </LinearGradient>
-                </View>
-              </AnimatedPressable>
-            );
-          })}
-        </ScrollView>
-
-        {/* ── Pagination dots ── */}
-        {systemReadings.length > 1 && (
-          <View style={styles.paginationRow}>
-            {systemReadings.map((_, i) => (
-              <View key={i} style={styles.paginationDot} />
-            ))}
-          </View>
-        )}
-
-        {/* ── Share ── */}
-        <AnimatedPressable onPress={() => router.push('/share/card')}>
-          <View style={styles.shareShadow}>
+        {confettiOn ? (
+          <View style={styles.milestoneCard}>
             <LinearGradient
-              colors={['rgba(255,255,255,0.14)', 'rgba(255,255,255,0.04)']}
+              colors={['rgba(255,208,120,0.25)', 'rgba(172,132,255,0.18)']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={styles.shareBtn}
-            >
-              <Ionicons name="share-outline" size={18} color="rgba(255,255,255,0.85)" />
-              <Text style={styles.shareBtnText}>Share Today's Vibe</Text>
-            </LinearGradient>
+              style={StyleSheet.absoluteFillObject}
+            />
+            <Text style={styles.milestoneEmoji}>{'\u{1F389}'}</Text>
+            <View style={styles.milestoneBody}>
+              <Text style={styles.milestoneTitle}>Day {accountUser?.streak} streak!</Text>
+              <Text style={styles.milestoneCopy}>The cosmos is watching. Keep showing up.</Text>
+            </View>
           </View>
-        </AnimatedPressable>
+        ) : null}
 
-        {/* ── Sources ── */}
-        <View style={styles.sources}>
-          <Text style={styles.sourcesTitle}>SOURCES</Text>
-          {reading.references.map((ref, i) => (
-            <Text key={i} style={styles.sourceText}>
-              {ref.tradition.charAt(0).toUpperCase() + ref.tradition.slice(1)}: {ref.source}
-              {ref.chapter ? ` · ${ref.chapter}` : ''}
+        {refreshing ? (
+          <View style={styles.refreshPill} accessibilityRole="progressbar" accessibilityLabel="Regenerating today's reading">
+            <Ionicons name="sync" size={12} color={COLORS.gold} />
+            <Text style={styles.refreshPillText}>Regenerating reading</Text>
+          </View>
+        ) : null}
+
+        <View style={styles.header}>
+          <View style={styles.datePremiumRow}>
+            <Text style={styles.dateLabel}>
+              {today.toLocaleDateString(todayCopy.dateLocale, { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase()}
             </Text>
-          ))}
+            {isPremium ? (
+              <View style={styles.premiumBadge}>
+                <Ionicons name="star" size={10} color={COLORS.starGold} />
+                <Text style={styles.premiumBadgeText}>
+                  {trialDaysLeft !== null
+                    ? `TRIAL · ${trialDaysLeft}D LEFT`
+                    : 'PREMIUM'}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+          <View style={styles.greetingRow}>
+            <View style={styles.greetingCol}>
+              <Text style={styles.greetingText}>
+                {greeting}, <Text style={styles.greetingName}>{firstName}</Text>
+              </Text>
+              <Text style={styles.headerCopy}>{todayCopy.headerCopy}</Text>
+            </View>
+            <AnimalMascot animal={user.chinese?.animal} size={76} celebrating={confettiOn} />
+          </View>
         </View>
 
-        <View style={{ height: 140 }} />
-      </ScrollView>
+        <AnimatedCard index={0}>
+          <View style={[styles.hero, { shadowColor: toneAccent }]}>
+            <LinearGradient colors={heroGradient} style={StyleSheet.absoluteFillObject} />
+            <View style={styles.heroTopHighlight} pointerEvents="none" />
+
+            <View style={styles.heroTopRow}>
+              <View style={styles.heroBadgeRow}>
+                <View style={[styles.toneDot, { backgroundColor: toneAccent }]} />
+                <Text style={styles.heroBadgeText}>{todayCopy.heroBadge}</Text>
+              </View>
+              <ProgressRing
+                progress={alignmentScore / 100}
+                size={56}
+                strokeWidth={5}
+                color={toneAccent}
+                value={`${alignmentScore}`}
+                label="align"
+              />
+            </View>
+
+            <Text style={styles.heroHeadline}>{headline}</Text>
+            <Text style={styles.heroBody}>{heroBody}</Text>
+            <Text style={styles.heroEvidence}>{evidenceLine}</Text>
+
+            <Pressable
+              onPress={handleToggleAudio}
+              style={({ pressed }) => [styles.heroAudioButton, pressed && { opacity: 0.8 }]}
+              accessibilityRole="button"
+              accessibilityLabel={isSpeaking ? 'Stop audio playback' : 'Play reading audio'}
+            >
+              <Ionicons name={isSpeaking ? 'pause-circle' : 'play-circle'} size={18} color={COLORS.textPrimary} />
+              <Text style={styles.heroAudioText}>{isSpeaking ? 'Stop' : todayCopy.alignedText ? 'Listen' : 'Play'}</Text>
+            </Pressable>
+
+            <View style={styles.metricRow}>
+              <MetricPill label={todayCopy.tone} value={todayCopy.toneLabel} />
+              <MetricPill label={todayCopy.focus} value={focusArea} />
+              <MetricPill label={todayCopy.liveSignals} value={String(transits.length)} />
+            </View>
+
+            {signatureChips.length > 0 ? (
+              <View style={styles.signatureRow}>
+                {signatureChips.map((item) => (
+                  <View key={item} style={styles.signatureChip}>
+                    <Text style={styles.signatureChipText}>{item}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+
+            {(() => {
+              const retrogrades = (reading.transitPositions ?? []).filter((p) => p.retrograde);
+              if (retrogrades.length === 0) return null;
+              return (
+                <Pressable style={styles.retroBanner} onPress={() => router.push('/retrograde')}>
+                  <Ionicons name="refresh-circle" size={14} color={COLORS.coral} />
+                  <Text style={styles.retroBannerText}>
+                    <Text style={styles.retroBannerStrong}>{retrogrades.map((r) => r.planet).join(', ')}</Text>
+                    {retrogrades.length > 1 ? ' are retrograde' : ' is retrograde'} — slower pace, inward review
+                  </Text>
+                </Pressable>
+              );
+            })()}
+          </View>
+        </AnimatedCard>
+
+        {(() => {
+          const duoJsx = (
+            <AnimatedCard index={1}>
+              <View style={styles.duoGrid}>
+                <GlassCard accentColor={COLORS.tide} style={styles.duoCard}>
+                  <SectionLabel accent={COLORS.tide}>{todayCopy.leanInto}</SectionLabel>
+                  <Text style={styles.cardTitle}>{focusArea}</Text>
+                  <Text style={styles.cardBody}>{bestUse}</Text>
+                </GlassCard>
+                <GlassCard accentColor={COLORS.coral} style={styles.duoCard}>
+                  <SectionLabel accent={COLORS.coral}>{todayCopy.watchFor}</SectionLabel>
+                  <Text style={styles.cardTitle}>{todayCopy.watchForTitle}</Text>
+                  <Text style={styles.cardBody}>{watchFor}</Text>
+                </GlassCard>
+              </View>
+            </AnimatedCard>
+          );
+
+          const upgradeJsx = !isPremium ? (
+            <AnimatedCard index={2}>
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                  router.push('/subscription');
+                }}
+                style={({ pressed }) => [styles.upgradeCard, pressed && { opacity: 0.92 }]}
+                accessibilityRole="button"
+                accessibilityLabel="See Premium"
+              >
+                <LinearGradient
+                  colors={['rgba(255,208,120,0.18)', 'rgba(172,132,255,0.14)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={StyleSheet.absoluteFillObject}
+                />
+                <View style={styles.upgradeRow}>
+                  <View style={styles.upgradeIcon}>
+                    <Ionicons name="sparkles" size={18} color={COLORS.starGold} />
+                  </View>
+                  <View style={styles.upgradeBody}>
+                    <Text style={styles.upgradeTitle}>7 days of Premium, on us ✨</Text>
+                    <Text style={styles.upgradeCopy}>
+                      Unwrap the 30-day forecast, Antardasha deep-dives, journal insights, and zero ads.
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={COLORS.starGold} />
+                </View>
+              </Pressable>
+            </AnimatedCard>
+          ) : null;
+
+          const alertJsx = highImpactTransit ? (
+            <AnimatedCard index={3}>
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                  router.push('/subscription');
+                }}
+                style={({ pressed }) => [styles.alertCard, pressed && { opacity: 0.92 }]}
+                accessibilityRole="button"
+                accessibilityLabel="Unlock transit alerts with Premium"
+              >
+                <LinearGradient
+                  colors={['rgba(172,132,255,0.22)', 'rgba(255,120,150,0.14)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={StyleSheet.absoluteFillObject}
+                />
+                <View style={styles.alertHeaderRow}>
+                  <View style={styles.alertIcon}>
+                    <Ionicons name="notifications" size={16} color={COLORS.iris} />
+                  </View>
+                  <Text style={styles.alertKicker}>High-impact transit · Premium alert</Text>
+                </View>
+                <Text style={styles.alertTitle}>
+                  {highImpactTransit.transitPlanet} {highImpactTransit.aspect} {highImpactTransit.natalPlanet}
+                </Text>
+                <Text style={styles.alertBody} numberOfLines={3}>{highImpactTransit.brief}</Text>
+                <Text style={styles.alertCta}>
+                  Premium would send you a push the moment this peaks → upgrade
+                </Text>
+              </Pressable>
+            </AnimatedCard>
+          ) : null;
+
+          const timingJsx = (
+            <AnimatedCard index={!isPremium ? 4 : 2}>
+              <GlassCard accentColor={COLORS.gold}>
+                <SectionLabel accent={COLORS.gold}>{todayCopy.timingNote}</SectionLabel>
+                <Text style={styles.timingText}>{timingNote}</Text>
+                {remedyText ? (
+                  <Text style={styles.timingSupport}>
+                    <Text style={styles.timingSupportStrong}>{todayCopy.remedyPrefix}: </Text>
+                    {remedyText}
+                  </Text>
+                ) : null}
+              </GlassCard>
+            </AnimatedCard>
+          );
+
+          const transitsJsx = transits.length > 0 ? (
+            <AnimatedCard index={3}>
+              <GlassCard accentColor={COLORS.iris}>
+                <SectionLabel accent={COLORS.iris}>LIVE TRANSITS</SectionLabel>
+                <View style={styles.transitSummaryRow}>
+                  <SummaryCell count={supportCount} label="Support" color={COLORS.tide} />
+                  <View style={styles.transitSummaryDivider} />
+                  <SummaryCell count={tensionCount} label="Tension" color={COLORS.coral} />
+                  <View style={styles.transitSummaryDivider} />
+                  <SummaryCell
+                    count={Math.max(0, transits.length - supportCount - tensionCount)}
+                    label="Neutral"
+                    color={COLORS.textSecondary}
+                  />
+                </View>
+                {transits.slice(0, isDesktop ? 6 : 2).map((transit, i) => (
+                  <View
+                    key={`${transit.transitPlanet}-${transit.natalPlanet}-${i}`}
+                    style={styles.transitRow}
+                  >
+                    <View
+                      style={[
+                        styles.transitNature,
+                        {
+                          backgroundColor:
+                            transit.nature === 'support'
+                              ? `${COLORS.tide}22`
+                              : transit.nature === 'tension'
+                              ? `${COLORS.coral}22`
+                              : 'rgba(255,255,255,0.06)',
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.transitAspect,
+                          {
+                            color:
+                              transit.nature === 'support'
+                                ? COLORS.tide
+                                : transit.nature === 'tension'
+                                ? COLORS.coral
+                                : COLORS.textSecondary,
+                          },
+                        ]}
+                      >
+                        {transit.transitPlanet} {transit.aspect} {transit.natalPlanet}
+                      </Text>
+                    </View>
+                    <Text style={styles.transitBrief} numberOfLines={2}>{transit.brief}</Text>
+                  </View>
+                ))}
+              </GlassCard>
+            </AnimatedCard>
+          ) : null;
+
+          const systemsJsx = systems.length > 0 ? (
+            <AnimatedCard index={4}>
+              <View style={styles.systemsHeader}>
+                <SectionLabel>{todayCopy.bySystem}</SectionLabel>
+              </View>
+              <View style={styles.systemList}>
+                {systems.map((system) => (
+                  <Pressable
+                    key={system.key}
+                    onPress={() => {
+                      Haptics.selectionAsync().catch(() => {});
+                      router.push(system.route as never);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Open ${system.label} reading`}
+                    style={({ pressed }) => [
+                      styles.systemRow,
+                      { borderColor: `${system.accent}55` },
+                      pressed && { opacity: 0.9 },
+                    ]}
+                  >
+                    <OrbIcon icon={system.icon} size={36} accentColor={system.accent} secondaryColor={system.secondary} />
+                    <View style={styles.systemBody}>
+                      <Text style={styles.systemLabel}>{system.label}</Text>
+                      <Text style={styles.systemText} numberOfLines={2}>{system.text}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+                  </Pressable>
+                ))}
+              </View>
+            </AnimatedCard>
+          ) : null;
+
+          const actionsJsx = (
+            <AnimatedCard index={5}>
+              <View style={styles.actions}>
+                {user.activeSystems.length >= 2 ? (
+                  <CosmicButton title={todayCopy.openFull} onPress={() => router.push('/reading/unified')} />
+                ) : null}
+                <CosmicButton title={todayCopy.shareReading} onPress={() => router.push('/share/card')} variant="outline" />
+              </View>
+            </AnimatedCard>
+          );
+
+          const mobileAppJsx = Platform.OS === 'web' ? (
+            <AnimatedCard index={6}>
+              <LinearGradient
+                colors={[COLORS.western, COLORS.tide]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.mobilePromoCard}
+              >
+                <View style={styles.mobilePromoHeader}>
+                  <Ionicons name="phone-portrait-outline" size={20} color="#0a0816" />
+                  <Text style={styles.mobilePromoTitle}>Unlock the full cosmos</Text>
+                </View>
+                <Text style={styles.mobilePromoBody}>
+                  Deeper chart readings, compatibility, Akasha oracle, and cosmic QR sharing live in the mobile app.
+                </Text>
+                <View style={styles.mobilePromoButtons}>
+                  <Pressable
+                    onPress={() => Linking.openURL(PLAY_STORE_URL).catch(() => {})}
+                    style={({ hovered }: any) => [styles.mobilePromoBtn, hovered && styles.mobilePromoBtnHover]}
+                  >
+                    <Ionicons name="logo-google-playstore" size={14} color="#fff8f2" />
+                    <Text style={styles.mobilePromoBtnLabel}>Google Play</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => Linking.openURL(APP_STORE_URL).catch(() => {})}
+                    style={({ hovered }: any) => [styles.mobilePromoBtn, hovered && styles.mobilePromoBtnHover]}
+                  >
+                    <Ionicons name="logo-apple" size={14} color="#fff8f2" />
+                    <Text style={styles.mobilePromoBtnLabel}>App Store</Text>
+                  </Pressable>
+                </View>
+              </LinearGradient>
+            </AnimatedCard>
+          ) : null;
+
+          const quickLinksJsx = (
+            <AnimatedCard index={6}>
+              <View style={styles.quickLinks}>
+                <QuickLink
+                  icon="moon-outline"
+                  label="Moon tonight"
+                  onPress={() => router.push('/moon-calendar')}
+                />
+                <QuickLink
+                  icon="refresh-outline"
+                  label="Retrogrades"
+                  onPress={() => router.push('/retrograde')}
+                />
+                <QuickLink
+                  icon="sparkles-outline"
+                  label="Your archive"
+                  onPress={() => router.push('/reading/archive')}
+                />
+              </View>
+            </AnimatedCard>
+          );
+
+          if (isDesktop) {
+            return (
+              <View style={styles.desktopGrid}>
+                <View style={styles.desktopMain}>
+                  {duoJsx}
+                  {timingJsx}
+                  {transitsJsx}
+                </View>
+                <View style={styles.desktopSide}>
+                  {upgradeJsx}
+                  {alertJsx}
+                  {mobileAppJsx}
+                </View>
+              </View>
+            );
+          }
+
+          return (
+            <>
+              {duoJsx}
+              {upgradeJsx}
+              {alertJsx}
+              {timingJsx}
+              {transitsJsx}
+              {mobileAppJsx}
+              {!isWeb ? systemsJsx : null}
+              {!isWeb ? actionsJsx : null}
+              {!isWeb ? quickLinksJsx : null}
+            </>
+          );
+        })()}
+
+        <View style={styles.bottomPad} />
+      </ResetScrollView>
+      {alertModal}
+      <TutorialOverlay visible={!hasSeenTutorial && !!reading} />
+      <ConfettiBurst visible={confettiOn} onDone={() => setConfettiOn(false)} />
     </StarField>
+  );
+}
+
+function MetricPill({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.metricPill}>
+      <Text style={styles.metricLabel}>{label.toUpperCase()}</Text>
+      <Text style={styles.metricValue}>{value}</Text>
+    </View>
+  );
+}
+
+function SummaryCell({ count, label, color }: { count: number; label: string; color: string }) {
+  return (
+    <View style={styles.transitSummaryItem}>
+      <View style={[styles.transitDot, { backgroundColor: color }]} />
+      <Text style={styles.transitSummaryCount}>{count}</Text>
+      <Text style={styles.transitSummaryLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function QuickLink({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={() => {
+        Haptics.selectionAsync().catch(() => {});
+        onPress();
+      }}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={({ pressed }) => [styles.quickLink, pressed && { opacity: 0.8 }]}
+    >
+      <Ionicons name={icon} size={18} color={COLORS.gold} />
+      <Text style={styles.quickLinkText}>{label}</Text>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { paddingHorizontal: SPACING.lg, paddingTop: 58, gap: SPACING.lg },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: SPACING.md, paddingHorizontal: SPACING.xl },
-  errorTitle: {
-    color: COLORS.white,
-    fontSize: 18,
-    fontFamily: 'Cinzel_700Bold',
-    letterSpacing: 0.5,
-    textAlign: 'center',
+  container: {
+    paddingHorizontal: SPACING.lg,
+    paddingTop: Platform.OS === 'ios' ? 64 : 48,
+    paddingBottom: 120,
+    gap: SPACING.lg,
   },
-  errorSub: {
-    color: COLORS.textSecondary,
+  desktopGrid: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 20,
+  },
+  desktopMain: {
+    flex: 1.7,
+    gap: SPACING.lg,
+    minWidth: 0,
+  },
+  desktopSide: {
+    flex: 1,
+    gap: SPACING.lg,
+    minWidth: 0,
+  },
+  mobilePromoCard: {
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.lg,
+    gap: 10,
+  },
+  mobilePromoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  mobilePromoTitle: {
+    color: '#0a0816',
+    fontFamily: FONTS.accentBold,
+    fontSize: 15,
+    letterSpacing: 0.6,
+  },
+  mobilePromoBody: {
+    color: '#0a0816',
+    fontFamily: FONTS.body,
     fontSize: 13,
-    textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 18,
+    opacity: 0.85,
   },
-  retryBtn: {
-    marginTop: SPACING.sm,
-    paddingVertical: 14,
-    paddingHorizontal: SPACING.xl,
+  mobilePromoButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+    marginTop: 4,
+  },
+  mobilePromoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: 'rgba(10,8,22,0.85)',
+  },
+  mobilePromoBtnHover: {
+    backgroundColor: '#0a0816',
+  },
+  mobilePromoBtnLabel: {
+    color: '#fff8f2',
+    fontFamily: FONTS.accentBold,
+    fontSize: 12,
+    letterSpacing: 0.6,
+  },
+  emptyWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  header: {
+    gap: 6,
+  },
+  datePremiumRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  dateLabel: {
+    ...TYPE.label,
+    color: COLORS.textMuted,
+    fontFamily: FONTS.accent,
+  },
+  premiumBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
+    borderColor: `${COLORS.starGold}66`,
+    backgroundColor: `${COLORS.starGold}1f`,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  refreshPill: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
+    borderColor: `${COLORS.gold}55`,
+    backgroundColor: `${COLORS.gold}14`,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  refreshPillText: {
+    color: COLORS.gold,
+    fontSize: 10,
+    fontFamily: FONTS.accent,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  premiumBadgeText: {
+    color: COLORS.starGold,
+    fontSize: 9,
+    fontFamily: FONTS.accent,
+    letterSpacing: 1.2,
+  },
+  greetingText: {
+    ...TYPE.hero,
+    color: COLORS.textPrimary,
+    fontFamily: FONTS.display,
+  },
+  greetingName: {
+    color: COLORS.starGold,
+    textShadowColor: 'rgba(241,183,79,0.4)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 8,
+  },
+  headerCopy: {
+    ...TYPE.body,
+    color: COLORS.textSecondary,
+    maxWidth: 360,
+  },
+  greetingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+  },
+  greetingCol: {
+    flex: 1,
+    gap: 4,
+  },
+  hero: {
+    borderRadius: BORDER_RADIUS.xxl,
+    padding: SPACING.lg,
+    gap: SPACING.md,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+    ...SHADOWS.deep,
+  },
+  heroTopHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.28)',
+  },
+  heroTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  heroBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  toneDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  heroBadgeText: {
+    color: 'rgba(255,250,241,0.84)',
+    fontSize: 10,
+    fontFamily: FONTS.accent,
+    letterSpacing: 1.6,
+    textTransform: 'uppercase',
+  },
+  scorePill: {
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  scoreText: {
+    fontSize: 10,
+    fontFamily: FONTS.accent,
+    letterSpacing: 1,
+  },
+  heroHeadline: {
+    color: '#fff8ea',
+    ...TYPE.title,
+    fontFamily: FONTS.display,
+  },
+  heroBody: {
+    color: 'rgba(255,248,234,0.88)',
+    ...TYPE.body,
+    fontFamily: FONTS.body,
+  },
+  heroEvidence: {
+    color: 'rgba(255,248,234,0.68)',
+    ...TYPE.caption,
+    fontFamily: FONTS.body,
+    fontStyle: 'italic',
+  },
+  heroAudioButton: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     borderRadius: BORDER_RADIUS.full,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.22)',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    minHeight: 44,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
   },
-  retryText: {
-    color: COLORS.white,
-    fontSize: 14,
-    fontFamily: 'Cinzel_700Bold',
-    letterSpacing: 1,
-  },
-
-  hero: { alignItems: 'center', gap: SPACING.sm },
-  dateText: {
-    color: COLORS.textMuted,
-    fontSize: 11,
-    fontFamily: 'Cinzel_400Regular',
-    letterSpacing: 2,
+  heroAudioText: {
+    color: COLORS.textPrimary,
+    fontSize: 12,
+    fontFamily: FONTS.accent,
+    letterSpacing: 1.2,
     textTransform: 'uppercase',
-    marginTop: 4,
   },
-  greeting: {
-    fontFamily: 'Cinzel_700Bold',
-    fontSize: 22,
-    color: COLORS.white,
-    textAlign: 'center',
-    textShadowColor: 'rgba(255,255,255,0.15)',
-    textShadowRadius: 16,
-    textShadowOffset: { width: 0, height: 0 },
-    letterSpacing: 0.5,
+  metricRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
   },
-  pillsRow: { flexDirection: 'row', gap: SPACING.sm },
-  statPill: {
+  metricPill: {
+    borderRadius: BORDER_RADIUS.lg,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+    minWidth: 96,
+    gap: 3,
+  },
+  metricLabel: {
+    color: 'rgba(255,248,234,0.56)',
+    fontSize: 9,
+    fontFamily: FONTS.accent,
+    letterSpacing: 1.3,
+  },
+  metricValue: {
+    color: '#fff8ea',
+    ...TYPE.subhead,
+    fontFamily: FONTS.heading,
+  },
+  signatureRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+    marginTop: SPACING.xs,
+  },
+  signatureChip: {
+    borderRadius: BORDER_RADIUS.full,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+  },
+  signatureChipText: {
+    color: '#fff8ea',
+    fontSize: 11,
+    fontFamily: FONTS.accent,
+    letterSpacing: 0.6,
+  },
+  retroBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: BORDER_RADIUS.full,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+    gap: 6,
+    marginTop: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    minHeight: 44,
+    borderColor: `${COLORS.coral}55`,
+    backgroundColor: `${COLORS.coral}14`,
+    alignSelf: 'flex-start',
   },
-  statPillWhite: {
-    borderColor: 'rgba(255,215,0,0.22)',
-    backgroundColor: 'rgba(255,215,0,0.05)',
-  },
-  statVal: { fontSize: 15, fontWeight: '800' },
-  statLabel: { color: COLORS.textMuted, fontSize: 11 },
-
-  energyRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
-  energyText: { flex: 1 },
-  vibeLabel: {
-    color: COLORS.textMuted,
+  retroBannerText: {
+    color: COLORS.textSecondary,
     fontSize: 11,
-    fontFamily: 'Cinzel_400Regular',
-    letterSpacing: 2,
-    marginBottom: 5,
+    flexShrink: 1,
   },
-  vibeText: { color: COLORS.white, fontSize: 15, fontWeight: '600', lineHeight: 22 },
-
-  affirmSection: { paddingLeft: SPACING.lg, gap: SPACING.xs },
-  affirmBar: {
-    position: 'absolute', left: 0, top: 0, bottom: 0, width: 2.5,
-    borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.35)',
+  retroBannerStrong: {
+    color: COLORS.coral,
+    fontFamily: FONTS.heading,
   },
-  affirmQuote: {
-    fontFamily: 'PlayfairDisplay_400Regular',
-    fontSize: 17,
-    color: 'rgba(255,255,255,0.80)',
-    fontStyle: 'italic',
+  duoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.md,
+  },
+  duoCard: {
+    flexGrow: 1,
+    flexBasis: 150,
+  },
+  upgradeCard: {
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255,208,120,0.35)',
+    overflow: 'hidden',
+    padding: SPACING.md,
+  },
+  upgradeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  upgradeIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,208,120,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  upgradeBody: {
+    flex: 1,
+    gap: 2,
+  },
+  upgradeTitle: {
+    color: COLORS.textPrimary,
+    fontSize: 14,
+    fontFamily: FONTS.heading,
+  },
+  upgradeCopy: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  alertCard: {
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(172,132,255,0.35)',
+    overflow: 'hidden',
+    padding: SPACING.md,
+    gap: 6,
+  },
+  alertHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  alertIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(172,132,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  alertKicker: {
+    color: COLORS.iris,
+    fontSize: 11,
+    fontFamily: FONTS.accent,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  alertTitle: {
+    color: COLORS.textPrimary,
+    fontSize: 15,
+    fontFamily: FONTS.heading,
+    textTransform: 'capitalize',
+  },
+  alertBody: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  alertCta: {
+    color: COLORS.starGold,
+    fontSize: 12,
+    fontFamily: FONTS.heading,
+    marginTop: 4,
+  },
+  cardTitle: {
+    color: COLORS.textPrimary,
+    ...TYPE.heading,
+    fontFamily: FONTS.heading,
+  },
+  cardBody: {
+    color: COLORS.textSecondary,
+    ...TYPE.body,
+    fontFamily: FONTS.body,
+  },
+  timingText: {
+    color: COLORS.textPrimary,
+    ...TYPE.subhead,
+    fontFamily: FONTS.heading,
+  },
+  timingSupport: {
+    color: COLORS.textSecondary,
+    ...TYPE.bodySmall,
+    fontFamily: FONTS.body,
+  },
+  timingSupportStrong: {
+    color: COLORS.gold,
+    fontFamily: FONTS.accentBold,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    fontSize: 11,
+  },
+  transitSummaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.lg,
+    paddingVertical: SPACING.sm,
+  },
+  transitSummaryItem: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  transitSummaryDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: COLORS.rule,
+  },
+  transitDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  transitSummaryCount: {
+    color: COLORS.textPrimary,
+    fontSize: 22,
+    fontFamily: FONTS.heading,
     lineHeight: 26,
   },
-  affirmLabel: {
+  transitSummaryLabel: {
     color: COLORS.textMuted,
-    fontSize: 11,
-    fontFamily: 'Cinzel_400Regular',
-    letterSpacing: 2,
+    fontSize: 10,
+    fontFamily: FONTS.accent,
+    letterSpacing: 1.2,
   },
-
-  unifiedShadow: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.7,
-    shadowRadius: 22,
-    elevation: 16,
+  transitRow: {
+    gap: 4,
+    marginTop: SPACING.xs,
   },
-  unifiedCta: {
+  transitNature: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.sm,
+  },
+  transitAspect: {
+    fontSize: 12,
+    fontFamily: FONTS.accentBold,
+    letterSpacing: 0.6,
+  },
+  transitBrief: {
+    color: COLORS.textSecondary,
+    ...TYPE.bodySmall,
+    fontFamily: FONTS.body,
+  },
+  systemsHeader: {
+    marginBottom: SPACING.sm,
+  },
+  systemList: {
+    gap: SPACING.sm,
+  },
+  systemRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.md,
     padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.xl,
+    borderRadius: BORDER_RADIUS.lg,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
-    overflow: 'hidden',
+    backgroundColor: COLORS.glassBg,
   },
-  unifiedTitle: {
-    color: COLORS.white,
-    fontSize: 15,
-    fontFamily: 'Cinzel_700Bold',
-    letterSpacing: 0.3,
+  systemBody: {
+    flex: 1,
+    gap: 2,
   },
-  unifiedSub: {
+  systemLabel: {
+    color: COLORS.textPrimary,
+    ...TYPE.subhead,
+    fontFamily: FONTS.heading,
+  },
+  systemText: {
     color: COLORS.textSecondary,
-    fontSize: 11,
-    marginTop: 2,
+    ...TYPE.bodySmall,
+    fontFamily: FONTS.body,
   },
-
-  sectionHeader: {
+  actions: {
+    gap: SPACING.md,
+  },
+  quickLinks: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: SPACING.xs,
+    gap: SPACING.sm,
   },
-  sectionTitle: {
-    fontFamily: 'Cinzel_400Regular',
-    color: COLORS.textSecondary,
-    fontSize: 12,
-    letterSpacing: 2.5,
-  },
-  sectionHint: {
-    color: COLORS.textMuted,
-    fontSize: 11,
-    letterSpacing: 1,
-  },
-  hScroll: { paddingRight: SPACING.lg, gap: SPACING.md },
-
-  sysCardShadow: {
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.50,
-    shadowRadius: 22,
-    elevation: 16,
-  },
-  sysCard: {
-    borderRadius: BORDER_RADIUS.xl,
-    padding: SPACING.md,
-    minHeight: 255,
-    justifyContent: 'flex-start',
-    gap: 5,
-    overflow: 'hidden',
-  },
-  sysTitle: {
-    color: '#fff',
-    fontSize: 16,
-    fontFamily: 'Cinzel_700Bold',
-    marginBottom: 4,
-    letterSpacing: 0.3,
-  },
-  sysLine: { marginBottom: 3 },
-  sysLineLabel: {
-    color: 'rgba(255,255,255,0.60)',
-    fontSize: 11,
-    fontFamily: 'Cinzel_400Regular',
-    letterSpacing: 1.5,
-  },
-  sysLineText: { color: '#fff', fontSize: 13, lineHeight: 18 },
-  sysExtra: {
-    marginTop: 'auto' as any,
-    backgroundColor: 'rgba(0,0,0,0.22)',
-    borderRadius: BORDER_RADIUS.md,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    alignSelf: 'flex-start',
-  },
-  sysExtraText: { color: 'rgba(255,255,255,0.75)', fontSize: 11, fontWeight: '600' },
-  sysReadMore: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 8,
-  },
-  sysReadMoreText: { color: 'rgba(255,255,255,0.50)', fontSize: 12, letterSpacing: 0.5 },
-
-  shareShadow: {
-    shadowColor: '#fff',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  shareBtn: {
+  quickLink: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: SPACING.sm,
-    paddingVertical: 16,
-    borderRadius: BORDER_RADIUS.full,
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: BORDER_RADIUS.md,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
-    overflow: 'hidden',
+    borderColor: COLORS.glassBorder,
+    backgroundColor: COLORS.glassBg,
   },
-  shareBtnText: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 15,
-    fontFamily: 'Cinzel_700Bold',
-    letterSpacing: 0.5,
+  quickLinkText: {
+    color: COLORS.textPrimary,
+    fontSize: 12,
+    fontFamily: FONTS.accent,
+    letterSpacing: 0.8,
   },
-
-  sources: {
+  bottomPad: {
+    height: 20,
+  },
+  milestoneCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
     padding: SPACING.md,
     borderRadius: BORDER_RADIUS.lg,
-    backgroundColor: 'rgba(255,255,255,0.02)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: 'rgba(255,208,120,0.45)',
+    overflow: 'hidden',
   },
-  sourcesTitle: {
-    color: COLORS.textMuted,
-    fontSize: 11,
-    fontFamily: 'Cinzel_400Regular',
-    letterSpacing: 2,
-    marginBottom: SPACING.xs,
+  milestoneEmoji: {
+    fontSize: 28,
   },
-  paginationRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: SPACING.xs,
-    marginTop: -SPACING.xs,
+  milestoneBody: {
+    flex: 1,
+    gap: 2,
   },
-  paginationDot: {
-    width: 6, height: 6, borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.25)',
+  milestoneTitle: {
+    color: COLORS.starGold,
+    fontSize: 16,
+    fontFamily: FONTS.heading,
   },
-  sourceText: { color: COLORS.textMuted, fontSize: 11, lineHeight: 17 },
+  milestoneCopy: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    lineHeight: 17,
+  },
 });

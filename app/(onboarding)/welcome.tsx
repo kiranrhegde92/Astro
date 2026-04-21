@@ -1,326 +1,448 @@
-import React, { useState, useRef, useEffect } from 'react';
-import {
-  View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, Animated, Dimensions,
-} from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { StarField } from '../../src/components/ui/StarField';
+import { CosmicButton } from '../../src/components/ui/CosmicButton';
 import { CosmicOrb } from '../../src/components/ui/CosmicOrb';
-import { COLORS, SPACING, BORDER_RADIUS } from '../../src/constants/theme';
+import { GradientCard } from '../../src/components/ui/GradientCard';
+import { OrbIcon } from '../../src/components/ui/OrbIcon';
+import { AnimatedCard } from '../../src/components/ui/AnimatedScreen';
+import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
+import { BORDER_RADIUS, COLORS, FONTS, SHADOWS, SPACING } from '../../src/constants/theme';
+import { useAuthStore } from '../../src/store/authStore';
+import { useUserStore } from '../../src/store/userStore';
+import { useCosmicAlert } from '../../src/components/ui/CosmicAlert';
+import { LANGUAGE_OPTIONS, normalizeLanguage, type SupportedLanguage } from '../../src/i18n/language';
 
-const { width } = Dimensions.get('window');
-
-const LANGUAGES = [
-  { code: 'en', native: 'English', flag: '🇬🇧' },
-  { code: 'hi', native: 'हिन्दी', flag: '🇮🇳' },
-  { code: 'zh', native: '中文',   flag: '🇨🇳' },
-  { code: 'kn', native: 'ಕನ್ನಡ',  flag: '🇮🇳' },
-];
+const WELCOME_COPY: Record<
+  SupportedLanguage,
+  {
+    headline: string;
+    copy: string;
+    cta: string;
+    languageLabel: string;
+    promiseTitle: string;
+    promiseCopy: string;
+  }
+> = {
+  en: {
+    headline: 'A gentler way to begin with the sky.',
+    copy: 'Your chart opens here as a ritual. Less wallpaper. More presence, timing, and feeling.',
+    cta: 'Begin the reading',
+    languageLabel: 'Choose your language',
+    promiseTitle: 'Your first reading takes under a minute.',
+    promiseCopy: 'Add your birth details, choose your blend, and the almanac opens.',
+  },
+  hi: {
+    headline: 'आसमान से जुड़ने की एक शांत शुरुआत।',
+    copy: 'आपकी कुंडली यहां एक छोटे से अनुष्ठान की तरह खुलती है। कम शोर। अधिक उपस्थिति, समय और एहसास।',
+    cta: 'पठन शुरू करें',
+    languageLabel: 'अपनी भाषा चुनें',
+    promiseTitle: 'आपकी पहली रीडिंग एक मिनट से कम में खुलती है।',
+    promiseCopy: 'जन्म विवरण जोड़ें, अपना ब्लेंड चुनें, और आपका अल्मनैक तैयार है।',
+  },
+  zh: {
+    headline: '以更柔和的方式开启你的星空。 ',
+    copy: '你的命盘从这里展开，像一个小小仪式。更少装饰，更多感受、时机与在场。 ',
+    cta: '开始解读',
+    languageLabel: '选择语言',
+    promiseTitle: '你的第一次解读不到一分钟。',
+    promiseCopy: '填写出生信息，选择你的组合，星象手册就会打开。',
+  },
+  kn: {
+    headline: 'ಆಕಾಶದೊಂದಿಗೆ ಆರಂಭಿಸಲು ಇನ್ನಷ್ಟು ಮೃದುವಾದ ದಾರಿ.',
+    copy: 'ನಿಮ್ಮ ಚಾರ್ಟ್ ಇಲ್ಲಿ ಒಂದು ಚಿಕ್ಕ ವಿಧಿಯಂತೆ ತೆರೆದುಕೊಳ್ಳುತ್ತದೆ. ಕಡಿಮೆ ಗದ್ದಲ. ಹೆಚ್ಚು ಉಪಸ್ಥಿತಿ, ಸಮಯ ಮತ್ತು ಭಾವನೆ.',
+    cta: 'ಪಠನ ಆರಂಭಿಸಿ',
+    languageLabel: 'ನಿಮ್ಮ ಭಾಷೆಯನ್ನು ಆಯ್ಕೆಮಾಡಿ',
+    promiseTitle: 'ನಿಮ್ಮ ಮೊದಲ ಓದು ಒಂದು ನಿಮಿಷಕ್ಕೂ ಕಡಿಮೆ ಸಮಯದಲ್ಲಿ ಸಿದ್ಧವಾಗುತ್ತದೆ.',
+    promiseCopy: 'ಜನ್ಮ ವಿವರಗಳನ್ನು ಸೇರಿಸಿ, ನಿಮ್ಮ ಮಿಶ್ರಣ ಆಯ್ಕೆಮಾಡಿ, ಮತ್ತು ಅಲ್ಮನಾಕ್ ತೆರೆಯುತ್ತದೆ.',
+  },
+};
 
 const SYSTEMS = [
   {
-    icon: 'planet' as const,
-    label: 'Western',
-    sub: 'Sun signs · Natal charts',
-    color: COLORS.western,
-    gradient: ['rgba(124,109,255,0.25)', 'rgba(61,53,204,0.12)'] as const,
-    border: 'rgba(124,109,255,0.40)',
+    label: { en: 'Western psychology', hi: 'पश्चिमी मनोविज्ञान', zh: '西方心理', kn: 'ಪಾಶ್ಚಾತ್ಯ ಮನೋವಿಜ್ಞಾನ' },
+    icon: 'sunny' as const,
+    accent: COLORS.western,
+    orbSecondary: COLORS.violetLight,
   },
   {
-    icon: 'flame' as const,
-    label: 'Vedic',
-    sub: 'Moon signs · Dashas',
-    color: COLORS.vedic,
-    gradient: ['rgba(255,107,53,0.25)', 'rgba(204,58,16,0.12)'] as const,
-    border: 'rgba(255,107,53,0.40)',
+    label: { en: 'Vedic timing', hi: 'वैदिक समय', zh: '吠陀时机', kn: 'ವೇದಿಕ ಸಮಯ' },
+    icon: 'moon' as const,
+    accent: COLORS.vedic,
+    orbSecondary: COLORS.aurora,
   },
   {
-    icon: 'navigate' as const,
-    label: 'Chinese',
-    sub: 'Zodiac · Five Elements',
-    color: COLORS.chinese,
-    gradient: ['rgba(255,58,92,0.25)', 'rgba(204,0,48,0.12)'] as const,
-    border: 'rgba(255,58,92,0.40)',
+    label: { en: 'Chinese cycles', hi: 'चीनी चक्र', zh: '中华周期', kn: 'ಚೀನಿ ಚಕ್ರಗಳು' },
+    icon: 'leaf' as const,
+    accent: COLORS.chinese,
+    orbSecondary: COLORS.sunOrange,
   },
   {
-    icon: 'telescope' as const,
-    label: 'KP System',
-    sub: 'Precise event timing',
-    color: COLORS.kp,
-    gradient: ['rgba(0,229,209,0.22)', 'rgba(0,122,114,0.10)'] as const,
-    border: 'rgba(0,229,209,0.38)',
+    label: { en: 'KP precision', hi: 'केपी सटीकता', zh: 'KP 精准度', kn: 'ಕೆಪಿ ನಿಖರತೆ' },
+    icon: 'sparkles' as const,
+    accent: COLORS.kp,
+    orbSecondary: COLORS.tealLight,
   },
 ];
 
 export default function WelcomeScreen() {
   const router = useRouter();
-  const { t, i18n } = useTranslation();
-  const [selectedLang, setSelectedLang] = useState(i18n.language || 'en');
+  const { i18n } = useTranslation();
+  const logout = useAuthStore((s) => s.logout);
+  const clearUser = useUserStore((s) => s.clearUser);
+  const setLanguage = useUserStore((s) => s.setLanguage);
+  const user = useUserStore((s) => s.user);
+  const { showAlert, alertModal } = useCosmicAlert();
+  const [selectedLang, setSelectedLang] = useState<SupportedLanguage>(() => {
+    return normalizeLanguage(i18n.language);
+  });
+  const copy = useMemo(() => WELCOME_COPY[selectedLang] ?? WELCOME_COPY.en, [selectedLang]);
+  const { width } = useWindowDimensions();
+  const isDesktop = Platform.OS === 'web' && width >= 900;
 
-  const headerOpacity = useRef(new Animated.Value(0)).current;
-  const headerY = useRef(new Animated.Value(40)).current;
-  const gridOpacity = useRef(new Animated.Value(0)).current;
-  const gridY = useRef(new Animated.Value(30)).current;
-  const bottomOpacity = useRef(new Animated.Value(0)).current;
-  const btnScale = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    Animated.sequence([
-      Animated.parallel([
-        Animated.timing(headerOpacity, { toValue: 1, duration: 650, useNativeDriver: true }),
-        Animated.spring(headerY, { toValue: 0, tension: 50, friction: 9, useNativeDriver: true }),
-      ]),
-      Animated.parallel([
-        Animated.timing(gridOpacity, { toValue: 1, duration: 550, useNativeDriver: true }),
-        Animated.spring(gridY, { toValue: 0, tension: 55, friction: 10, useNativeDriver: true }),
-      ]),
-      Animated.timing(bottomOpacity, { toValue: 1, duration: 450, useNativeDriver: true }),
-    ]).start();
-
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(btnScale, { toValue: 1.03, duration: 2200, useNativeDriver: true }),
-        Animated.timing(btnScale, { toValue: 1,    duration: 2200, useNativeDriver: true }),
-      ])
-    ).start();
-  }, []);
+  const handleLogout = () => {
+    showAlert(
+      'Log out',
+      'Sign out and return to the login screen?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Log out', style: 'destructive',
+          onPress: async () => {
+            await Promise.all([logout(), clearUser()]);
+            router.replace('/(auth)/login');
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <StarField>
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <Animated.View style={[styles.header, { opacity: headerOpacity, transform: [{ translateY: headerY }] }]}>
-          <CosmicOrb size={160} primaryColor="#7C6DFF" secondaryColor="#00E5D1" />
-          <Text style={styles.title}>COSMIC SELF</Text>
-          <Text style={styles.subtitle}>{t('onboarding.welcome.subtitle')}</Text>
-        </Animated.View>
+      {/* Logout button — top-right corner */}
+      <TouchableOpacity
+        style={styles.logoutCorner}
+        onPress={handleLogout}
+        activeOpacity={0.7}
+        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        accessibilityRole="button"
+        accessibilityLabel="Log out"
+      >
+        <Ionicons name="log-out-outline" size={22} color={COLORS.textMuted} />
+      </TouchableOpacity>
 
-        {/* System cards grid */}
-        <Animated.View style={[styles.grid, { opacity: gridOpacity, transform: [{ translateY: gridY }] }]}>
-          {SYSTEMS.map((sys, i) => (
-            <View key={i} style={[styles.cardWrap, { borderColor: sys.border }]}>
-              <LinearGradient
-                colors={sys.gradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.systemCard}
-              >
-                {/* Glossy top highlight */}
-                <LinearGradient
-                  colors={['rgba(255,255,255,0.12)', 'rgba(255,255,255,0)']}
-                  style={StyleSheet.absoluteFillObject}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 0, y: 1 }}
-                  pointerEvents="none"
-                />
-                <View style={[styles.iconCircle, { borderColor: `${sys.color}55` }]}>
-                  <Ionicons name={sys.icon} size={22} color={sys.color} />
-                </View>
-                <Text style={[styles.sysLabel, { color: '#ffffff' }]}>{sys.label}</Text>
-                <Text style={styles.sysSub}>{sys.sub}</Text>
-              </LinearGradient>
-            </View>
-          ))}
-        </Animated.View>
-
-        {/* Unified badge */}
-        <Animated.View style={[styles.unifiedBadge, { opacity: gridOpacity }]}>
-          <Ionicons name="star" size={13} color="rgba(255,255,255,0.40)" />
-          <Text style={styles.unifiedText}>  All 4 traditions · One cosmic profile</Text>
-        </Animated.View>
-
-        {/* Language + CTA */}
-        <Animated.View style={[styles.bottom, { opacity: bottomOpacity }]}>
-          <Text style={styles.langTitle}>{t('onboarding.welcome.selectLanguage')}</Text>
-          <View style={styles.langRow}>
-            {LANGUAGES.map((lang) => (
-              <TouchableOpacity
-                key={lang.code}
-                onPress={() => { setSelectedLang(lang.code); i18n.changeLanguage(lang.code); }}
-                style={[styles.langPill, selectedLang === lang.code && styles.langPillActive]}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.langFlag}>{lang.flag}</Text>
-                <Text style={[styles.langText, selectedLang === lang.code && styles.langTextActive]}>
-                  {lang.native}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <Animated.View style={{ width: '100%', transform: [{ scale: btnScale }] }}>
-            <TouchableOpacity onPress={() => router.push('/(onboarding)/birth-details')} activeOpacity={0.85}>
-              <View style={styles.ctaShadow}>
-                <LinearGradient
-                  colors={['rgba(255,255,255,0.16)', 'rgba(255,255,255,0.04)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.ctaButton}
-                >
-                  {/* Glossy top */}
-                  <LinearGradient
-                    colors={['rgba(255,255,255,0.20)', 'rgba(255,255,255,0)']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 0, y: 1 }}
-                    style={[StyleSheet.absoluteFillObject, { borderRadius: BORDER_RADIUS.full }]}
-                    pointerEvents="none"
-                  />
-                  <Text style={styles.ctaText}>{t('onboarding.welcome.getStarted')}</Text>
-                  <Ionicons name="arrow-forward" size={18} color="#ffffff" style={{ marginLeft: 8 }} />
-                </LinearGradient>
+      <ResetScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        <View style={[styles.frame, isDesktop && styles.frameDesktop]}>
+          {isDesktop ? (
+            <View style={styles.desktopGrid}>
+              <View style={styles.desktopLeft}>
+                <AnimatedCard index={0}>
+                  <View style={styles.posterWrap}>
+                    <LinearGradient colors={COLORS.gradientInk} style={[styles.poster, styles.posterDesktop]}>
+                      <Text style={styles.brand}>COSMICSELF</Text>
+                      <Text style={[styles.headline, styles.headlineDesktop]}>{copy.headline}</Text>
+                      <Text style={[styles.copy, styles.copyDesktop]}>{copy.copy}</Text>
+                      <View style={[styles.ctaWrap, styles.ctaWrapDesktop]}>
+                        <CosmicButton title={copy.cta} onPress={() => router.push('/(onboarding)/birth-details')} />
+                      </View>
+                    </LinearGradient>
+                    <View style={styles.posterOrbDesktop}>
+                      <CosmicOrb size={220} />
+                    </View>
+                  </View>
+                </AnimatedCard>
               </View>
-            </TouchableOpacity>
-          </Animated.View>
-        </Animated.View>
-
-        <View style={{ height: 40 }} />
-      </ScrollView>
+              <View style={styles.desktopRight}>
+                <AnimatedCard index={1}>
+                  <View style={styles.systemGrid}>
+                    {SYSTEMS.map((system) => (
+                      <View key={system.label.en} style={[styles.systemTile, { borderColor: `${system.accent}55` }]}>
+                        <OrbIcon icon={system.icon} size={34} accentColor={system.accent} secondaryColor={system.orbSecondary} />
+                        <Text style={styles.systemText}>{system.label[selectedLang]}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </AnimatedCard>
+                <AnimatedCard index={2}>
+                  <View style={styles.languageBlock}>
+                    <Text style={styles.sectionLabel}>{copy.languageLabel}</Text>
+                    <View style={styles.languageGrid}>
+                      {LANGUAGE_OPTIONS.map((lang) => {
+                        const active = selectedLang === lang.code;
+                        return (
+                          <TouchableOpacity
+                            key={lang.code}
+                            onPress={() => {
+                              setSelectedLang(lang.code);
+                              i18n.changeLanguage(lang.code);
+                              if (user) setLanguage(lang.code);
+                            }}
+                            style={[styles.languageChip, active && styles.languageChipActive]}
+                            activeOpacity={0.8}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Choose ${lang.nativeName} language`}
+                            accessibilityState={{ selected: active }}
+                          >
+                            <Text style={[styles.languageText, active && styles.languageTextActive]}>{lang.nativeName}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                </AnimatedCard>
+                <AnimatedCard index={3}>
+                  <GradientCard style={styles.promiseCard} colors={COLORS.gradientSunset}>
+                    <Text style={styles.promiseTitle}>{copy.promiseTitle}</Text>
+                    <Text style={styles.promiseCopy}>{copy.promiseCopy}</Text>
+                  </GradientCard>
+                </AnimatedCard>
+              </View>
+            </View>
+          ) : (
+            <>
+              <AnimatedCard index={0}>
+                <View style={styles.posterWrap}>
+                  <LinearGradient colors={COLORS.gradientInk} style={styles.poster}>
+                    <Text style={styles.brand}>COSMICSELF</Text>
+                    <Text style={styles.headline}>{copy.headline}</Text>
+                    <Text style={styles.copy}>{copy.copy}</Text>
+                    <View style={styles.ctaWrap}>
+                      <CosmicButton title={copy.cta} onPress={() => router.push('/(onboarding)/birth-details')} />
+                    </View>
+                  </LinearGradient>
+                  <View style={styles.posterOrb}>
+                    <CosmicOrb size={182} />
+                  </View>
+                </View>
+              </AnimatedCard>
+              <AnimatedCard index={1}>
+                <View style={styles.systemGrid}>
+                  {SYSTEMS.map((system) => (
+                    <View key={system.label.en} style={[styles.systemTile, { borderColor: `${system.accent}55` }]}>
+                      <OrbIcon icon={system.icon} size={34} accentColor={system.accent} secondaryColor={system.orbSecondary} />
+                      <Text style={styles.systemText}>{system.label[selectedLang]}</Text>
+                    </View>
+                  ))}
+                </View>
+              </AnimatedCard>
+              <AnimatedCard index={2}>
+                <View style={styles.languageBlock}>
+                  <Text style={styles.sectionLabel}>{copy.languageLabel}</Text>
+                  <View style={styles.languageGrid}>
+                    {LANGUAGE_OPTIONS.map((lang) => {
+                      const active = selectedLang === lang.code;
+                      return (
+                        <TouchableOpacity
+                          key={lang.code}
+                          onPress={() => {
+                            setSelectedLang(lang.code);
+                            i18n.changeLanguage(lang.code);
+                            if (user) setLanguage(lang.code);
+                          }}
+                          style={[styles.languageChip, active && styles.languageChipActive]}
+                          activeOpacity={0.8}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Choose ${lang.nativeName} language`}
+                          accessibilityState={{ selected: active }}
+                        >
+                          <Text style={[styles.languageText, active && styles.languageTextActive]}>{lang.nativeName}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              </AnimatedCard>
+              <AnimatedCard index={3}>
+                <GradientCard style={styles.promiseCard} colors={COLORS.gradientSunset}>
+                  <Text style={styles.promiseTitle}>{copy.promiseTitle}</Text>
+                  <Text style={styles.promiseCopy}>{copy.promiseCopy}</Text>
+                </GradientCard>
+              </AnimatedCard>
+            </>
+          )}
+        </View>
+      </ResetScrollView>
+      {alertModal}
     </StarField>
   );
 }
 
-const CARD_WIDTH = (width - SPACING.lg * 2 - SPACING.sm) / 2;
-
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, alignItems: 'center', paddingHorizontal: SPACING.lg, paddingTop: 58 },
-
-  header: { alignItems: 'center', marginBottom: SPACING.lg, gap: SPACING.xs },
-  title: {
-    fontFamily: 'Cinzel_900Black',
-    fontSize: 30,
-    color: COLORS.white,
-    letterSpacing: 6,
-    textShadowColor: 'rgba(255,255,255,0.18)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 20,
-    marginTop: -SPACING.sm,
+  logoutCorner: {
+    position: 'absolute',
+    top: 52,
+    right: SPACING.lg,
+    zIndex: 10,
+    padding: 8,
   },
-  subtitle: {
+  container: {
+    flexGrow: 1,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: 28,
+    paddingBottom: SPACING.xxl,
+    gap: SPACING.lg,
+  },
+  frame: {
+    width: '100%',
+    gap: SPACING.lg,
+  },
+  frameDesktop: {
+    maxWidth: 1080,
+    alignSelf: 'center',
+    paddingTop: 8,
+  },
+  desktopGrid: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 24,
+  },
+  desktopLeft: {
+    flex: 1.1,
+    minWidth: 0,
+  },
+  desktopRight: {
+    flex: 1,
+    minWidth: 0,
+    gap: SPACING.lg,
+  },
+  posterDesktop: {
+    minHeight: 460,
+    padding: 40,
+  },
+  headlineDesktop: {
+    fontSize: 52,
+    lineHeight: 58,
+    maxWidth: 420,
+  },
+  copyDesktop: {
+    fontSize: 17,
+    lineHeight: 26,
+    maxWidth: 420,
+  },
+  ctaWrapDesktop: {
+    maxWidth: 280,
+  },
+  posterOrbDesktop: {
+    position: 'absolute',
+    right: -20,
+    bottom: 10,
+  },
+  posterWrap: {
+    position: 'relative',
+    minHeight: 400,
+  },
+  poster: {
+    borderRadius: BORDER_RADIUS.xxl,
+    padding: SPACING.lg,
+    paddingTop: SPACING.xl,
+    paddingBottom: SPACING.xxl,
+    minHeight: 360,
+    overflow: 'hidden',
+  },
+  posterOrb: {
+    position: 'absolute',
+    right: -10,
+    bottom: 20,
+  },
+  brand: {
     color: COLORS.textSecondary,
-    fontSize: 13,
-    textAlign: 'center',
-    lineHeight: 21,
-    paddingHorizontal: SPACING.md,
+    fontSize: 12,
+    fontFamily: FONTS.accent,
+    letterSpacing: 2.4,
   },
-
-  grid: {
+  headline: {
+    color: COLORS.textPrimary,
+    fontSize: 44,
+    lineHeight: 49,
+    fontFamily: FONTS.display,
+    letterSpacing: -0.8,
+    maxWidth: 250,
+    marginTop: SPACING.md,
+  },
+  copy: {
+    color: COLORS.inkMid,
+    fontSize: 15,
+    lineHeight: 23,
+    maxWidth: 220,
+    marginTop: SPACING.md,
+  },
+  ctaWrap: {
+    marginTop: SPACING.lg,
+    maxWidth: 230,
+    gap: SPACING.sm,
+  },
+  systemGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: SPACING.sm,
-    width: '100%',
-    justifyContent: 'center',
-    marginBottom: SPACING.md,
   },
-  cardWrap: {
-    width: CARD_WIDTH,
-    borderRadius: BORDER_RADIUS.lg,
-    overflow: 'hidden',
+  systemTile: {
+    width: '47%',
+    borderRadius: BORDER_RADIUS.xl,
     borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.6,
-    shadowRadius: 16,
-    elevation: 12,
-  },
-  systemCard: {
     padding: SPACING.md,
-    alignItems: 'center',
-    minHeight: 115,
-    justifyContent: 'center',
-    gap: SPACING.xs,
+    gap: SPACING.sm,
+    backgroundColor: COLORS.glassBg,
+    ...SHADOWS.glass,
   },
-  iconCircle: {
-    width: 44, height: 44, borderRadius: 22,
-    backgroundColor: 'rgba(0,0,0,0.30)',
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 2,
+  systemText: {
+    color: COLORS.textPrimary,
+    fontSize: 17,
+    fontFamily: FONTS.heading,
   },
-  sysLabel: {
-    fontFamily: 'Cinzel_700Bold',
-    fontSize: 13,
-    letterSpacing: 0.5,
+  languageBlock: {
+    gap: SPACING.sm,
   },
-  sysSub: {
-    color: 'rgba(255,255,255,0.55)',
-    fontSize: 10,
-    textAlign: 'center',
-    lineHeight: 14,
-  },
-
-  unifiedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    borderRadius: BORDER_RADIUS.full,
-    paddingVertical: 8,
-    paddingHorizontal: SPACING.lg,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    marginBottom: SPACING.xl,
-  },
-  unifiedText: {
-    color: 'rgba(255,255,255,0.45)',
-    fontSize: 12,
-    fontFamily: 'Cinzel_400Regular',
-    letterSpacing: 0.5,
-  },
-
-  bottom: { width: '100%', alignItems: 'center', gap: SPACING.md },
-  langTitle: {
+  sectionLabel: {
     color: COLORS.textMuted,
     fontSize: 11,
-    fontFamily: 'Cinzel_400Regular',
-    letterSpacing: 2.5,
-    textTransform: 'uppercase',
+    fontFamily: FONTS.accent,
+    letterSpacing: 1.4,
   },
-  langRow: { flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.xs },
-  langPill: {
+  languageGrid: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingVertical: 12,
-    paddingHorizontal: SPACING.md,
-    borderRadius: BORDER_RADIUS.full,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.10)',
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    minHeight: 44,
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
   },
-  langPillActive: {
-    borderColor: 'rgba(255,255,255,0.35)',
-    backgroundColor: 'rgba(255,255,255,0.10)',
-  },
-  langFlag: { fontSize: 14 },
-  langText: { color: COLORS.textMuted, fontSize: 13, fontWeight: '500' },
-  langTextActive: { color: COLORS.white, fontWeight: '700' },
-
-  ctaShadow: {
-    shadowColor: '#ffffff',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
-    elevation: 12,
-  },
-  ctaButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  languageChip: {
+    minWidth: '47%',
+    minHeight: 48,
     justifyContent: 'center',
-    borderRadius: BORDER_RADIUS.full,
-    paddingVertical: 18,
-    paddingHorizontal: SPACING.xl,
+    borderRadius: BORDER_RADIUS.sm,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.22)',
-    overflow: 'hidden',
+    borderColor: COLORS.glassBorder,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    backgroundColor: COLORS.glassBg,
   },
-  ctaText: {
-    color: COLORS.white,
-    fontSize: 16,
-    fontFamily: 'Cinzel_700Bold',
-    letterSpacing: 1,
+  languageChipActive: {
+    borderColor: COLORS.glassBorderBright,
+    backgroundColor: COLORS.bgMuted,
+  },
+  languageText: {
+    color: COLORS.textSecondary,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  languageTextActive: {
+    color: COLORS.textPrimary,
+  },
+  promiseCard: {
+    gap: SPACING.xs,
+  },
+  promiseTitle: {
+    color: COLORS.textPrimary,
+    fontSize: 22,
+    lineHeight: 28,
+    fontFamily: FONTS.heading,
+  },
+  promiseCopy: {
+    color: COLORS.inkMid,
+    fontSize: 14,
+    lineHeight: 21,
   },
 });

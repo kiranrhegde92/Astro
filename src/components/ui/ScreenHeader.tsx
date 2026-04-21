@@ -1,20 +1,9 @@
-/**
- * ScreenHeader — unified header for modal/detail screens
- *
- * - Consistent back button (Ionicons chevron-back inside a glass pill)
- * - Centered GlowText title with optional accent color
- * - Safe-area top inset handling so screens don't need their own paddingTop
- *
- * Use on every non-tab screen (settings, subscription, reading/*, share/*,
- * qr/*) to keep navigation/header treatment uniform.
- */
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { GlowText } from './GlowText';
-import { COLORS, SPACING, BORDER_RADIUS } from '../../constants/theme';
+import { BORDER_RADIUS, COLORS, FONTS, SPACING } from '../../constants/theme';
 
 interface ScreenHeaderProps {
   title: string;
@@ -33,34 +22,27 @@ export const ScreenHeader = React.memo(function ScreenHeader({
 }: ScreenHeaderProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const topPad = Math.max(insets.top, Platform.OS === 'ios' ? 10 : 14);
   const handleBack = onBack ?? (() => router.back());
-  const topPad = Math.max(insets.top, Platform.OS === 'ios' ? 12 : 16);
 
   return (
     <View style={[styles.wrap, { paddingTop: topPad }]}>
       <View style={styles.row}>
         <View style={styles.side}>
-          {showBack && (
-            <TouchableOpacity
-              onPress={handleBack}
-              activeOpacity={0.7}
-              style={styles.backBtn}
-              accessibilityRole="button"
-              accessibilityLabel="Go back"
-              hitSlop={{ top: 12, left: 12, right: 12, bottom: 12 }}
-            >
-              <Ionicons name="chevron-back" size={22} color={COLORS.white} />
+          {showBack ? (
+            <TouchableOpacity onPress={handleBack} activeOpacity={0.82} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back">
+              <Ionicons name="chevron-back" size={18} color={COLORS.textPrimary} />
             </TouchableOpacity>
-          )}
+          ) : null}
         </View>
 
         <View style={styles.titleWrap}>
-          <GlowText size="lg" align="center" color={accentColor ?? COLORS.white}>
+          <Text style={[styles.title, accentColor ? { color: accentColor } : null]} numberOfLines={1}>
             {title}
-          </GlowText>
+          </Text>
         </View>
 
-        <View style={styles.side}>{rightSlot}</View>
+        <View style={[styles.side, styles.sideRight]}>{rightSlot}</View>
       </View>
     </View>
   );
@@ -78,22 +60,32 @@ const styles = StyleSheet.create({
   },
   side: {
     width: 44,
-    alignItems: 'flex-start',
     justifyContent: 'center',
+  },
+  sideRight: {
+    alignItems: 'flex-end',
   },
   titleWrap: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: SPACING.sm,
   },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: BORDER_RADIUS.full,
-    borderWidth: 1,
-    borderColor: COLORS.glassBorder,
-    backgroundColor: COLORS.glassBg,
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: BORDER_RADIUS.md,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: COLORS.glassBg,
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
+  },
+  title: {
+    color: COLORS.textPrimary,
+    fontSize: 17,
+    fontFamily: FONTS.accent,
+    letterSpacing: 1.6,
+    textTransform: 'uppercase',
   },
 });

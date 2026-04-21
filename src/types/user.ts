@@ -2,15 +2,17 @@ import type { WesternProfile, VedicProfile, ChineseProfile, KPProfile } from './
 
 export type AstrologySystem = 'western' | 'vedic' | 'chinese' | 'kp';
 
-export type SubscriptionTier = 'free' | 'premium' | 'family';
+export type SubscriptionTier = 'free' | 'premium';
 export type SubscriptionStatus = 'active' | 'expired' | 'trial';
+export type SubscriptionPlanPeriod = 'monthly' | 'yearly';
 
 export interface Subscription {
   tier: SubscriptionTier;
   status: SubscriptionStatus;
+  billingPeriod?: SubscriptionPlanPeriod;
+  productId?: string;
   expiresAt?: Date;
   trialEndsAt?: Date;
-  purchasedItems: string[];
 }
 
 export interface BirthDetails {
@@ -40,4 +42,7 @@ export interface UserProfile {
   lastCheckIn?: string;
   onboardingComplete: boolean;
   createdAt: Date;
+  referralCode: string;
+  referralCount: number;
+  referredBy?: string;
 }

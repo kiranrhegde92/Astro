@@ -1,0 +1,152 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Deep space background -->
+    <radialGradient id="bg" cx="50%" cy="45%" r="72%">
+      <stop offset="0%" stop-color="#1c1650"/>
+      <stop offset="40%" stop-color="#120e30"/>
+      <stop offset="100%" stop-color="#080620"/>
+    </radialGradient>
+
+    <!-- Orb: indigo core bleeding to teal -->
+    <radialGradient id="orb" cx="42%" cy="38%" r="56%">
+      <stop offset="0%" stop-color="#b8aeff"/>
+      <stop offset="30%" stop-color="#8a7bff"/>
+      <stop offset="60%" stop-color="#5e4fcf"/>
+      <stop offset="85%" stop-color="#00d4c0"/>
+      <stop offset="100%" stop-color="#00897a"/>
+    </radialGradient>
+
+    <!-- Outer glow halo -->
+    <radialGradient id="halo" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffd700" stop-opacity="0.50"/>
+      <stop offset="35%" stop-color="#7c6dff" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#7c6dff" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Ring gradient -->
+    <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffd700" stop-opacity="0.6"/>
+      <stop offset="50%" stop-color="#00e5d1" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#8a7bff" stop-opacity="0.5"/>
+    </linearGradient>
+
+    <!-- Inner ring gradient -->
+    <linearGradient id="ringGrad2" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#00e5d1" stop-opacity="0.45"/>
+      <stop offset="50%" stop-color="#ffd700" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#ff8a65" stop-opacity="0.4"/>
+    </linearGradient>
+
+    <!-- Crescent glow -->
+    <radialGradient id="crescentGlow" cx="30%" cy="35%" r="60%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Stardust filter -->
+    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3"/>
+    </filter>
+    <filter id="bigGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="12"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <circle cx="512" cy="512" r="512" fill="url(#bg)"/>
+
+  <!-- Subtle nebula cloud top-right -->
+  <ellipse cx="680" cy="320" rx="200" ry="140" fill="#3d1a7e" opacity="0.12" transform="rotate(-20 680 320)"/>
+  <!-- Subtle nebula cloud bottom-left -->
+  <ellipse cx="340" cy="700" rx="180" ry="120" fill="#00897a" opacity="0.08" transform="rotate(15 340 700)"/>
+
+  <!-- Background scatter stars (tiny dots) -->
+  <circle cx="180" cy="160" r="1.5" fill="#ffffff" opacity="0.6"/>
+  <circle cx="820" cy="200" r="1.2" fill="#ffffff" opacity="0.5"/>
+  <circle cx="140" cy="480" r="1.0" fill="#ffd700" opacity="0.5"/>
+  <circle cx="880" cy="520" r="1.4" fill="#ffffff" opacity="0.45"/>
+  <circle cx="240" cy="780" r="1.3" fill="#00e5d1" opacity="0.4"/>
+  <circle cx="760" cy="820" r="1.1" fill="#ffffff" opacity="0.5"/>
+  <circle cx="400" cy="140" r="1.5" fill="#ffffff" opacity="0.4"/>
+  <circle cx="650" cy="880" r="1.0" fill="#ffd700" opacity="0.35"/>
+  <circle cx="100" cy="350" r="0.8" fill="#ffffff" opacity="0.55"/>
+  <circle cx="920" cy="680" r="1.2" fill="#8a7bff" opacity="0.4"/>
+  <circle cx="310" cy="920" r="1.0" fill="#ffffff" opacity="0.35"/>
+  <circle cx="700" cy="130" r="1.4" fill="#00e5d1" opacity="0.45"/>
+
+  <!-- Halo glow behind orb -->
+  <circle cx="512" cy="512" r="340" fill="url(#halo)" filter="url(#bigGlow)"/>
+
+  <!-- Outer orbital ring (Western) - tilted -->
+  <g transform="rotate(-18 512 512)">
+    <ellipse cx="512" cy="512" rx="320" ry="320" fill="none" stroke="url(#ringGrad)" stroke-width="1.8" opacity="0.55"/>
+    <!-- Planet dots on ring -->
+    <circle cx="832" cy="512" r="7" fill="#ffd700" opacity="0.85"/>
+    <circle cx="832" cy="512" r="12" fill="#ffd700" opacity="0.15" filter="url(#softGlow)"/>
+    <circle cx="192" cy="512" r="5" fill="#00e5d1" opacity="0.75"/>
+    <circle cx="512" cy="192" r="4.5" fill="#ff8a65" opacity="0.7"/>
+    <circle cx="512" cy="832" r="5.5" fill="#8a7bff" opacity="0.65"/>
+  </g>
+
+  <!-- Middle orbital ring (Vedic) - opposite tilt -->
+  <g transform="rotate(35 512 512)">
+    <ellipse cx="512" cy="512" rx="280" ry="280" fill="none" stroke="url(#ringGrad2)" stroke-width="1.5" opacity="0.45"/>
+    <!-- Planet dots -->
+    <circle cx="792" cy="512" r="5.5" fill="#00e5d1" opacity="0.8"/>
+    <circle cx="792" cy="512" r="10" fill="#00e5d1" opacity="0.12" filter="url(#softGlow)"/>
+    <circle cx="232" cy="512" r="4" fill="#ffd700" opacity="0.65"/>
+    <circle cx="512" cy="232" r="5" fill="#ff6b8a" opacity="0.6"/>
+  </g>
+
+  <!-- Inner orbital ring (Chinese/KP) -->
+  <g transform="rotate(-55 512 512)">
+    <ellipse cx="512" cy="512" rx="235" ry="235" fill="none" stroke="#ffd700" stroke-width="1.2" opacity="0.22" stroke-dasharray="8 12"/>
+    <circle cx="747" cy="512" r="4" fill="#ffd700" opacity="0.6"/>
+    <circle cx="277" cy="512" r="3.5" fill="#8a7bff" opacity="0.55"/>
+  </g>
+
+  <!-- Four-pointed star burst (large, behind orb) -->
+  <path d="M 512 280 Q 545 479 744 512 Q 545 545 512 744 Q 479 545 280 512 Q 479 479 512 280 Z"
+        fill="#ffd700" opacity="0.18" filter="url(#bigGlow)"/>
+
+  <!-- Rotated star burst (secondary, subtler) -->
+  <g transform="rotate(45 512 512)">
+    <path d="M 512 320 Q 538 488 704 512 Q 538 536 512 704 Q 486 536 320 512 Q 486 488 512 320 Z"
+          fill="#ffd700" opacity="0.10" filter="url(#bigGlow)"/>
+  </g>
+
+  <!-- Main cosmic orb -->
+  <circle cx="512" cy="512" r="155" fill="url(#orb)"/>
+
+  <!-- Orb inner shadow (bottom edge) -->
+  <circle cx="512" cy="540" r="150" fill="none" stroke="#040220" stroke-width="3" opacity="0.2"/>
+
+  <!-- Specular highlight (top-left crescent) -->
+  <circle cx="480" cy="470" r="80" fill="url(#crescentGlow)"/>
+
+  <!-- Secondary specular (smaller, sharper) -->
+  <circle cx="468" cy="455" r="35" fill="#ffffff" opacity="0.08"/>
+
+  <!-- Bright center eye - golden nucleus -->
+  <circle cx="512" cy="512" r="22" fill="#ffd700" opacity="0.85"/>
+  <circle cx="512" cy="512" r="22" fill="#ffd700" opacity="0.30" filter="url(#bigGlow)"/>
+
+  <!-- Tiny white spark at center -->
+  <circle cx="512" cy="512" r="6" fill="#ffffff" opacity="0.90"/>
+
+  <!-- 12 zodiac tick marks around outermost ring -->
+  <g opacity="0.18" stroke="#ffd700" stroke-width="2" stroke-linecap="round">
+    <line x1="512" y1="145" x2="512" y2="165"/>
+    <line x1="695" y1="205" x2="685" y2="222"/>
+    <line x1="819" y1="329" x2="802" y2="339"/>
+    <line x1="879" y1="512" x2="859" y2="512"/>
+    <line x1="819" y1="695" x2="802" y2="685"/>
+    <line x1="695" y1="819" x2="685" y2="802"/>
+    <line x1="512" y1="879" x2="512" y2="859"/>
+    <line x1="329" y1="819" x2="339" y2="802"/>
+    <line x1="205" y1="695" x2="222" y2="685"/>
+    <line x1="145" y1="512" x2="165" y2="512"/>
+    <line x1="205" y1="329" x2="222" y2="339"/>
+    <line x1="329" y1="205" x2="339" y2="222"/>
+  </g>
+</svg>

@@ -1,19 +1,13 @@
-/**
- * GradientCard — Obsidian Glass card
- * 3D depth: white border gradient + BlurView + glossy top highlight + deep shadow
- * Light source simulation: bright top-left → fade to transparent
- */
 import React from 'react';
-import { View, StyleSheet, ViewStyle } from 'react-native';
+import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
-import { BORDER_RADIUS, SPACING, COLORS } from '../../constants/theme';
+import { BORDER_RADIUS, COLORS, SHADOWS, SPACING } from '../../constants/theme';
 
 interface GradientCardProps {
   children: React.ReactNode;
   colors?: readonly string[];
-  style?: ViewStyle;
-  innerStyle?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
+  innerStyle?: StyleProp<ViewStyle>;
   noPadding?: boolean;
   glowColor?: string;
   blurIntensity?: number;
@@ -22,90 +16,59 @@ interface GradientCardProps {
 
 export const GradientCard = React.memo(function GradientCard({
   children,
-  colors = ['rgba(255,255,255,0.14)', 'rgba(255,255,255,0.04)'] as const,
+  colors = COLORS.gradientCard,
   style,
   innerStyle,
-  noPadding,
+  noPadding = false,
   glowColor,
-  blurIntensity = 60,
   accentColor,
 }: GradientCardProps) {
   return (
-    <View style={[styles.shadow, style]}>
-      {/* Border gradient — white glass edge */}
-      <LinearGradient
-        colors={colors as [string, string, ...string[]]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.border}
-      >
-        <View style={[styles.inner, noPadding && styles.noPad, innerStyle]}>
-          {/* Blur layer */}
-          <BlurView intensity={blurIntensity} tint="dark" style={StyleSheet.absoluteFillObject} />
-
-          {/* Glossy top highlight — 3D light source effect */}
-          <LinearGradient
-            colors={['rgba(255,255,255,0.10)', 'rgba(255,255,255,0.0)']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-            style={styles.gloss}
-            pointerEvents="none"
-          />
-
-          {/* Accent left bar */}
-          {accentColor && (
-            <View style={[styles.accentBar, { backgroundColor: accentColor }]} />
-          )}
-
-          {/* Content */}
-          <View style={[styles.content, noPadding && styles.noPad]}>
-            {children}
-          </View>
-        </View>
-      </LinearGradient>
+    <View
+      style={[
+        styles.wrap,
+        glowColor ? { shadowColor: glowColor, shadowOpacity: 0.12 } : null,
+        style,
+      ]}
+    >
+      <LinearGradient colors={colors as [string, string, ...string[]]} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+      <View style={styles.glowLayer} />
+      {accentColor ? <View style={[styles.accent, { backgroundColor: accentColor }]} /> : null}
+      <View style={[styles.content, noPadding && styles.noPad, innerStyle]}>
+        {children}
+      </View>
     </View>
   );
 });
 
 const styles = StyleSheet.create({
-  shadow: {
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.75,
-    shadowRadius: 28,
-    elevation: 18,
-  },
-  border: {
+  wrap: {
     borderRadius: BORDER_RADIUS.xl,
-    padding: 1,
-  },
-  inner: {
-    borderRadius: BORDER_RADIUS.xl - 1,
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
+    backgroundColor: COLORS.bgCard,
     overflow: 'hidden',
+    ...SHADOWS.card,
   },
-  gloss: {
+  glowLayer: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    opacity: 0.6,
+  },
+  accent: {
     position: 'absolute',
-    top: 0,
+    top: 18,
     left: 0,
-    right: 0,
-    height: '40%',
-    zIndex: 1,
-  },
-  accentBar: {
-    position: 'absolute',
-    left: 0,
-    top: 12,
-    bottom: 12,
-    width: 3,
-    borderRadius: 2,
-    zIndex: 2,
-  },
-  noPad: {
-    padding: 0,
+    bottom: 18,
+    width: 4,
+    borderRadius: 4,
   },
   content: {
     padding: SPACING.md,
-    backgroundColor: 'rgba(0, 0, 0, 0.50)',
-    zIndex: 3,
+    gap: SPACING.sm,
+  },
+  noPad: {
+    padding: 0,
+    gap: 0,
   },
 });

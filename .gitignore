@@ -30,7 +30,9 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
+# local env files — never commit real credentials
+.env
+.env.local
 .env*.local
 
 # typescript
@@ -39,3 +41,32 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+.worktrees/
+
+# local agent/editor state
+/.claude/
+
+# root-level generated QA/debug artifacts
+/*.log
+/*.xml
+/*.mp4
+/*.png
+/cloudflare-domdump*.txt
+/cloudflare-domdump-server.py
+
+# Firebase service account keys (never commit)
+serviceAccountKey.json
+**/serviceAccountKey.json
+
+# Firebase functions build output
+firebase-functions/lib/
+
+# Local workspace / agent state
+.superpowers/
+.test-screens/
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example

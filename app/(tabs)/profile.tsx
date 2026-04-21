@@ -1,371 +1,885 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Dimensions } from 'react-native';
-import { useTranslation } from 'react-i18next';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { StarField } from '../../src/components/ui/StarField';
-import { GradientCard } from '../../src/components/ui/GradientCard';
-import { AnimatedPressable } from '../../src/components/ui/AnimatedPressable';
+import { ConfettiBurst } from '../../src/components/ui/ConfettiBurst';
+import { AnimalMascot } from '../../src/components/ui/AnimalMascot';
 import { CosmicOrb } from '../../src/components/ui/CosmicOrb';
+import { GlassCard } from '../../src/components/ui/GlassCard';
+import { SectionLabel } from '../../src/components/ui/SectionLabel';
 import { ProgressRing } from '../../src/components/ui/ProgressRing';
-import { COLORS, SPACING, BORDER_RADIUS } from '../../src/constants/theme';
+import { NatalWheel } from '../../src/components/chart/NatalWheel';
+import { StarField } from '../../src/components/ui/StarField';
+import { AnimatedCard } from '../../src/components/ui/AnimatedScreen';
+import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
+import {
+  BORDER_RADIUS,
+  COLORS,
+  FONTS,
+  SHADOWS,
+  SPACING,
+  TYPE,
+} from '../../src/constants/theme';
+import { getEarnedBadges, getNextBadge } from '../../src/constants/badges';
+import { calculateCosmicProfile, getCosmicDNASummary } from '../../src/engines/unified';
+import { useActiveProfile } from '../../src/hooks/useActiveProfile';
+import { useConnectionsStore } from '../../src/store/connectionsStore';
+import { useJournalStore } from '../../src/store/journalStore';
+import { useManagedProfilesStore } from '../../src/store/managedProfilesStore';
+import { useReadingStore } from '../../src/store/readingStore';
 import { useUserStore } from '../../src/store/userStore';
-import { getCosmicDNASummary } from '../../src/engines/unified';
-
-const { width } = Dimensions.get('window');
-const CARD_W = width * 0.78;
+import { useCosmicAlert } from '../../src/components/ui/CosmicAlert';
+import { exportMyPredictionDataset } from '../../src/services/functionsService';
+import i18n from '../../src/i18n';
+import { buildProfilesFromServerChart } from '../../src/utils/serverChartAdapter';
+import { LANGUAGE_OPTIONS, normalizeLanguage } from '../../src/i18n/language';
 
 export default function ProfileScreen() {
-  const { t } = useTranslation();
   const router = useRouter();
-  const user = useUserStore((s) => s.user);
-  if (!user) return null;
+  const accountUser = useUserStore((s) => s.user);
+  const user = useActiveProfile();
+  const managedProfiles = useManagedProfilesStore((s) => s.managedProfiles);
+  const updateManagedProfile = useManagedProfilesStore((s) => s.updateManagedProfile);
+  const savedProfiles = useConnectionsStore((s) => s.savedProfiles);
+  const compatibilityHistory = useConnectionsStore((s) => s.compatibilityHistory);
+  const entries = useJournalStore((s) => s.entries);
+  const archiveCount = useReadingStore((s) => Object.keys(s.cachedReadings).length);
 
-  const cosmicDNA = user.western && user.vedic && user.chinese
-    ? getCosmicDNASummary({ western: user.western, vedic: user.vedic, chinese: user.chinese, kp: user.kp })
-    : '';
+  const setWesternProfile = useUserStore((s) => s.setWesternProfile);
+  const setVedicProfile = useUserStore((s) => s.setVedicProfile);
+  const setChineseProfile = useUserStore((s) => s.setChineseProfile);
+  const setKPProfile = useUserStore((s) => s.setKPProfile);
 
-  const pointsProgress = Math.min(user.cosmicPoints / 1000, 1);
-  const streakProgress = Math.min(user.streak / 30, 1);
+  const { showAlert, alertModal } = useCosmicAlert();
+  const setLanguage = useUserStore((s) => s.setLanguage);
+  const setUser = useUserStore((s) => s.setUser);
 
-  const quickActions = [
-    { icon: 'share-outline' as const,    label: 'Share',    onPress: () => router.push('/share/card') },
-    { icon: 'qr-code-outline' as const,  label: 'My QR',   onPress: () => router.push('/qr/my-code') },
-    { icon: 'camera-outline' as const,   label: 'Scan',    onPress: () => router.push('/qr/scan') },
-    { icon: 'settings-outline' as const, label: 'Settings',onPress: () => router.push('/settings') },
-  ];
+  const [currentLang, setCurrentLang] = useState(normalizeLanguage(user?.language ?? i18n.language));
+  const [recalculating, setRecalculating] = useState(false);
+  const [exportingDataset, setExportingDataset] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [showLanguages, setShowLanguages] = useState(false);
+  const [badgeConfetti, setBadgeConfetti] = useState(false);
+  const prevBadgeCount = useRef<number | null>(null);
 
-  const SYSTEMS = [
-    user.western && user.activeSystems.includes('western') && {
-      key: 'western',
-      icon: 'planet-outline' as const,
-      title: 'Western Astrology',
-      gradient: COLORS.gradientWestern,
-      color: COLORS.western,
-      route: '/reading/western',
-      rows: [
-        ['Sun Sign', user.western.sun],
-        ['Moon Sign', user.western.moon],
-        user.western.rising ? ['Rising', user.western.rising] : null,
-        ['Element', user.western.element],
-      ].filter(Boolean) as [string, string][],
-    },
-    user.vedic && user.activeSystems.includes('vedic') && {
-      key: 'vedic',
-      icon: 'flame-outline' as const,
-      title: 'Vedic Astrology',
-      gradient: COLORS.gradientVedic,
-      color: COLORS.vedic,
-      route: '/reading/vedic',
-      rows: [
-        ['Rashi', user.vedic.rashi],
-        ['Nakshatra', `${user.vedic.nakshatra} (Pada ${user.vedic.nakshatraPada})`],
-        ['Dasha', `${user.vedic.currentDasha.planet} Mahadasha`],
-      ],
-    },
-    user.chinese && user.activeSystems.includes('chinese') && {
-      key: 'chinese',
-      icon: 'navigate-outline' as const,
-      title: 'Chinese Astrology',
-      gradient: COLORS.gradientChinese,
-      color: COLORS.chinese,
-      route: '/reading/chinese',
-      rows: [
-        ['Animal', user.chinese.animal],
-        ['Element', user.chinese.element],
-        ['Yin/Yang', user.chinese.yinYang],
-      ],
-    },
-    user.kp && user.activeSystems.includes('kp') && {
-      key: 'kp',
-      icon: 'telescope-outline' as const,
-      title: 'KP System',
-      gradient: COLORS.gradientKP,
-      color: COLORS.kp,
-      route: '/reading/kp',
-      rows: [
-        ['Cusps', `${user.kp.cusps.length} analyzed`],
-        ['Significators', `${user.kp.significators.length} active`],
-      ],
-    },
-  ].filter(Boolean) as Array<{
-    key: string; icon: any; title: string;
-    gradient: readonly string[]; color: string; route: string; rows: [string, string][];
-  }>;
+  useEffect(() => {
+    setCurrentLang(normalizeLanguage(user?.language ?? i18n.language));
+  }, [user?.language]);
 
-  const badges = [
-    { icon: 'star-outline' as const,        name: 'Star Gazer',    earned: user.streak >= 3,             color: COLORS.gold },
-    { icon: 'moon-outline' as const,         name: 'Moon Child',    earned: user.streak >= 7,             color: COLORS.silver },
-    { icon: 'telescope-outline' as const,    name: 'Explorer',      earned: user.activeSystems.length>=4,  color: COLORS.western },
-    { icon: 'sparkles-outline' as const,     name: 'Rising Star',   earned: user.cosmicPoints >= 100,     color: COLORS.vedic },
-    { icon: 'planet-outline' as const,       name: 'Constellation', earned: user.cosmicPoints >= 500,     color: COLORS.kp },
-    { icon: 'infinite-outline' as const,     name: 'Galaxy',        earned: user.cosmicPoints >= 1000,    color: COLORS.chinese },
-  ];
+  useEffect(() => {
+    if (!accountUser) return;
+    const count = getEarnedBadges(
+      accountUser.streak,
+      accountUser.cosmicPoints,
+      accountUser.activeSystems,
+      compatibilityHistory.length,
+      false,
+    ).length;
+    if (prevBadgeCount.current !== null && count > prevBadgeCount.current) {
+      setBadgeConfetti(true);
+    }
+    prevBadgeCount.current = count;
+  }, [accountUser?.streak, accountUser?.cosmicPoints, accountUser?.activeSystems, compatibilityHistory.length, accountUser]);
+
+  const cosmicDNA = useMemo(() => {
+    if (!user?.western || !user?.vedic || !user?.chinese) return '';
+    return getCosmicDNASummary({
+      western: user.western,
+      vedic: user.vedic,
+      chinese: user.chinese,
+      kp: user.kp,
+    });
+  }, [user?.western, user?.vedic, user?.chinese, user?.kp]);
+
+  const earnedBadges = useMemo(() => {
+    if (!accountUser) return [];
+    return getEarnedBadges(
+      accountUser.streak,
+      accountUser.cosmicPoints,
+      accountUser.activeSystems,
+      compatibilityHistory.length,
+      false,
+    );
+  }, [accountUser?.streak, accountUser?.cosmicPoints, accountUser?.activeSystems, compatibilityHistory.length]);
+
+  const nextBadge = useMemo(() => {
+    if (!accountUser) return null;
+    return getNextBadge(accountUser.streak, accountUser.cosmicPoints);
+  }, [accountUser?.streak, accountUser?.cosmicPoints]);
+
+  const streakProgress = useMemo(() => {
+    if (!accountUser) return 0;
+    const targets = [3, 7, 14, 30, 90, 365];
+    const next = targets.find((tg) => tg > accountUser.streak) ?? 365;
+    return Math.min(accountUser.streak / next, 1);
+  }, [accountUser?.streak]);
+
+  const handleCommitName = useCallback(() => {
+    const trimmed = editName.trim();
+    if (trimmed && user && accountUser) {
+      if (user.isManagedProfile && user.managedProfileId) {
+        void updateManagedProfile(user.managedProfileId, { name: trimmed });
+      } else {
+        setUser({ ...accountUser, name: trimmed });
+      }
+    }
+    setEditingName(false);
+  }, [editName, user, accountUser, setUser, updateManagedProfile]);
+
+  const handleLanguage = (code: string) => {
+    const normalized = normalizeLanguage(code);
+    setCurrentLang(normalized);
+    i18n.changeLanguage(normalized);
+    setLanguage(normalized);
+  };
+
+  const handleRecalculate = async () => {
+    if (!user) return;
+    const bd = user.birthDetails as any;
+    const rawDate = bd.date;
+    const d = rawDate instanceof Date ? rawDate : new Date(rawDate);
+    const birthTime: string | undefined = bd.birthTimeStr ?? bd.time ?? undefined;
+
+    setRecalculating(true);
+    try {
+      if (user.isManagedProfile && user.managedProfileId) {
+        const local = calculateCosmicProfile(
+          new Date(d.getFullYear(), d.getMonth(), d.getDate()),
+          birthTime,
+          bd.place?.lat,
+          bd.place?.lng,
+        );
+        await updateManagedProfile(user.managedProfileId, {
+          activeSystems: user.activeSystems,
+          profile: local,
+          cosmicDNA: getCosmicDNASummary(local),
+        });
+        showAlert('Chart recalculated', `Updated ${user.name}'s local profile.`);
+        return;
+      }
+
+      const { calculateUserChart } = await import('../../src/services/functionsService');
+      const birthDateStr =
+        bd.birthDateStr ??
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const birthTimeStr = birthTime ?? '12:00';
+      const birthPlace = bd.birthPlace ?? bd.place?.name ?? 'Unknown';
+
+      try {
+        const result = await calculateUserChart({
+          birthDate: birthDateStr,
+          birthTime: birthTimeStr,
+          birthPlace,
+        });
+        const c = result.chart;
+        const mapped = buildProfilesFromServerChart(c);
+        if (mapped.western) setWesternProfile(mapped.western);
+        if (mapped.vedic) setVedicProfile(mapped.vedic);
+        if (mapped.chinese) setChineseProfile(mapped.chinese);
+        if (mapped.kp) setKPProfile(mapped.kp);
+        showAlert('Chart updated', `Rashi: ${c.vedic?.rashi ?? '-'} · Nakshatra: ${c.vedic?.nakshatra ?? '-'}`);
+        return;
+      } catch {
+        // fall through to local
+      }
+
+      const local = calculateCosmicProfile(
+        new Date(d.getFullYear(), d.getMonth(), d.getDate()),
+        birthTime,
+        bd.place?.lat,
+        bd.place?.lng,
+      );
+      if (local.western) setWesternProfile(local.western);
+      if (local.vedic) setVedicProfile(local.vedic);
+      if (local.chinese) setChineseProfile(local.chinese);
+      if (local.kp) setKPProfile(local.kp);
+      showAlert('Chart recalculated', `Rashi: ${local.vedic?.rashi ?? '-'} · Nakshatra: ${local.vedic?.nakshatra ?? '-'}`);
+    } catch {
+      showAlert('Recalculation failed', 'Could not recalculate your chart. Please try again.');
+    } finally {
+      setRecalculating(false);
+    }
+  };
+
+  const handleExportDataset = async () => {
+    setExportingDataset(true);
+    try {
+      const result = await exportMyPredictionDataset(250);
+      showAlert(
+        'Dataset summary',
+        `Runs: ${result.summary.totalRuns}\nLabeled: ${result.summary.labeledRuns}\nLabel rate: ${Math.round(
+          result.summary.labelRate * 100,
+        )}%`,
+      );
+    } catch {
+      showAlert('Export failed', 'Could not load your prediction dataset summary right now.');
+    } finally {
+      setExportingDataset(false);
+    }
+  };
+
+  if (!user || !accountUser) return null;
+
+  const birthDate = new Date(user.birthDetails.date).toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
 
   return (
     <StarField>
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-
-        {/* ── Hero ── */}
-        <View style={styles.hero}>
-          <CosmicOrb size={100} primaryColor={COLORS.western} secondaryColor={COLORS.kp} />
-          <Text style={styles.nameLabel}>COSMIC PROFILE</Text>
-          <Text style={styles.name}>{user.name}</Text>
-          <View style={styles.ringsRow}>
-            <View style={styles.ringWrap}>
-              <ProgressRing progress={pointsProgress} size={66} strokeWidth={4}
-                color={COLORS.gold} value={`${user.cosmicPoints}`} label="POINTS" />
-            </View>
-            <View style={styles.ringDivider} />
-            <View style={styles.ringWrap}>
-              <ProgressRing progress={streakProgress} size={66} strokeWidth={4}
-                color={COLORS.vedic} value={`${user.streak}`} label="STREAK" />
-            </View>
-          </View>
-        </View>
-
-        {/* ── Cosmic DNA ── */}
-        {cosmicDNA !== '' && (
-          <GradientCard accentColor={COLORS.gold}>
-            <Text style={styles.dnaLabel}>MY COSMIC DNA</Text>
-            <Text style={styles.dnaValue}>{cosmicDNA}</Text>
-          </GradientCard>
-        )}
-
-        {/* ── Quick Actions ── */}
-        <View style={styles.actionsRow}>
-          {quickActions.map((a, i) => (
-            <AnimatedPressable key={i} onPress={a.onPress} style={styles.actionItem}>
-              <View style={styles.actionCircle}>
-                <Ionicons name={a.icon} size={20} color="rgba(255,255,255,0.75)" />
-              </View>
-              <Text style={styles.actionLabel}>{a.label}</Text>
-            </AnimatedPressable>
-          ))}
-        </View>
-
-        {/* ── System Profiles ── */}
-        <Text style={styles.sectionTitle}>YOUR PROFILES</Text>
-        <ScrollView
-          horizontal showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.hScroll}
-          snapToInterval={CARD_W + SPACING.md}
-          decelerationRate="fast"
-        >
-          {SYSTEMS.map((sys) => (
-            <AnimatedPressable key={sys.key} onPress={() => router.push(sys.route as any)} style={{ width: CARD_W }}>
-              <View style={[styles.profileCardShadow, { shadowColor: sys.color }]}>
-                <LinearGradient
-                  colors={sys.gradient as [string, string]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.profileCard}
+      <ResetScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        {/* ── Identity ─────────────────────────────────────────── */}
+        <AnimatedCard index={0}>
+          <View style={styles.posterWrap}>
+            <LinearGradient colors={COLORS.gradientInk} style={styles.poster}>
+              <View style={styles.posterTopHighlight} pointerEvents="none" />
+              <SectionLabel accent={COLORS.gold}>Your cosmic passport</SectionLabel>
+              {user.isManagedProfile ? (
+                <Pressable
+                  onPress={() => router.push('/profile/family-profiles')}
+                  style={({ pressed }) => [styles.profileModePill, pressed && { opacity: 0.85 }]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Viewing family profile, change"
                 >
-                  <LinearGradient
-                    colors={['rgba(255,255,255,0.18)', 'rgba(255,255,255,0)']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 0, y: 1 }}
-                    style={[StyleSheet.absoluteFillObject, { borderRadius: BORDER_RADIUS.xl }]}
-                    pointerEvents="none"
+                  <Ionicons name="people-outline" size={12} color="rgba(255,250,241,0.8)" />
+                  <Text style={styles.profileModeText}>Viewing family profile</Text>
+                </Pressable>
+              ) : null}
+
+              {editingName ? (
+                <View style={styles.editNameRow}>
+                  <TextInput
+                    style={styles.editNameInput}
+                    value={editName}
+                    onChangeText={setEditName}
+                    autoFocus
+                    placeholderTextColor={COLORS.textMuted}
+                    selectionColor={COLORS.gold}
+                    onSubmitEditing={handleCommitName}
+                    accessibilityLabel="Edit display name"
                   />
-                  <View style={styles.profileHeader}>
-                    <Ionicons name={sys.icon} size={26} color="rgba(255,255,255,0.90)" />
-                    <Text style={styles.profileTitle}>{sys.title}</Text>
-                  </View>
-                  {sys.rows.map(([label, value], j) => (
-                    <View key={j} style={styles.profileRow}>
-                      <Text style={styles.profileLabel}>{label}</Text>
-                      <Text style={styles.profileValue}>{value}</Text>
-                    </View>
-                  ))}
-                  <View style={styles.profileReadMoreRow}>
-                    <Text style={styles.profileReadMore}>View details</Text>
-                    <Ionicons name="arrow-forward" size={12} color="rgba(255,255,255,0.45)" />
-                  </View>
-                </LinearGradient>
-              </View>
-            </AnimatedPressable>
-          ))}
-        </ScrollView>
-
-        {/* ── Badges ── */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>COSMIC BADGES</Text>
-          <Text style={styles.sectionSub}>{badges.filter(b => b.earned).length}/{badges.length} earned</Text>
-        </View>
-        <GradientCard>
-          <View style={styles.badgeGrid}>
-            {badges.map((b, i) => (
-              <View key={i} style={[styles.badge, !b.earned && styles.badgeLocked]}>
-                <Ionicons name={b.icon} size={26} color={b.earned ? b.color : 'rgba(255,255,255,0.22)'} />
-                <Text style={[styles.badgeName, !b.earned && styles.badgeNameLocked]}>{b.name}</Text>
-                {!b.earned && <Ionicons name="lock-closed" size={10} color="rgba(255,255,255,0.22)" />}
-              </View>
-            ))}
-          </View>
-        </GradientCard>
-
-        {/* ── Premium ── */}
-        {user.subscription.tier === 'free' && (
-          <AnimatedPressable onPress={() => router.push('/subscription')}>
-            <View style={styles.premiumShadow}>
-              <LinearGradient
-                colors={['rgba(255,255,255,0.14)', 'rgba(255,255,255,0.04)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.premiumCard}
-              >
-                <LinearGradient
-                  colors={['rgba(255,255,255,0.18)', 'rgba(255,255,255,0)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 0, y: 1 }}
-                  style={[StyleSheet.absoluteFillObject, { borderRadius: BORDER_RADIUS.xl }]}
-                  pointerEvents="none"
-                />
-                <Ionicons name="star" size={26} color={COLORS.gold} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.premiumTitle}>Unlock Premium</Text>
-                  <Text style={styles.premiumSub}>Full charts, compatibility & remedies</Text>
+                  <Pressable
+                    onPress={handleCommitName}
+                    accessibilityRole="button"
+                    accessibilityLabel="Save name"
+                    style={({ pressed }) => pressed && { opacity: 0.85 }}
+                  >
+                    <Ionicons name="checkmark-circle" size={32} color={COLORS.gold} />
+                  </Pressable>
                 </View>
-                <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.40)" />
-              </LinearGradient>
-            </View>
-          </AnimatedPressable>
-        )}
+              ) : (
+                <Pressable
+                  onPress={() => {
+                    setEditName(user.name);
+                    setEditingName(true);
+                  }}
+                  style={({ pressed }) => [styles.nameRow, pressed && { opacity: 0.85 }]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Name: ${user.name}. Tap to edit.`}
+                >
+                  <Text style={styles.name} numberOfLines={2}>
+                    {user.name}
+                  </Text>
+                  <Ionicons name="pencil-outline" size={16} color="rgba(255,250,241,0.5)" />
+                </Pressable>
+              )}
 
-        <View style={{ height: 140 }} />
-      </ScrollView>
+              <Text style={styles.birthMeta}>
+                {birthDate}
+                {user.birthDetails.place?.name ? `  ·  ${user.birthDetails.place.name}` : ''}
+              </Text>
+              {user.birthDetails.time ? (
+                <Text style={styles.birthMeta}>{user.birthDetails.time}</Text>
+              ) : null}
+
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                  handleRecalculate();
+                }}
+                disabled={recalculating}
+                style={({ pressed }) => [styles.recalcInline, pressed && { opacity: 0.85 }]}
+                accessibilityRole="button"
+                accessibilityLabel="Recalculate chart"
+              >
+                {recalculating ? (
+                  <ActivityIndicator size="small" color={COLORS.gold} />
+                ) : (
+                  <Ionicons name="refresh-outline" size={14} color={COLORS.gold} />
+                )}
+                <Text style={styles.recalcInlineText}>
+                  {recalculating ? 'Recalculating…' : 'Recalculate chart'}
+                </Text>
+              </Pressable>
+            </LinearGradient>
+
+            <View style={styles.posterOrb}>
+              {user.western?.planets?.length ? (
+                <NatalWheel planets={user.western.planets} size={152} showAspects={false} />
+              ) : (
+                <CosmicOrb size={152} />
+              )}
+            </View>
+          </View>
+        </AnimatedCard>
+
+        {cosmicDNA ? (
+          <AnimatedCard index={1}>
+            <GlassCard accentColor={COLORS.gold}>
+              <View style={styles.dnaHeader}>
+                <SectionLabel accent={COLORS.gold}>Cosmic DNA</SectionLabel>
+                <AnimalMascot animal={user.chinese?.animal} size={52} celebrating={badgeConfetti} />
+              </View>
+              <Text style={styles.dnaText}>{cosmicDNA}</Text>
+              <View style={styles.dnaChipRow}>
+                {[
+                  { label: 'Sun', value: user.western?.sun, accent: COLORS.western ?? COLORS.gold },
+                  { label: 'Rashi', value: user.vedic?.rashi, accent: COLORS.vedic ?? COLORS.iris },
+                  { label: 'Animal', value: user.chinese?.animal, accent: COLORS.chinese ?? COLORS.coral },
+                ].map((chip) => (
+                  <LinearGradient
+                    key={chip.label}
+                    colors={[`${chip.accent}22`, `${chip.accent}08`]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={[styles.dnaChip, { borderColor: `${chip.accent}55` }]}
+                  >
+                    <Text style={[styles.dnaChipLabel, { color: chip.accent }]}>{chip.label.toUpperCase()}</Text>
+                    <Text style={styles.dnaChipValue}>{chip.value ?? '—'}</Text>
+                  </LinearGradient>
+                ))}
+              </View>
+            </GlassCard>
+          </AnimatedCard>
+        ) : null}
+
+        {/* ── Stats & Achievements ───────────────────────────── */}
+        <AnimatedCard index={2}>
+          <GlassCard elevated accentColor={COLORS.starGold}>
+            <View style={styles.sectionHead}>
+              <SectionLabel accent={COLORS.starGold}>Your trophy shelf</SectionLabel>
+              <Text style={styles.achieveCount}>
+                {earnedBadges.length} earned
+              </Text>
+            </View>
+
+            <View style={styles.badgeStreakRow}>
+              <ProgressRing
+                progress={streakProgress}
+                size={78}
+                strokeWidth={5}
+                color={COLORS.starGold}
+                value={`${accountUser.streak}`}
+                label="Streak"
+              />
+              <View style={styles.badgeGrid}>
+                {earnedBadges.length === 0 ? (
+                  <Text style={styles.noBadgesText}>
+                    Show up daily — badges start raining in soon.
+                  </Text>
+                ) : (
+                  earnedBadges.slice(0, 4).map((badge) => (
+                    <View key={badge.id} style={styles.badgeChip}>
+                      <Text style={styles.badgeEmoji}>{badge.emoji}</Text>
+                      <Text style={styles.badgeName} numberOfLines={1}>
+                        {badge.name}
+                      </Text>
+                    </View>
+                  ))
+                )}
+              </View>
+            </View>
+
+            {nextBadge ? (
+              <View style={styles.nextBadgeRow}>
+                <Text style={styles.nextBadgeLabel}>NEXT GOAL</Text>
+                <Text style={styles.nextBadgeText}>
+                  {nextBadge.emoji} {nextBadge.name} — {nextBadge.requirement}
+                </Text>
+              </View>
+            ) : null}
+          </GlassCard>
+        </AnimatedCard>
+
+        <AnimatedCard index={3}>
+          <View style={styles.statsGrid}>
+            <StatCell value={String(accountUser.cosmicPoints)} label="Points" />
+            <StatCell
+              value={String(entries.length)}
+              label="Journal"
+              onPress={() => router.push('/journal')}
+            />
+            <StatCell value={String(archiveCount)} label="Archive" />
+            <StatCell value={String(savedProfiles.length)} label="Connections" />
+          </View>
+        </AnimatedCard>
+
+        {/* ── Tools ───────────────────────────────────────────── */}
+        <AnimatedCard index={4}>
+          <View style={styles.toolsHead}>
+            <SectionLabel>Tools</SectionLabel>
+          </View>
+          <View style={styles.toolsList}>
+            <ToolRow
+              icon="people-outline"
+              label="Family profiles"
+              meta={`${managedProfiles.length + 1}/5`}
+              onPress={() => router.push('/profile/family-profiles')}
+            />
+            <ToolRow
+              icon="star-outline"
+              label="Subscription"
+              meta={accountUser.subscription.tier === 'premium' ? 'Premium' : 'Free'}
+              accent={accountUser.subscription.tier === 'premium' ? COLORS.gold : undefined}
+              onPress={() => router.push('/subscription')}
+            />
+            <ToolRow
+              icon="language-outline"
+              label="Language"
+              meta={
+                LANGUAGE_OPTIONS.find((l) => l.code === currentLang)?.nativeName ?? 'English'
+              }
+              onPress={() => setShowLanguages((v) => !v)}
+              expanded={showLanguages}
+            />
+            {showLanguages ? (
+              <GlassCard>
+                <View style={styles.langGrid}>
+                  {LANGUAGE_OPTIONS.map((lang) => {
+                    const active = currentLang === lang.code;
+                    return (
+                      <Pressable
+                        key={lang.code}
+                        onPress={() => {
+                          Haptics.selectionAsync().catch(() => {});
+                          handleLanguage(lang.code);
+                        }}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: active }}
+                        accessibilityLabel={lang.nativeName}
+                        style={({ pressed }) => [
+                          styles.langChip,
+                          active && styles.langChipActive,
+                          pressed && { opacity: 0.9 },
+                        ]}
+                      >
+                        <Text style={[styles.langText, active && styles.langTextActive]}>
+                          {lang.nativeName}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </GlassCard>
+            ) : null}
+            <ToolRow
+              icon="settings-outline"
+              label="Settings"
+              onPress={() => router.push('/settings')}
+            />
+            <ToolRow
+              icon="analytics-outline"
+              label="AI dataset summary"
+              loading={exportingDataset}
+              onPress={handleExportDataset}
+            />
+          </View>
+        </AnimatedCard>
+
+        <View style={{ height: 40 }} />
+      </ResetScrollView>
+      {alertModal}
+      <ConfettiBurst visible={badgeConfetti} onDone={() => setBadgeConfetti(false)} />
     </StarField>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { paddingHorizontal: SPACING.lg, paddingTop: 58, gap: SPACING.lg },
+function StatCell({
+  value,
+  label,
+  onPress,
+}: {
+  value: string;
+  label: string;
+  onPress?: () => void;
+}) {
+  const Wrap: any = onPress ? Pressable : View;
+  return (
+    <Wrap
+      onPress={onPress}
+      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityLabel={onPress ? `${label}: ${value}` : undefined}
+      style={({ pressed }: { pressed: boolean }) => [
+        styles.statCell,
+        onPress && pressed && { opacity: 0.85 },
+      ]}
+    >
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label.toUpperCase()}</Text>
+    </Wrap>
+  );
+}
 
-  hero: { alignItems: 'center', gap: SPACING.sm },
-  nameLabel: {
-    color: COLORS.textMuted,
-    fontSize: 11,
-    fontFamily: 'Cinzel_400Regular',
-    letterSpacing: 2.5,
-    marginTop: 4,
+function ToolRow({
+  icon,
+  label,
+  meta,
+  accent,
+  onPress,
+  loading,
+  expanded,
+}: {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  label: string;
+  meta?: string;
+  accent?: string;
+  onPress: () => void;
+  loading?: boolean;
+  expanded?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={() => {
+        Haptics.selectionAsync().catch(() => {});
+        onPress();
+      }}
+      disabled={loading}
+      accessibilityRole="button"
+      accessibilityLabel={meta ? `${label}, ${meta}` : label}
+      style={({ pressed }) => [styles.toolRow, pressed && { opacity: 0.9 }]}
+    >
+      <View style={[styles.toolIconWrap, accent ? { borderColor: `${accent}55`, backgroundColor: `${accent}14` } : null]}>
+        {loading ? (
+          <ActivityIndicator size="small" color={COLORS.gold} />
+        ) : (
+          <Ionicons name={icon} size={18} color={accent ?? COLORS.textPrimary} />
+        )}
+      </View>
+      <Text style={styles.toolLabel}>{label}</Text>
+      {meta ? (
+        <Text style={[styles.toolMeta, accent ? { color: accent } : null]}>{meta}</Text>
+      ) : null}
+      <Ionicons
+        name={expanded ? 'chevron-down' : 'chevron-forward'}
+        size={16}
+        color={COLORS.textMuted}
+      />
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    paddingHorizontal: SPACING.lg,
+    paddingTop: Platform.OS === 'ios' ? 64 : 48,
+    paddingBottom: 120,
+    gap: SPACING.lg,
   },
-  name: {
-    fontFamily: 'Cinzel_900Black',
-    fontSize: 26,
-    color: COLORS.white,
-    textShadowColor: 'rgba(255,255,255,0.15)',
-    textShadowRadius: 14,
-    textShadowOffset: { width: 0, height: 0 },
-    letterSpacing: 2,
+  posterWrap: {
+    position: 'relative',
+    minHeight: 220,
   },
-  ringsRow: {
+  poster: {
+    borderRadius: BORDER_RADIUS.xxl,
+    padding: SPACING.lg,
+    paddingTop: SPACING.xl,
+    paddingBottom: SPACING.xl,
+    minHeight: 220,
+    overflow: 'hidden',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
+    ...SHADOWS.deep,
+  },
+  posterTopHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+  },
+  posterOrb: {
+    position: 'absolute',
+    right: -2,
+    top: 28,
+  },
+  profileModePill: {
+    alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.xl,
+    gap: 6,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255,250,241,0.22)',
+    backgroundColor: 'rgba(255,250,241,0.08)',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
     marginTop: SPACING.xs,
   },
-  ringWrap: { alignItems: 'center' },
-  ringDivider: {
-    width: 1, height: 40,
-    backgroundColor: 'rgba(255,255,255,0.10)',
+  profileModeText: {
+    color: 'rgba(255,250,241,0.78)',
+    fontSize: 10,
+    fontFamily: FONTS.accent,
+    letterSpacing: 1,
   },
-
-  dnaLabel: {
-    color: COLORS.textMuted,
-    fontSize: 11,
-    fontFamily: 'Cinzel_400Regular',
-    letterSpacing: 2,
-    marginBottom: 4,
-  },
-  dnaValue: {
-    color: COLORS.gold,
-    fontSize: 16,
-    fontFamily: 'Cinzel_700Bold',
-    letterSpacing: 0.5,
-  },
-
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionSub: { color: COLORS.textMuted, fontSize: 11 },
-  actionsRow: { flexDirection: 'row', justifyContent: 'space-around' },
-  actionItem: { alignItems: 'center', gap: 5 },
-  actionCircle: {
-    width: 52, height: 52, borderRadius: 26,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionLabel: { color: COLORS.textSecondary, fontSize: 11, fontFamily: 'Cinzel_400Regular', letterSpacing: 0.5 },
-
-  sectionTitle: {
-    fontFamily: 'Cinzel_400Regular',
-    color: COLORS.textSecondary,
-    fontSize: 12,
-    letterSpacing: 2.5,
-  },
-  hScroll: { gap: SPACING.md, paddingRight: SPACING.lg },
-
-  profileCardShadow: {
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.45,
-    shadowRadius: 22,
-    elevation: 16,
-  },
-  profileCard: {
-    borderRadius: BORDER_RADIUS.xl,
-    padding: SPACING.md,
-    gap: 2,
-    overflow: 'hidden',
-  },
-  profileHeader: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.sm },
-  profileTitle: { color: '#fff', fontSize: 15, fontFamily: 'Cinzel_700Bold', letterSpacing: 0.3 },
-  profileRow: {
+  nameRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 7,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.10)',
-  },
-  profileLabel: { color: 'rgba(255,255,255,0.50)', fontSize: 12 },
-  profileValue: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  profileReadMoreRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: SPACING.sm },
-  profileReadMore: { color: 'rgba(255,255,255,0.40)', fontSize: 11 },
-
-  badgeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, justifyContent: 'center' },
-  badge: {
     alignItems: 'center',
-    width: '28%' as any,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.sm,
+    gap: SPACING.sm,
+  },
+  name: {
+    color: '#fff8ea',
+    ...TYPE.hero,
+    fontFamily: FONTS.display,
+    maxWidth: 210,
+  },
+  birthMeta: {
+    color: 'rgba(255,248,234,0.78)',
+    ...TYPE.caption,
+    fontFamily: FONTS.body,
+    maxWidth: 210,
+  },
+  recalcInline: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: SPACING.sm,
+    borderRadius: BORDER_RADIUS.full,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: `${COLORS.gold}55`,
+    backgroundColor: `${COLORS.gold}14`,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  recalcInlineText: {
+    color: COLORS.gold,
+    fontSize: 10,
+    fontFamily: FONTS.accent,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  editNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  editNameInput: {
+    flex: 1,
+    color: '#fff8ea',
+    fontSize: 34,
+    fontFamily: FONTS.display,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(241,183,79,0.6)',
+    paddingVertical: 4,
+    maxWidth: 210,
+  },
+  sectionHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  achieveCount: {
+    color: COLORS.gold,
+    fontSize: 10,
+    fontFamily: FONTS.accent,
+    letterSpacing: 1.2,
+  },
+  dnaHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: SPACING.sm,
+  },
+  dnaText: {
+    color: COLORS.textPrimary,
+    ...TYPE.heading,
+    fontFamily: FONTS.heading,
+    lineHeight: 30,
+  },
+  dnaChipRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    marginTop: SPACING.xs,
+  },
+  dnaChip: {
+    flex: 1,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
     gap: 4,
+    alignItems: 'center',
   },
-  badgeLocked: { opacity: 0.30 },
-  badgeName: { color: COLORS.white, fontSize: 11, fontFamily: 'Cinzel_400Regular', textAlign: 'center', letterSpacing: 0.3 },
-  badgeNameLocked: { color: COLORS.textMuted },
-
-  premiumShadow: {
-    shadowColor: '#fff',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    elevation: 10,
+  dnaChipLabel: {
+    color: COLORS.textMuted,
+    fontSize: 9,
+    fontFamily: FONTS.accent,
+    letterSpacing: 1.2,
   },
-  premiumCard: {
+  dnaChipValue: {
+    color: COLORS.textPrimary,
+    ...TYPE.subhead,
+    fontFamily: FONTS.heading,
+    textTransform: 'capitalize',
+  },
+  badgeStreakRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.md,
-    borderRadius: BORDER_RADIUS.xl,
-    padding: SPACING.md,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
-    overflow: 'hidden',
   },
-  premiumTitle: { color: '#fff', fontSize: 15, fontFamily: 'Cinzel_700Bold', letterSpacing: 0.3 },
-  premiumSub: { color: COLORS.textSecondary, fontSize: 11, marginTop: 2 },
+  badgeGrid: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.xs,
+  },
+  badgeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  badgeEmoji: { fontSize: 14 },
+  badgeName: {
+    color: COLORS.textPrimary,
+    fontSize: 11,
+    fontFamily: FONTS.accent,
+    letterSpacing: 0.4,
+  },
+  noBadgesText: {
+    color: COLORS.textMuted,
+    ...TYPE.caption,
+    fontFamily: FONTS.body,
+  },
+  nextBadgeRow: {
+    borderTopWidth: 1,
+    borderTopColor: COLORS.rule,
+    paddingTop: SPACING.sm,
+    gap: 2,
+  },
+  nextBadgeLabel: {
+    color: COLORS.textMuted,
+    fontSize: 9,
+    fontFamily: FONTS.accent,
+    letterSpacing: 1.2,
+  },
+  nextBadgeText: {
+    color: COLORS.starGold,
+    ...TYPE.bodySmall,
+    fontFamily: FONTS.heading,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+  },
+  statCell: {
+    flexGrow: 1,
+    flexBasis: '22%',
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
+    backgroundColor: COLORS.glassBg,
+    paddingVertical: 14,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    gap: 4,
+  },
+  statValue: {
+    color: COLORS.textPrimary,
+    ...TYPE.heading,
+    fontFamily: FONTS.heading,
+  },
+  statLabel: {
+    color: COLORS.textMuted,
+    fontSize: 9,
+    fontFamily: FONTS.accent,
+    letterSpacing: 1.2,
+  },
+  toolsHead: {
+    marginBottom: SPACING.sm,
+  },
+  toolsList: {
+    gap: SPACING.sm,
+  },
+  toolRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    paddingVertical: 14,
+    paddingHorizontal: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
+    backgroundColor: COLORS.glassBg,
+  },
+  toolIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
+  },
+  toolLabel: {
+    flex: 1,
+    color: COLORS.textPrimary,
+    ...TYPE.subhead,
+    fontFamily: FONTS.heading,
+  },
+  toolMeta: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    fontFamily: FONTS.accent,
+    letterSpacing: 1,
+  },
+  langGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+  },
+  langChip: {
+    minWidth: '47%',
+    borderRadius: BORDER_RADIUS.sm,
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+  },
+  langChipActive: {
+    borderColor: COLORS.glassBorderBright,
+    backgroundColor: 'rgba(241,183,79,0.10)',
+  },
+  langText: {
+    color: COLORS.textSecondary,
+    ...TYPE.bodySmall,
+    fontFamily: FONTS.heading,
+  },
+  langTextActive: {
+    color: COLORS.textPrimary,
+  },
 });

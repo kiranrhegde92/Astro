@@ -39,8 +39,10 @@ const GROWTH_OPPOSITES: Record<ChineseAnimal, ChineseAnimal> = {
  * understanding your cosmic gifts, not limitations.
  */
 export function calculateChineseProfile(birthDate: Date, birthTime?: string): ChineseProfile {
-  const year = birthDate.getFullYear();
-  const animal = getChineseAnimal(year);
+  const year  = birthDate.getFullYear();
+  const month = birthDate.getMonth() + 1; // 1-12
+  const day   = birthDate.getDate();
+  const animal = getChineseAnimal(year, month, day);
   const element = getChineseElement(year);
   const yinYang = getYinYang(year);
 

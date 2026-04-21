@@ -7,8 +7,8 @@ import { calculateKPProfile } from '../kp';
 /**
  * Calculate a unified Cosmic Profile across all 4 astrology systems.
  *
- * This is the core differentiator of CosmicSelf - no other app combines
- * Western, Vedic, Chinese, and KP systems into a single cosmic identity.
+ * Now passes the computed Vedic dasha to the KP engine so KP predictions
+ * use the actual birth-chart dasha instead of a hardcoded default.
  */
 export function calculateCosmicProfile(
   birthDate: Date,
@@ -16,12 +16,13 @@ export function calculateCosmicProfile(
   lat?: number,
   lng?: number,
 ): CosmicProfile {
-  return {
-    western: calculateWesternProfile(birthDate, birthTime, lat, lng),
-    vedic: calculateVedicProfile(birthDate),
-    chinese: calculateChineseProfile(birthDate, birthTime),
-    kp: calculateKPProfile(birthDate, birthTime),
-  };
+  const western = calculateWesternProfile(birthDate, birthTime, lat, lng);
+  const vedic = calculateVedicProfile(birthDate, birthTime);
+  const chinese = calculateChineseProfile(birthDate, birthTime);
+  // Pass the Vedic currentDasha to KP so predictions use the real dasha planet
+  const kp = calculateKPProfile(birthDate, birthTime, vedic.currentDasha);
+
+  return { western, vedic, chinese, kp };
 }
 
 /**

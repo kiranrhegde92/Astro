@@ -1,289 +1,681 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert } from 'react-native';
+import { ActivityIndicator, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import i18n from '../src/i18n';
-import { StarField } from '../src/components/ui/StarField';
-import { ScreenHeader } from '../src/components/ui/ScreenHeader';
+import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import { GradientCard } from '../src/components/ui/GradientCard';
-import { CosmicButton } from '../src/components/ui/CosmicButton';
-import { COLORS, SPACING, BORDER_RADIUS } from '../src/constants/theme';
+import { ResetScrollView } from '../src/components/ui/ResetScrollView';
+import { ScreenHeader } from '../src/components/ui/ScreenHeader';
+import { StarField } from '../src/components/ui/StarField';
+import { useCosmicAlert } from '../src/components/ui/CosmicAlert';
+import { BORDER_RADIUS, COLORS, FONTS, SPACING } from '../src/constants/theme';
+import { exportMyData } from '../src/services/functionsService';
+import { getPendingBirthCorrectionRequest } from '../src/services/firestoreService';
+import { useAuthStore } from '../src/store/authStore';
 import { useSettingsStore } from '../src/store/settingsStore';
 import { useUserStore } from '../src/store/userStore';
-
-const LANGUAGES = [
-  { code: 'en', name: 'English', native: 'English', emoji: '\u{1F1FA}\u{1F1F8}' },
-  { code: 'hi', name: 'Hindi', native: '\u0939\u093F\u0928\u094D\u0926\u0940', emoji: '\u{1F1EE}\u{1F1F3}' },
-  { code: 'zh', name: 'Chinese', native: '\u4E2D\u6587', emoji: '\u{1F1E8}\u{1F1F3}' },
-  { code: 'kn', name: 'Kannada', native: '\u0C95\u0CA8\u0CCD\u0CA8\u0CA1', emoji: '\u{1F1EE}\u{1F1F3}' },
-];
+import { hasPremiumEntitlement } from '../src/utils/subscription';
+import { shareDataExport } from '../src/utils/exportData';
+import type { AstrologySystem } from '../src/types/user';
 
 const NOTIFICATION_TIMES = [
-  { label: '6:00 AM', value: '06:00' },
-  { label: '7:00 AM', value: '07:00' },
-  { label: '8:00 AM', value: '08:00' },
-  { label: '9:00 AM', value: '09:00' },
-  { label: '10:00 AM', value: '10:00' },
+  { label: '6:00 am', value: '06:00' },
+  { label: '7:00 am', value: '07:00' },
+  { label: '8:00 am', value: '08:00' },
+  { label: '9:00 am', value: '09:00' },
+  { label: '10:00 am', value: '10:00' },
 ];
 
+const ALL_SYSTEMS: Array<{ value: AstrologySystem; label: string; color: string }> = [
+  { value: 'western', label: 'Western', color: COLORS.western },
+  { value: 'vedic', label: 'Vedic', color: COLORS.vedic },
+  { value: 'chinese', label: 'Chinese', color: COLORS.chinese },
+  { value: 'kp', label: 'KP', color: COLORS.kp },
+];
+
+const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
+
+function PickerRow({ label, value, onPress }: { label: string; value: string; onPress: () => void }) {
+  return (
+    <TouchableOpacity
+      style={styles.row}
+      onPress={onPress}
+      activeOpacity={0.84}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}: ${value}`}
+      accessibilityHint="Opens picker"
+    >
+      <Text style={styles.rowText}>{label}</Text>
+      <Text style={styles.rowValue}>{value}</Text>
+    </TouchableOpacity>
+  );
+}
+
 export default function SettingsScreen() {
-  const { t } = useTranslation();
   const router = useRouter();
-  const user = useUserStore((s) => s.user);
   const {
-    language,
     notificationsEnabled,
     dailyNotificationTime,
-    setLanguage,
+    transitAlertsEnabled,
+    darkMode,
+    journalLockEnabled,
     setNotifications,
     setNotificationTime,
+    setTransitAlerts,
+    setDarkMode,
+    setJournalLock,
   } = useSettingsStore();
-
-  const [showLangPicker, setShowLangPicker] = useState(false);
+  const user = useUserStore((s) => s.user);
+  const setActiveSystems = useUserStore((s) => s.setActiveSystems);
+  const isPremium = hasPremiumEntitlement(user?.subscription);
+  const logout = useAuthStore((s) => s.logout);
+  const deleteAccount = useAuthStore((s) => s.deleteAccount);
+  const isAdmin = useAuthStore((s) => s.isAdmin);
+  const refreshClaims = useAuthStore((s) => s.refreshClaims);
+  const { showAlert, alertModal } = useCosmicAlert();
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [accountAction, setAccountAction] = useState<'logout' | 'delete' | null>(null);
+  const [exportingData, setExportingData] = useState(false);
+  const [hasPendingCorrection, setHasPendingCorrection] = useState(false);
 
-  const handleLanguageChange = (code: string) => {
-    setLanguage(code);
-    i18n.changeLanguage(code);
-    setShowLangPicker(false);
+  useFocusEffect(
+    React.useCallback(() => {
+      let cancelled = false;
+      if (!user?.id) {
+        setHasPendingCorrection(false);
+        return;
+      }
+      getPendingBirthCorrectionRequest(user.id)
+        .then((req) => {
+          if (!cancelled) setHasPendingCorrection(!!req);
+        })
+        .catch(() => {});
+      return () => {
+        cancelled = true;
+      };
+    }, [user?.id])
+  );
+
+  const toggleSystem = (system: AstrologySystem) => {
+    if (!user) return;
+    const current = user.activeSystems;
+    if (current.includes(system)) {
+      if (current.length <= 1) {
+        showAlert('Cannot disable', 'You must have at least one astrology system active.');
+        return;
+      }
+      setActiveSystems(current.filter((s) => s !== system));
+    } else {
+      setActiveSystems([...current, system]);
+    }
   };
 
-  const handleClearData = () => {
-    Alert.alert(
-      'Reset App Data',
-      'This will clear all your data and return to onboarding. This cannot be undone.',
+  const handleSignOut = () => {
+    showAlert('Sign out?', 'You will return to the login screen, but your saved account data will remain available when you sign back in.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out',
+        onPress: async () => {
+          try {
+            setAccountAction('logout');
+            await logout();
+          } catch {
+            showAlert('Unable to sign out', 'Please try again in a moment.');
+          } finally {
+            setAccountAction(null);
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleDeleteAccount = () => {
+    showAlert(
+      'Delete account?',
+      'This permanently removes your CosmicSelf account, chart data, readings, journal, connections, and saved settings. This cannot be undone.',
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'Keep account', style: 'cancel' },
         {
-          text: 'Reset',
+          text: 'Delete forever',
           style: 'destructive',
-          onPress: () => {
-            useUserStore.getState().clearUser();
-            router.replace('/');
+          onPress: async () => {
+            try {
+              setAccountAction('delete');
+              await deleteAccount();
+            } catch {
+              showAlert('Unable to delete account', 'Your account was not removed. Please try again after signing in again.');
+            } finally {
+              setAccountAction(null);
+            }
           },
         },
       ]
     );
   };
 
-  const currentLang = LANGUAGES.find((l) => l.code === language) ?? LANGUAGES[0];
+  const handleExportMyData = async () => {
+    if (exportingData) return;
+
+    setExportingData(true);
+    try {
+      const data = await exportMyData();
+      const delivery = await shareDataExport(data);
+      if (delivery === 'dismissed') return;
+
+      const deliveryText = delivery === 'downloaded'
+        ? 'Your JSON export was downloaded.'
+        : 'Your JSON export was opened in the share sheet.';
+      showAlert(
+        'Export ready',
+        `${deliveryText}\n\nProfile: ${data.counts.profile}\nChart: ${data.counts.chart}\nReadings: ${data.counts.dailyReadings}\nPartners: ${data.counts.partners}\nPrediction runs: ${data.counts.predictionRuns}`
+      );
+    } catch {
+      showAlert('Export failed', 'Could not export your data right now. Please try again after signing in again.');
+    } finally {
+      setExportingData(false);
+    }
+  };
+
+  const handleAdminAccess = async () => {
+    try {
+      await refreshClaims();
+      if (useAuthStore.getState().isAdmin) {
+        router.push('/admin');
+      } else {
+        showAlert('Admin access unavailable', 'This account does not currently have the admin custom claim. Sign out and back in if the claim was just granted.');
+      }
+    } catch {
+      showAlert('Admin access unavailable', 'Could not refresh your admin claims right now.');
+    }
+  };
 
   return (
     <StarField>
       <ScreenHeader title="Settings" />
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <ResetScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        <Text style={styles.headline}>Shape the ritual around your routine.</Text>
 
-        {/* Language */}
-        <GradientCard>
-          <Text style={styles.sectionTitle}>{'\u{1F30D}'} Language</Text>
-          <TouchableOpacity
-            style={styles.settingRow}
-            onPress={() => setShowLangPicker(!showLangPicker)}
-          >
-            <Text style={styles.settingLabel}>App Language</Text>
-            <Text style={styles.settingValue}>
-              {currentLang.emoji} {currentLang.native}
-            </Text>
-          </TouchableOpacity>
-
-          {showLangPicker && (
-            <View style={styles.pickerContainer}>
-              {LANGUAGES.map((lang) => (
-                <TouchableOpacity
-                  key={lang.code}
-                  style={[
-                    styles.pickerItem,
-                    language === lang.code && styles.pickerItemActive,
-                  ]}
-                  onPress={() => handleLanguageChange(lang.code)}
-                >
-                  <Text style={styles.pickerEmoji}>{lang.emoji}</Text>
-                  <View style={styles.pickerTextCol}>
-                    <Text style={[
-                      styles.pickerName,
-                      language === lang.code && styles.pickerNameActive,
-                    ]}>{lang.native}</Text>
-                    <Text style={styles.pickerNameSub}>{lang.name}</Text>
-                  </View>
-                  {language === lang.code && (
-                    <Text style={styles.checkmark}>{'\u2713'}</Text>
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-        </GradientCard>
-
-        {/* Notifications */}
-        <GradientCard>
-          <Text style={styles.sectionTitle}>{'\u{1F514}'} Notifications</Text>
-
-          <View style={styles.settingRow}>
-            <View style={styles.settingTextCol}>
-              <Text style={styles.settingLabel}>Daily Cosmic Vibe</Text>
-              <Text style={styles.settingDesc}>Get your morning cosmic reading</Text>
-            </View>
+        {/* ── Notifications ──────────────────────────────────────────── */}
+        <GradientCard style={styles.section}>
+          <Text style={styles.sectionLabel}>Daily reminder</Text>
+          <View style={styles.switchRow}>
+            <Text style={styles.rowText}>Daily reading notification</Text>
             <Switch
               value={notificationsEnabled}
               onValueChange={setNotifications}
-              trackColor={{ false: 'rgba(255,255,255,0.1)', true: COLORS.starGold }}
-              thumbColor={COLORS.white}
+              trackColor={{ false: COLORS.glassHighlight, true: COLORS.sunOrange }}
+              thumbColor={COLORS.textPrimary}
             />
           </View>
-
-          {notificationsEnabled && (
+          {notificationsEnabled ? (
             <>
-              <TouchableOpacity
-                style={styles.settingRow}
-                onPress={() => setShowTimePicker(!showTimePicker)}
-              >
-                <Text style={styles.settingLabel}>Notification Time</Text>
-                <Text style={styles.settingValue}>
-                  {NOTIFICATION_TIMES.find((t) => t.value === dailyNotificationTime)?.label ?? '8:00 AM'}
-                </Text>
-              </TouchableOpacity>
-
-              {showTimePicker && (
-                <View style={styles.pickerContainer}>
-                  {NOTIFICATION_TIMES.map((time) => (
+              <PickerRow
+                label="Reminder time"
+                value={NOTIFICATION_TIMES.find((item) => item.value === dailyNotificationTime)?.label ?? '8:00 am'}
+                onPress={() => setShowTimePicker((v) => !v)}
+              />
+              {showTimePicker ? (
+                <View style={styles.inlineList}>
+                  {NOTIFICATION_TIMES.map((item) => (
                     <TouchableOpacity
-                      key={time.value}
-                      style={[
-                        styles.pickerItem,
-                        dailyNotificationTime === time.value && styles.pickerItemActive,
-                      ]}
-                      onPress={() => { setNotificationTime(time.value); setShowTimePicker(false); }}
+                      key={item.value}
+                      onPress={() => { setNotificationTime(item.value); setShowTimePicker(false); }}
+                      style={styles.inlineItem}
+                      activeOpacity={0.84}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Set reminder time to ${item.label}`}
+                      accessibilityState={{ selected: item.value === dailyNotificationTime }}
                     >
-                      <Text style={[
-                        styles.pickerName,
-                        dailyNotificationTime === time.value && styles.pickerNameActive,
-                      ]}>{time.label}</Text>
-                      {dailyNotificationTime === time.value && (
-                        <Text style={styles.checkmark}>{'\u2713'}</Text>
-                      )}
+                      <Text style={[styles.inlineText, item.value === dailyNotificationTime && styles.inlineTextActive]}>
+                        {item.label}
+                      </Text>
                     </TouchableOpacity>
                   ))}
                 </View>
-              )}
+              ) : null}
             </>
+          ) : (
+            <Text style={styles.sectionNote}>Turn this on to receive your saved daily reading reminder.</Text>
           )}
         </GradientCard>
 
-        {/* Account */}
-        <GradientCard>
-          <Text style={styles.sectionTitle}>{'\u{1F464}'} Account</Text>
-
-          <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>Name</Text>
-            <Text style={styles.settingValue}>{user?.name ?? 'Unknown'}</Text>
-          </View>
-
-          <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>Subscription</Text>
-            <Text style={[styles.settingValue, { color: user?.subscription.tier === 'free' ? COLORS.textSecondary : COLORS.starGold }]}>
-              {user?.subscription.tier === 'free' ? 'Free' : user?.subscription.tier === 'premium' ? 'Premium' : 'Family'}
-              {user?.subscription.status === 'trial' ? ' (Trial)' : ''}
-            </Text>
-          </View>
-
-          {user?.subscription.tier === 'free' && (
-            <CosmicButton
-              title="Upgrade to Premium"
-              onPress={() => router.push('/subscription')}
-              colors={[COLORS.starGold, COLORS.sunOrange]}
-              style={styles.upgradeButton}
-            />
-          )}
-
-          <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>Active Systems</Text>
-            <Text style={styles.settingValue}>{user?.activeSystems.length ?? 0} / 4</Text>
-          </View>
-
-          <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>Cosmic Points</Text>
-            <Text style={[styles.settingValue, { color: COLORS.starGold }]}>
-              {'\u{1F31F}'} {user?.cosmicPoints ?? 0}
-            </Text>
-          </View>
-        </GradientCard>
-
-        {/* About */}
-        <GradientCard>
-          <Text style={styles.sectionTitle}>{'\u2728'} About</Text>
-
-          <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>Version</Text>
-            <Text style={styles.settingValue}>1.0.0</Text>
-          </View>
-
-          <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>Systems</Text>
-            <Text style={styles.settingValue}>Western + Vedic + Chinese + KP</Text>
-          </View>
-
-          <Text style={styles.aboutText}>
-            CosmicSelf combines 4 ancient astrology traditions into one unified
-            cosmic profile. All readings are positively framed and backed by
-            classical source references.
+        <GradientCard style={styles.section} accentColor={COLORS.starGold}>
+          <Text style={styles.sectionLabel}>Transit center</Text>
+          <Text style={styles.sectionNote}>
+            Track the strongest live aspects touching your chart today. Premium transit alerts use this preference for future push delivery.
           </Text>
+          <View style={styles.switchRow}>
+            <View style={styles.systemLabelRow}>
+              <Ionicons name="notifications-outline" size={18} color={COLORS.starGold} />
+              <Text style={styles.rowText}>Premium transit alerts</Text>
+            </View>
+            {isPremium ? (
+              <Switch
+                value={transitAlertsEnabled}
+                onValueChange={setTransitAlerts}
+                trackColor={{ false: COLORS.glassHighlight, true: COLORS.starGold }}
+                thumbColor={COLORS.textPrimary}
+              />
+            ) : (
+              <TouchableOpacity
+                onPress={() => router.push('/subscription')}
+                accessibilityRole="button"
+                accessibilityLabel="Unlock transit alerts with Premium"
+                activeOpacity={0.84}
+              >
+                <Text style={{ color: COLORS.starGold, fontWeight: '700', fontSize: 13 }}>Unlock</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          <TouchableOpacity
+            style={styles.linkRow}
+            onPress={() => router.push('/reading/transits')}
+            activeOpacity={0.84}
+            accessibilityRole="link"
+            accessibilityLabel="Open transit center"
+          >
+            <Ionicons name="planet-outline" size={18} color={COLORS.kp} />
+            <Text style={styles.linkText}>Open transit center</Text>
+            <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+          </TouchableOpacity>
         </GradientCard>
 
-        {/* Danger Zone */}
-        <GradientCard>
-          <Text style={[styles.sectionTitle, { color: '#ff6b6b' }]}>{'\u{26A0}\uFE0F'} Data</Text>
-          <CosmicButton
-            title="Reset All Data"
-            onPress={handleClearData}
-            variant="outline"
-            style={styles.dangerButton}
-          />
+        {/* ── Active Systems ─────────────────────────────────────────── */}
+        {user ? (
+          <GradientCard style={styles.section}>
+            <Text style={styles.sectionLabel}>Active astrology systems</Text>
+            <Text style={styles.sectionNote}>Toggle which systems appear in your daily reading and compatibility checks.</Text>
+            {ALL_SYSTEMS.map((system) => {
+              const active = user.activeSystems.includes(system.value);
+              return (
+                <View key={system.value} style={styles.switchRow}>
+                  <View style={styles.systemLabelRow}>
+                    <View style={[styles.systemDot, { backgroundColor: system.color }]} />
+                    <Text style={styles.rowText}>{system.label}</Text>
+                  </View>
+                  <Switch
+                    value={active}
+                    onValueChange={() => toggleSystem(system.value)}
+                    trackColor={{ false: COLORS.glassHighlight, true: system.color }}
+                    thumbColor={COLORS.textPrimary}
+                  />
+                </View>
+              );
+            })}
+          </GradientCard>
+        ) : null}
+
+        {/* ── Birth Details ──────────────────────────────────────────── */}
+        {user ? (
+          <GradientCard style={styles.section}>
+            <Text style={styles.sectionLabel}>Birth details</Text>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Date</Text>
+              <Text style={styles.detailValue}>
+                {new Date(user.birthDetails.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+              </Text>
+            </View>
+            {user.birthDetails.time ? (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Time</Text>
+                <Text style={styles.detailValue}>{user.birthDetails.time}</Text>
+              </View>
+            ) : null}
+            {user.birthDetails.place?.name ? (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Place</Text>
+                <Text style={styles.detailValue}>{user.birthDetails.place.name}</Text>
+              </View>
+            ) : null}
+            <TouchableOpacity
+              style={styles.linkRow}
+              onPress={() => router.push('/profile/birth-details')}
+              activeOpacity={0.84}
+              accessibilityRole="link"
+              accessibilityLabel={
+                hasPendingCorrection
+                  ? 'View pending birth detail correction'
+                  : 'Request a birth detail correction'
+              }
+            >
+              <Ionicons
+                name={hasPendingCorrection ? 'hourglass-outline' : 'document-text-outline'}
+                size={18}
+                color={hasPendingCorrection ? COLORS.starGold : COLORS.iris}
+              />
+              <Text style={styles.linkText}>
+                {hasPendingCorrection ? 'Correction pending review' : 'Request a birth detail correction'}
+              </Text>
+              {hasPendingCorrection ? (
+                <View style={styles.pendingBadge}>
+                  <Text style={styles.pendingBadgeText}>PENDING</Text>
+                </View>
+              ) : (
+                <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+              )}
+            </TouchableOpacity>
+            <Text style={styles.sectionNote}>Birth details are locked after setup. Send a correction request if something is wrong.</Text>
+          </GradientCard>
+        ) : null}
+
+        {/* ── Appearance ───────────────────────────────────────────── */}
+        <GradientCard style={styles.section}>
+          <Text style={styles.sectionLabel}>Appearance</Text>
+          <View style={styles.switchRow}>
+            <View style={styles.systemLabelRow}>
+              <Ionicons name={darkMode ? 'moon' : 'sunny-outline'} size={16} color={darkMode ? COLORS.iris : COLORS.starGold} />
+              <Text style={styles.rowText}>{darkMode ? 'Dark mode' : 'Light mode'}</Text>
+            </View>
+            <Switch
+              value={darkMode}
+              onValueChange={setDarkMode}
+              trackColor={{ false: COLORS.glassHighlight, true: COLORS.iris }}
+              thumbColor={COLORS.textPrimary}
+            />
+          </View>
         </GradientCard>
+
+        {/* ── Privacy ─────────────────────────────────────────────── */}
+        <GradientCard style={styles.section}>
+          <Text style={styles.sectionLabel}>Privacy</Text>
+          <View style={styles.switchRow}>
+            <View style={styles.systemLabelRow}>
+              <Ionicons name="lock-closed-outline" size={16} color={COLORS.iris} />
+              <Text style={styles.rowText}>Require biometrics for Journal</Text>
+            </View>
+            <Switch
+              value={journalLockEnabled}
+              onValueChange={setJournalLock}
+              trackColor={{ false: COLORS.glassHighlight, true: COLORS.iris }}
+              thumbColor={COLORS.textPrimary}
+            />
+          </View>
+          <Text style={styles.sectionNote}>Unlocks with Face ID, Touch ID, or device passcode when supported. Falls back to open access on devices without biometrics.</Text>
+        </GradientCard>
+
+        {/* ── Quick links ────────────────────────────────────────────── */}
+        <GradientCard style={styles.section}>
+          <Text style={styles.sectionLabel}>More</Text>
+          <TouchableOpacity
+            style={styles.linkRow}
+            onPress={() => router.push('/journal')}
+            activeOpacity={0.84}
+            accessibilityRole="link"
+            accessibilityLabel="Open journal"
+          >
+            <Ionicons name="book-outline" size={18} color={COLORS.iris} />
+            <Text style={styles.linkText}>Journal</Text>
+            <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.linkRow}
+            onPress={() => router.push('/subscription')}
+            activeOpacity={0.84}
+            accessibilityRole="link"
+            accessibilityLabel="Open subscription settings"
+          >
+            <Ionicons name="star-outline" size={18} color={COLORS.starGold} />
+            <Text style={styles.linkText}>Subscription</Text>
+            <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.linkRow}
+            onPress={() => router.push('/legal/privacy')}
+            activeOpacity={0.84}
+            accessibilityRole="link"
+            accessibilityLabel="Open privacy policy"
+          >
+            <Ionicons name="shield-checkmark-outline" size={18} color={COLORS.tide} />
+            <Text style={styles.linkText}>Privacy Policy</Text>
+            <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+          </TouchableOpacity>
+          {isAdmin ? (
+            <TouchableOpacity
+              style={styles.linkRow}
+              onPress={() => void handleAdminAccess()}
+              activeOpacity={0.84}
+              accessibilityRole="link"
+              accessibilityLabel="Open admin console"
+            >
+              <Ionicons name="settings-outline" size={18} color={COLORS.starGold} />
+              <Text style={styles.linkText}>Admin console</Text>
+              <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+            </TouchableOpacity>
+          ) : null}
+          <TouchableOpacity
+            style={styles.linkRowNoBorder}
+            onPress={() => router.push('/legal/terms')}
+            activeOpacity={0.84}
+            accessibilityRole="link"
+            accessibilityLabel="Open terms of service"
+          >
+            <Ionicons name="document-text-outline" size={18} color={COLORS.plum} />
+            <Text style={styles.linkText}>Terms of Service</Text>
+            <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+          </TouchableOpacity>
+        </GradientCard>
+
+        {/* ── Account ─────────────────────────────────────────────────── */}
+        {user ? (
+          <GradientCard style={styles.section} accentColor={COLORS.coral}>
+            <Text style={styles.sectionLabel}>Account</Text>
+            <Text style={styles.sectionNote}>Control access to this device and remove your account if you ever need a clean reset.</Text>
+            <TouchableOpacity
+              style={styles.linkRow}
+              onPress={handleExportMyData}
+              activeOpacity={0.84}
+              disabled={exportingData || accountAction !== null}
+              accessibilityRole="button"
+              accessibilityLabel="Export my data"
+              accessibilityState={{ disabled: exportingData || accountAction !== null, busy: exportingData }}
+            >
+              <Ionicons name="download-outline" size={18} color={COLORS.tide} />
+              <Text style={styles.linkText}>{exportingData ? 'Exporting data...' : 'Export my data'}</Text>
+              {exportingData ? <ActivityIndicator size="small" color={COLORS.tide} /> : <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.linkRow}
+              onPress={handleSignOut}
+              activeOpacity={0.84}
+              disabled={accountAction !== null || exportingData}
+              accessibilityRole="button"
+              accessibilityLabel="Sign out"
+              accessibilityState={{ disabled: accountAction !== null || exportingData, busy: accountAction === 'logout' }}
+            >
+              <Ionicons name="log-out-outline" size={18} color={COLORS.iris} />
+              <Text style={styles.linkText}>Sign out</Text>
+              {accountAction === 'logout' ? <ActivityIndicator size="small" color={COLORS.iris} /> : <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.linkRowNoBorder}
+              onPress={handleDeleteAccount}
+              activeOpacity={0.84}
+              disabled={accountAction !== null || exportingData}
+              accessibilityRole="button"
+              accessibilityLabel="Delete account"
+              accessibilityHint="Permanently removes your CosmicSelf account"
+              accessibilityState={{ disabled: accountAction !== null || exportingData, busy: accountAction === 'delete' }}
+            >
+              <Ionicons name="trash-outline" size={18} color={COLORS.coral} />
+              <Text style={[styles.linkText, styles.destructiveText]}>Delete account</Text>
+              {accountAction === 'delete' ? <ActivityIndicator size="small" color={COLORS.coral} /> : <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />}
+            </TouchableOpacity>
+          </GradientCard>
+        ) : null}
+
+        {/* ── App Info ────────────────────────────────────────────────── */}
+        <View style={styles.appInfo}>
+          <Text style={styles.appVersion}>CosmicSelf v{APP_VERSION}</Text>
+          <Text style={styles.appCopy}>4 ancient systems, one daily ritual.</Text>
+        </View>
 
         <View style={styles.bottomPad} />
-      </ScrollView>
+      </ResetScrollView>
+      {alertModal}
     </StarField>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.xxl, gap: SPACING.lg },
-  sectionTitle: { color: COLORS.white, fontSize: 16, fontFamily: 'PlayfairDisplay_700Bold', marginBottom: SPACING.md },
-  settingRow: {
+  container: {
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.xxl,
+    gap: SPACING.lg,
+  },
+  headline: {
+    color: COLORS.textPrimary,
+    fontSize: 34,
+    lineHeight: 40,
+    fontFamily: FONTS.display,
+    letterSpacing: -0.6,
+  },
+  section: {
+    gap: SPACING.sm,
+  },
+  sectionLabel: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    fontFamily: FONTS.accent,
+    letterSpacing: 1.1,
+  },
+  sectionNote: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: SPACING.md,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.glassBorder,
+  },
+  switchRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: SPACING.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
+    gap: SPACING.md,
+    paddingVertical: 6,
   },
-  settingTextCol: { flex: 1 },
-  settingLabel: { color: COLORS.textSecondary, fontSize: 14, fontWeight: '500' },
-  settingDesc: { color: COLORS.textMuted, fontSize: 11, marginTop: 2 },
-  settingValue: { color: COLORS.white, fontSize: 14, fontWeight: '700' },
-  pickerContainer: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
+  rowText: {
+    flex: 1,
+    color: COLORS.textPrimary,
+    fontSize: 18,
+    lineHeight: 24,
+    fontFamily: FONTS.heading,
+  },
+  rowValue: {
+    color: COLORS.textSecondary,
+    fontSize: 13,
+    lineHeight: 20,
+    textAlign: 'right',
+  },
+  inlineList: {
+    gap: SPACING.sm,
+    marginTop: SPACING.xs,
+  },
+  inlineItem: {
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
     borderRadius: BORDER_RADIUS.md,
-    marginTop: SPACING.sm,
-    overflow: 'hidden',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    minHeight: 44,
+    justifyContent: 'center',
+    backgroundColor: COLORS.glassBg,
   },
-  pickerItem: {
+  inlineText: {
+    color: COLORS.textSecondary,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  inlineTextActive: {
+    color: COLORS.textPrimary,
+  },
+  systemLabelRow: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: SPACING.md,
     gap: SPACING.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.03)',
   },
-  pickerItemActive: { backgroundColor: 'rgba(255,215,0,0.08)' },
-  pickerEmoji: { fontSize: 24 },
-  pickerTextCol: { flex: 1 },
-  pickerName: { color: COLORS.white, fontSize: 15, fontWeight: '600' },
-  pickerNameActive: { color: COLORS.starGold },
-  pickerNameSub: { color: COLORS.textMuted, fontSize: 12 },
-  checkmark: { color: COLORS.starGold, fontSize: 18, fontWeight: '700' },
-  upgradeButton: { marginTop: SPACING.sm },
-  aboutText: { color: COLORS.textMuted, fontSize: 13, lineHeight: 20, marginTop: SPACING.sm },
-  dangerButton: { borderColor: '#ff6b6b' },
-  bottomPad: { height: 100 },
+  systemDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.glassBorder,
+  },
+  detailLabel: {
+    color: COLORS.textMuted,
+    fontSize: 14,
+    fontFamily: FONTS.accent,
+  },
+  detailValue: {
+    color: COLORS.textPrimary,
+    fontSize: 15,
+    fontFamily: FONTS.heading,
+  },
+  linkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.glassBorder,
+  },
+  linkRowNoBorder: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    paddingVertical: 12,
+  },
+  linkText: {
+    flex: 1,
+    color: COLORS.textPrimary,
+    fontSize: 16,
+    fontFamily: FONTS.heading,
+  },
+  destructiveText: {
+    color: COLORS.coral,
+  },
+  pendingBadge: {
+    borderRadius: BORDER_RADIUS.full,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    backgroundColor: `${COLORS.starGold}22`,
+    borderWidth: 1,
+    borderColor: `${COLORS.starGold}66`,
+  },
+  pendingBadgeText: {
+    color: COLORS.starGold,
+    fontSize: 9,
+    fontFamily: FONTS.accent,
+    letterSpacing: 1.2,
+  },
+  appInfo: {
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: SPACING.md,
+  },
+  appVersion: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    fontFamily: FONTS.accent,
+    letterSpacing: 0.8,
+  },
+  appCopy: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+  },
+  bottomPad: {
+    height: 20,
+  },
 });

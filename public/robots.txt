@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /r/
+Disallow: /invite/
+Disallow: /u/
+
+Sitemap: https://cosmicself.app/sitemap.xml

@@ -12,27 +12,27 @@
  */
 
 const POSITIVE_OPENERS = [
-  'The cosmos is opening doors for you today',
-  'Your energy is beautifully aligned',
-  'The universe has a special gift for you',
-  'Stars are conspiring in your favor',
-  'Your cosmic vibration is rising',
-  'A wave of positive energy surrounds you',
-  'The planets are amplifying your natural gifts',
-  'Today carries beautiful cosmic potential',
-  'Your inner light is radiating strongly',
-  'The universe is reflecting your beauty back',
-  'Cosmic winds are blowing in your direction',
-  'Your celestial blueprint is activating',
+  'Planetary alignments favour clear decisions today',
+  'Transit energy is shifting — good day for action',
+  'Current aspects support new conversations and ideas',
+  'The planetary picture today rewards patience over speed',
+  'Strong aspect activity across your chart today',
+  'Several transits are converging — focus matters',
+  'Today\'s sky favours deliberate, well-timed moves',
+  'Planetary momentum supports steady progress today',
+  'Current transits highlight relationship and work themes',
+  'The aspects today create space for meaningful progress',
+  'Transit patterns suggest a productive, grounded day',
+  'Planetary energy today leans toward clarity and resolve',
 ];
 
 const GROWTH_FRAMINGS = [
-  'This is your cosmic upgrade period - embrace the transformation',
-  'The universe is building something beautiful through this experience',
-  'Growth energy is flowing - you\'re becoming the next version of yourself',
-  'Think of this as a cosmic workout - you\'re building spiritual muscle',
-  'Every master was once a student - this is your mastery in progress',
-  'The stars are polishing your diamond - each facet gets brighter',
+  'Square and opposition aspects are active — expect productive friction',
+  'Tension transits often precede breakthroughs when channelled well',
+  'Hard aspects demand adjustment — use them to sharpen your approach',
+  'The current pressure is transit-driven and time-limited',
+  'Challenging aspects build resilience — lean into the discomfort',
+  'Friction in the chart usually signals areas ready for change',
 ];
 
 const TRANSITION_PHRASES = [
@@ -44,18 +44,18 @@ const TRANSITION_PHRASES = [
 ];
 
 const AFFIRMATIONS = [
-  'I am aligned with my highest cosmic purpose',
-  'The universe supports my growth and expansion',
-  'I attract beautiful energy and opportunities',
-  'My cosmic DNA guides me to my greatest good',
-  'I am exactly where the stars intended me to be',
-  'Every day, I bloom more fully into my cosmic self',
-  'The universe celebrates who I am becoming',
-  'I trust my cosmic journey and embrace its gifts',
-  'My energy attracts wonderful connections',
-  'I shine my unique light and the world responds',
-  'The cosmos flows through me with love and purpose',
-  'I am cosmically supported in all that I do',
+  'I move with intention and respond to what is actually in front of me',
+  'I trust the timing that my chart reflects and act when it counts',
+  'I focus my energy where the transits say it matters most',
+  'I stay grounded and let clarity build before I commit',
+  'I honour the rhythm my chart describes and protect my pace',
+  'I make one well-timed decision instead of five scattered ones',
+  'I follow the pattern my placements reveal and adjust as I learn',
+  'I invest energy in what compounds and release what drains',
+  'I pay attention to the signal and ignore the noise today',
+  'I act from my chart\'s strengths and stay aware of its edges',
+  'I let the current planetary weather inform my choices without ruling them',
+  'I take one clear step forward and let momentum do the rest',
 ];
 
 /**

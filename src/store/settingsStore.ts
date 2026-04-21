@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useUserStore } from './userStore';
 
 // Lazy-load notifications to avoid crashing in Expo Go (push tokens removed in SDK 53+)
 const getNotifications = () => import('../utils/notifications');
@@ -8,21 +9,37 @@ interface SettingsState {
   language: string;
   notificationsEnabled: boolean;
   dailyNotificationTime: string; // HH:mm
-  theme: 'dark'; // Only dark theme for cosmic vibe
+  transitAlertsEnabled: boolean;
+  darkMode: boolean;
+  hasSeenTutorial: boolean;
+  journalLockEnabled: boolean;
+  theme: 'aurora';
   setLanguage: (lang: string) => void;
   setNotifications: (enabled: boolean) => void;
   setNotificationTime: (time: string) => void;
+  setTransitAlerts: (enabled: boolean) => void;
+  setDarkMode: (enabled: boolean) => void;
+  setTutorialSeen: (seen: boolean) => void;
+  setJournalLock: (enabled: boolean) => void;
   loadSettings: () => Promise<void>;
   saveSettings: () => Promise<void>;
+  clearSettings: () => Promise<void>;
 }
 
 const STORAGE_KEY = '@cosmicself_settings';
-
-export const useSettingsStore = create<SettingsState>((set, get) => ({
+const DEFAULT_SETTINGS = {
   language: 'en',
   notificationsEnabled: true,
   dailyNotificationTime: '08:00',
-  theme: 'dark',
+  transitAlertsEnabled: false,
+  darkMode: false,
+  hasSeenTutorial: false,
+  journalLockEnabled: false,
+  theme: 'aurora' as const,
+};
+
+export const useSettingsStore = create<SettingsState>((set, get) => ({
+  ...DEFAULT_SETTINGS,
 
   setLanguage: (lang) => {
     set({ language: lang });
@@ -35,7 +52,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         const { requestNotificationPermissions, scheduleDailyNotification } = await getNotifications();
         const granted = await requestNotificationPermissions();
         if (granted) {
-          await scheduleDailyNotification(get().dailyNotificationTime);
+          await scheduleDailyNotification(get().dailyNotificationTime, useUserStore.getState().user);
           set({ notificationsEnabled: true });
         } else {
           set({ notificationsEnabled: false });
@@ -58,9 +75,35 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     if (get().notificationsEnabled) {
       try {
         const { scheduleDailyNotification } = await getNotifications();
-        await scheduleDailyNotification(time);
+        await scheduleDailyNotification(time, useUserStore.getState().user);
       } catch {}
     }
+    get().saveSettings();
+  },
+
+  setTransitAlerts: async (enabled) => {
+    if (!enabled) {
+      try {
+        const { cancelTransitAlerts } = await getNotifications();
+        await cancelTransitAlerts();
+      } catch {}
+    }
+    set({ transitAlertsEnabled: enabled });
+    get().saveSettings();
+  },
+
+  setDarkMode: (enabled) => {
+    set({ darkMode: enabled });
+    get().saveSettings();
+  },
+
+  setTutorialSeen: (seen) => {
+    set({ hasSeenTutorial: seen });
+    get().saveSettings();
+  },
+
+  setJournalLock: (enabled) => {
+    set({ journalLockEnabled: enabled });
     get().saveSettings();
   },
 
@@ -74,7 +117,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         if (settings.notificationsEnabled) {
           getNotifications()
             .then(({ scheduleDailyNotification }) =>
-              scheduleDailyNotification(settings.dailyNotificationTime)
+              scheduleDailyNotification(settings.dailyNotificationTime, useUserStore.getState().user)
             )
             .catch(() => {});
         }
@@ -83,10 +126,19 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   },
 
   saveSettings: async () => {
-    const { language, notificationsEnabled, dailyNotificationTime } = get();
+    const { language, notificationsEnabled, dailyNotificationTime, transitAlertsEnabled, darkMode, hasSeenTutorial, journalLockEnabled } = get();
     await AsyncStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ language, notificationsEnabled, dailyNotificationTime })
+      JSON.stringify({ language, notificationsEnabled, dailyNotificationTime, transitAlertsEnabled, darkMode, hasSeenTutorial, journalLockEnabled })
     );
+  },
+
+  clearSettings: async () => {
+    try {
+      const { cancelAllNotifications } = await getNotifications();
+      await cancelAllNotifications();
+    } catch {}
+    await AsyncStorage.removeItem(STORAGE_KEY);
+    set({ ...DEFAULT_SETTINGS });
   },
 }));

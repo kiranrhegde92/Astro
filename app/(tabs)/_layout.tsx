@@ -1,121 +1,123 @@
-/**
- * Floating Tab Bar — Obsidian Glass
- * - Pure black glass pill with white border
- * - Ionicons (clean vector icons)
- * - Cinzel font labels
- * - Spring scale + white underline dot
- * - White icon on active, muted gray on inactive
- */
-import React, { useRef, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Tabs } from 'expo-router';
-import { View, Text, TouchableOpacity, StyleSheet, Platform, Animated } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { COLORS, BORDER_RADIUS } from '../../src/constants/theme';
+import * as Haptics from 'expo-haptics';
+import { BORDER_RADIUS, COLORS, SHADOWS, SPACING } from '../../src/constants/theme';
+import { OrbIcon } from '../../src/components/ui/OrbIcon';
+import { useAkashaEnabled } from '../../src/services/akashaFlag';
+import { WebAppShell } from '../../src/components/web/WebAppShell';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
 const TABS = [
-  { name: 'today',         icon: 'sunny',      iconOff: 'sunny-outline',     label: 'Today' },
-  { name: 'profile',       icon: 'person',     iconOff: 'person-outline',    label: 'Profile' },
-  { name: 'compatibility', icon: 'heart',      iconOff: 'heart-outline',     label: 'Match' },
-  { name: 'explore',       icon: 'telescope',  iconOff: 'telescope-outline', label: 'Explore' },
-  { name: 'cosmos',        icon: 'planet',     iconOff: 'planet-outline',    label: 'Cosmos' },
+  { name: 'today', icon: 'sunny', labelKey: 'tabs.today', accent: COLORS.sunOrange, secondary: '#ffe9c7' },
+  { name: 'akasha', icon: 'sparkles', labelKey: 'akasha.tabLabel', accent: COLORS.violetDeep, secondary: COLORS.violetSoft },
+  { name: 'profile', icon: 'person', labelKey: 'tabs.profile', accent: COLORS.iris, secondary: '#ece6ff' },
+  { name: 'compatibility', icon: 'heart', labelKey: 'tabs.compatibility', accent: COLORS.coral, secondary: '#ffe3da' },
+  { name: 'share', icon: 'share-social', labelKey: 'tabs.share', accent: COLORS.tide, secondary: '#e2f5ef' },
 ] as const;
 
 function TabItem({
-  iconOn, iconOff, label, focused, onPress,
+  icon,
+  label,
+  accent,
+  secondary,
+  focused,
+  onPress,
 }: {
-  iconOn: string; iconOff: string; label: string; focused: boolean; onPress: () => void;
+  icon: React.ComponentProps<typeof OrbIcon>['icon'];
+  label: string;
+  accent: string;
+  secondary: string;
+  focused: boolean;
+  onPress: () => void;
 }) {
-  const scale  = useRef(new Animated.Value(focused ? 1 : 0.82)).current;
-  const glow   = useRef(new Animated.Value(focused ? 1 : 0)).current;
-  const dot    = useRef(new Animated.Value(focused ? 1 : 0)).current;
+  const scale = useSharedValue(focused ? 1 : 0.9);
+  const translateY = useSharedValue(0);
 
   useEffect(() => {
-    Animated.spring(scale, {
-      toValue: focused ? 1 : 0.82,
-      tension: 90, friction: 10,
-      useNativeDriver: true,
-    }).start();
-    Animated.timing(glow, {
-      toValue: focused ? 1 : 0,
-      duration: 200,
-      useNativeDriver: false,
-    }).start();
-    Animated.timing(dot, {
-      toValue: focused ? 1 : 0,
-      duration: 240,
-      useNativeDriver: false,
-    }).start();
-  }, [focused]);
+    if (focused) {
+      scale.value = withSequence(
+        withSpring(1.12, { damping: 8, stiffness: 220 }),
+        withSpring(1, { damping: 10, stiffness: 180 }),
+      );
+      translateY.value = withSequence(
+        withTiming(-4, { duration: 140 }),
+        withSpring(0, { damping: 9, stiffness: 200 }),
+      );
+    } else {
+      scale.value = withSpring(0.92, { damping: 12, stiffness: 200 });
+    }
+  }, [focused, scale, translateY]);
 
-  const bubbleBg = glow.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['rgba(255,255,255,0)', 'rgba(255,255,255,0.10)'],
-  });
+  const iconStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }, { translateY: translateY.value }],
+  }));
+
+  const handlePress = () => {
+    Haptics.selectionAsync().catch(() => {});
+    onPress();
+  };
 
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      activeOpacity={0.7}
-      style={styles.tabItem}
-      accessibilityRole="tab"
-      accessibilityLabel={label}
-    >
-      <Animated.View style={[styles.bubble, { backgroundColor: bubbleBg }]}>
-        <Animated.View style={{ transform: [{ scale }] }}>
-          <Ionicons
-            name={(focused ? iconOn : iconOff) as any}
-            size={22}
-            color={focused ? '#ffffff' : 'rgba(255,255,255,0.50)'}
+    <TouchableOpacity onPress={handlePress} activeOpacity={0.8} style={styles.tabItem} accessibilityRole="tab" accessibilityLabel={label}>
+      <View style={[styles.tabInner, focused && styles.tabInnerFocused]}>
+        <Animated.View style={iconStyle}>
+          <OrbIcon
+            icon={icon}
+            size={focused ? 34 : 30}
+            accentColor={focused ? accent : COLORS.silverMid}
+            secondaryColor={focused ? secondary : '#fffaf1'}
+            active={focused}
+            iconColor="#1b2233"
           />
         </Animated.View>
-      </Animated.View>
-      <Text style={[styles.label, focused && styles.labelFocused]}>{label}</Text>
-      <Animated.View style={[styles.dot, { opacity: dot }]} />
+        <Text style={[styles.label, focused && styles.labelFocused]}>{label}</Text>
+      </View>
     </TouchableOpacity>
   );
 }
 
-function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
+function BottomBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const bottomOffset = Math.max(insets.bottom + 8, Platform.OS === 'ios' ? 28 : 16);
+  const { t } = useTranslation();
+  const akashaEnabled = useAkashaEnabled();
+  const paddingBottom = Math.max(insets.bottom, Platform.OS === 'ios' ? 10 : 8);
+
+  const visibleTabs = akashaEnabled ? TABS : TABS.filter((tab) => tab.name !== 'akasha');
+
   return (
-    <View style={[styles.wrapper, { bottom: bottomOffset }]} pointerEvents="box-none">
-      <View style={styles.pillShadow}>
-        <View style={styles.pill}>
-          <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFillObject} />
-          {/* Glass border overlay */}
-          <LinearGradient
-            colors={['rgba(255,255,255,0.14)', 'rgba(255,255,255,0.04)']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.pillBorder}
-            pointerEvents="none"
-          />
-          {/* Top specular line */}
-          <View style={styles.topLine} pointerEvents="none" />
-          {state.routes.map((route, idx) => {
-            const tab = TABS.find((t) => t.name === route.name) ?? TABS[0];
-            const focused = state.index === idx;
-            return (
-              <TabItem
-                key={route.key}
-                iconOn={tab.icon}
-                iconOff={tab.iconOff}
-                label={tab.label}
-                focused={focused}
-                onPress={() => {
-                  const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-                  if (!focused && !event.defaultPrevented) navigation.navigate(route.name);
-                }}
-              />
-            );
-          })}
-        </View>
+    <View style={[styles.outer, { paddingBottom }]}>
+      <View style={styles.bar}>
+        {state.routes.filter((route) => visibleTabs.some((t) => t.name === route.name)).map((route, index) => {
+          const tab = visibleTabs.find((item) => item.name === route.name) ?? visibleTabs[0];
+          const focused = state.index === state.routes.indexOf(route);
+
+          return (
+            <TabItem
+              key={route.key}
+              icon={tab.icon}
+              label={t(tab.labelKey)}
+              accent={tab.accent}
+              secondary={tab.secondary}
+              focused={focused}
+              onPress={() => {
+                const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+                if (!focused && !event.defaultPrevented) {
+                  navigation.navigate(route.name);
+                }
+              }}
+            />
+          );
+        })}
       </View>
     </View>
   );
@@ -123,82 +125,72 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
 
 export default function TabsLayout() {
   const { t } = useTranslation();
+
+  if (Platform.OS === 'web') {
+    return (
+      <WebAppShell variant="app">
+        <Tabs tabBar={() => null} screenOptions={{ headerShown: false }}>
+          <Tabs.Screen name="today" options={{ title: t('tabs.today') }} />
+          <Tabs.Screen name="akasha" options={{ title: t('akasha.tabLabel') }} />
+          <Tabs.Screen name="profile" options={{ title: t('tabs.profile') }} />
+          <Tabs.Screen name="compatibility" options={{ title: t('tabs.compatibility') }} />
+          <Tabs.Screen name="share" options={{ title: t('tabs.share') }} />
+        </Tabs>
+      </WebAppShell>
+    );
+  }
+
   return (
-    <Tabs
-      tabBar={(props) => <FloatingTabBar {...props} />}
-      screenOptions={{ headerShown: false }}
-    >
-      <Tabs.Screen name="today"         options={{ title: t('tabs.today') }} />
-      <Tabs.Screen name="profile"       options={{ title: t('tabs.profile') }} />
+    <Tabs tabBar={(props) => <BottomBar {...props} />} screenOptions={{ headerShown: false }}>
+      <Tabs.Screen name="today" options={{ title: t('tabs.today') }} />
+      <Tabs.Screen name="akasha" options={{ title: t('akasha.tabLabel') }} />
+      <Tabs.Screen name="profile" options={{ title: t('tabs.profile') }} />
       <Tabs.Screen name="compatibility" options={{ title: t('tabs.compatibility') }} />
-      <Tabs.Screen name="explore"       options={{ title: t('tabs.explore') }} />
-      <Tabs.Screen name="cosmos"        options={{ title: t('tabs.cosmos') }} />
+      <Tabs.Screen name="share" options={{ title: t('tabs.share') }} />
     </Tabs>
   );
 }
 
-const BAR_H = 64;
-
 const styles = StyleSheet.create({
-  wrapper: {
-    position: 'absolute',
-    left: 16,
-    right: 16,
+  outer: {
+    backgroundColor: COLORS.bgDeep,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.glassBorder,
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.sm,
   },
-  pillShadow: {
-    borderRadius: BORDER_RADIUS.xxl,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.8,
-    shadowRadius: 32,
-    elevation: 24,
-  },
-  pill: {
+  bar: {
     flexDirection: 'row',
-    height: BAR_H,
-    borderRadius: BORDER_RADIUS.xxl,
     alignItems: 'center',
-    paddingHorizontal: 4,
-    overflow: 'hidden',
-    backgroundColor: 'rgba(0,0,0,0.85)',
-  },
-  pillBorder: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: BORDER_RADIUS.xxl,
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.xs,
+    paddingVertical: SPACING.xs,
+    backgroundColor: 'rgba(255,255,255,0.88)',
+    borderRadius: BORDER_RADIUS.xl,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-  },
-  topLine: {
-    position: 'absolute',
-    top: 0, left: 28, right: 28, height: 1,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    zIndex: 2,
+    borderColor: COLORS.glassBorder,
+    ...SHADOWS.glass,
   },
   tabItem: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 44,
-    paddingVertical: 4,
-    gap: 2,
-    zIndex: 3,
+    paddingHorizontal: 2,
   },
-  bubble: {
-    width: 44, height: 32,
-    borderRadius: BORDER_RADIUS.md,
+  tabInner: {
+    minHeight: 50,
+    borderRadius: BORDER_RADIUS.lg,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 4,
+  },
+  tabInnerFocused: {
+    backgroundColor: COLORS.bgMuted,
   },
   label: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.50)',
-    fontFamily: 'Cinzel_400Regular',
-    letterSpacing: 0.5,
+    fontSize: 10,
+    color: '#4a5878',
+    fontWeight: '700',
   },
-  labelFocused: { color: '#ffffff' },
-  dot: {
-    width: 5, height: 5, borderRadius: 3,
-    backgroundColor: '#ffffff',
-    marginTop: 1,
+  labelFocused: {
+    color: '#1b2233',
   },
 });

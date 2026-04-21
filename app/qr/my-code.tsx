@@ -1,23 +1,43 @@
-import React, { useRef, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { AppState, View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useIsFocused } from '@react-navigation/native';
 import ViewShot from 'react-native-view-shot';
 import { StarField } from '../../src/components/ui/StarField';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
 import { CosmicButton } from '../../src/components/ui/CosmicButton';
-import { QRCodeCard } from '../../src/components/share/QRCodeCard';
-import { COLORS, SPACING, BORDER_RADIUS } from '../../src/constants/theme';
-import { useUserStore } from '../../src/store/userStore';
+import { QRRevealAnimation } from '../../src/components/ui/QRRevealAnimation';
+import { ResetScrollView } from '../../src/components/ui/ResetScrollView';
+import { COLORS, SPACING, BORDER_RADIUS, FONTS } from '../../src/constants/theme';
+import { useActiveProfile } from '../../src/hooks/useActiveProfile';
 import { getCosmicDNASummary } from '../../src/engines/unified';
 import { captureAndShare } from '../../src/utils/shareUtils';
-import { QR_THEMES, getQRThemeColors } from '../../src/utils/qrCodeUtils';
+import { QR_THEMES, getQRThemeColors, generateProfileLink } from '../../src/utils/qrCodeUtils';
 import type { QRThemeName } from '../../src/utils/qrCodeUtils';
+import type { SharedProfilePayload } from '../../src/types/appData';
 
 export default function MyQRCodeScreen() {
   const router = useRouter();
-  const user = useUserStore((s) => s.user);
+  const user = useActiveProfile();
   const viewShotRef = useRef<ViewShot>(null);
   const [selectedTheme, setSelectedTheme] = useState<QRThemeName>('Cosmic Night');
+  const [revealVersion, setRevealVersion] = useState(0);
+  const isFocused = useIsFocused();
+  const themeColors = React.useMemo(() => getQRThemeColors(selectedTheme), [selectedTheme]);
+
+  useEffect(() => {
+    if (!isFocused) return;
+    setRevealVersion((value) => value + 1);
+  }, [isFocused, selectedTheme]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active' && isFocused) {
+        setRevealVersion((value) => value + 1);
+      }
+    });
+    return () => subscription.remove();
+  }, [isFocused]);
 
   if (!user?.western || !user?.vedic || !user?.chinese) return null;
 
@@ -27,6 +47,58 @@ export default function MyQRCodeScreen() {
     chinese: user.chinese,
     kp: user.kp,
   });
+  const profilePayload: SharedProfilePayload = {
+    version: 1,
+    id: user.id,
+    name: user.name,
+    birthDetails: user.birthDetails,
+    activeSystems: user.activeSystems,
+    profile: {
+      // Keep QR payload compact enough for offline scanning.
+      western: {
+        sun: user.western.sun,
+        moon: user.western.moon,
+        rising: user.western.rising,
+        element: user.western.element,
+        modality: user.western.modality,
+        planets: [],
+      },
+      vedic: {
+        rashi: user.vedic.rashi,
+        nakshatra: user.vedic.nakshatra,
+        nakshatraPada: user.vedic.nakshatraPada,
+        moonSign: user.vedic.moonSign,
+        dashas: [],
+        currentDasha: {
+            planet: user.vedic.currentDasha.planet,
+            startDate: user.vedic.currentDasha.startDate,
+            endDate: user.vedic.currentDasha.endDate,
+          },
+        remedies: [],
+      },
+      chinese: {
+        animal: user.chinese.animal,
+        element: user.chinese.element,
+        yinYang: user.chinese.yinYang,
+        luckyNumbers: [],
+        luckyColors: user.chinese.luckyColors.slice(0, 2),
+        compatibleAnimals: [],
+        incompatibleAnimals: [],
+      },
+      kp: user.kp
+        ? {
+            sublords: [],
+            cusps: [],
+            significators: [],
+            predictions: [],
+          }
+        : undefined,
+    },
+    cosmicDNA,
+    sharedAt: new Date().toISOString(),
+  };
+
+  const deepLink = generateProfileLink(profilePayload);
 
   const handleShare = () => {
     captureAndShare(viewShotRef, 'Scan my Cosmic DNA!');
@@ -34,28 +106,29 @@ export default function MyQRCodeScreen() {
 
   return (
     <StarField>
-      <ScreenHeader title="My Cosmic QR" />
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <ScreenHeader title="My cosmic QR" />
+      <ResetScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <Text style={styles.subtitle}>
-          Share your QR code and let others discover your Cosmic DNA instantly
+          Your rashi rises as a living sigil, then settles into a scan-ready QR.
         </Text>
 
-        {/* QR Card */}
-        <View style={styles.cardWrapper}>
-          <QRCodeCard
-            userId={user.id}
-            userName={user.name}
-            cosmicDNA={cosmicDNA}
-            sunSign={user.western.sun}
-            rashi={user.vedic.rashi}
-            animal={user.chinese.animal}
-            gradientColors={getQRThemeColors(selectedTheme)}
-            viewShotRef={viewShotRef}
-          />
-        </View>
+        {/* Inline QR reveal stage */}
+        <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 1 }}>
+          <View style={styles.revealWrap}>
+            <QRRevealAnimation
+              key={`${user.id}-${selectedTheme}-${revealVersion}`}
+              rashi={user.vedic.rashi}
+              chineseAnimal={user.chinese.animal}
+              deepLink={deepLink}
+              userName={user.name}
+              cosmicDNA={cosmicDNA}
+              themeColors={themeColors}
+            />
+          </View>
+        </ViewShot>
 
         {/* Theme Picker */}
-        <Text style={styles.themeLabel}>Choose Your Theme</Text>
+        <Text style={styles.themeLabel}>Choose the atmosphere</Text>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -69,6 +142,9 @@ export default function MyQRCodeScreen() {
                 styles.themeOption,
                 selectedTheme === theme.name && styles.themeOptionSelected,
               ]}
+              accessibilityRole="button"
+              accessibilityLabel={`${theme.name} QR theme`}
+              accessibilityState={{ selected: selectedTheme === theme.name }}
             >
               <View
                 style={[
@@ -112,7 +188,7 @@ export default function MyQRCodeScreen() {
         </View>
 
         <View style={styles.bottomPad} />
-      </ScrollView>
+      </ResetScrollView>
     </StarField>
   );
 }
@@ -137,15 +213,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: SPACING.sm,
     marginBottom: SPACING.lg,
+    paddingHorizontal: SPACING.sm,
   },
-  cardWrapper: {
-    alignItems: 'center',
+  revealWrap: {
     marginBottom: SPACING.lg,
   },
   themeLabel: {
     color: COLORS.textSecondary,
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: FONTS.heading,
     marginBottom: SPACING.sm,
   },
   themesRow: {
@@ -158,10 +234,11 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.md,
     borderWidth: 1,
     borderColor: 'transparent',
+    minHeight: 72,
   },
   themeOptionSelected: {
     borderColor: COLORS.starGold,
-    backgroundColor: 'rgba(255, 215, 0, 0.1)',
+    backgroundColor: COLORS.glassHighlight,
   },
   themePreview: {
     width: 40,
@@ -183,14 +260,16 @@ const styles = StyleSheet.create({
   },
   tips: {
     marginTop: SPACING.xl,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: COLORS.glassBg,
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.lg,
+    borderWidth: 1,
+    borderColor: COLORS.glassBorder,
   },
   tipsTitle: {
-    color: COLORS.white,
+    color: COLORS.textPrimary,
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: FONTS.heading,
     marginBottom: SPACING.md,
   },
   tipItem: {

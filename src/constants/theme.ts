@@ -1,207 +1,205 @@
 /**
- * CosmicSelf — Obsidian Glass Design System
- * Theme: Pure black base · White glass cards · Vibrant system accents
- * Fonts: Cinzel (Roman display) + System body
- * 3D: Depth via layered shadows + glossy overlays + chrome gradients
+ * Midnight Observatory — cosmic dark palette.
+ * Token names preserved for backwards compatibility across the app;
+ * resolved values tuned for a night-sky editorial aesthetic.
  */
 
-// ─── Base Palette ─────────────────────────────────────────────────────────────
-const BLACK = {
-  true:   '#000000',
-  950:    '#050505',
-  900:    '#0a0a0a',
-  850:    '#0f0f0f',
-  800:    '#141414',
-  750:    '#1a1a1a',
-  700:    '#1f1f1f',
-  600:    '#2a2a2a',
+const COSMOS = {
+  void: '#05060f',
+  deep: '#07081a',
+  base: '#0a0b1f',
+  mid: '#151736',
+  horizon: '#2b1d52',
 };
 
-const WHITE = {
-  true:  '#ffffff',
-  w98:   'rgba(255,255,255,0.98)',
-  w85:   'rgba(255,255,255,0.85)',
-  w65:   'rgba(255,255,255,0.65)',
-  w42:   'rgba(255,255,255,0.42)',
-  w22:   'rgba(255,255,255,0.22)',
-  w12:   'rgba(255,255,255,0.12)',
-  w07:   'rgba(255,255,255,0.07)',
-  w04:   'rgba(255,255,255,0.04)',
+const CREAM = {
+  100: '#fff8ea',
+  200: '#fff5e6',
+  300: '#f6ead4',
+  400: '#cfc3a8',
+  500: '#8c836d',
 };
 
-const SILVER = {
-  bright:  '#E8E8F0',
-  mid:     '#C0C0CC',
-  dim:     '#888899',
-  dark:    '#444455',
-};
-
-const GOLD = {
-  bright:  '#FFD700',
-  mid:     '#E5B800',
-  dim:     '#B8960C',
-  pale:    '#F0E080',
-};
-
-// ─── System Accent Colors (vibrant pops on monochrome) ──────────────────────
 const ACCENT = {
-  western:  '#7C6DFF',   // electric indigo
-  vedic:    '#FF6B35',   // ember orange
-  chinese:  '#FF3A5C',   // neon rose
-  kp:       '#00E5D1',   // electric teal
+  gold: '#f1b74f',
+  goldDeep: '#bc8331',
+  iris: '#9b91ff',
+  irisBright: '#b8b0ff',
+  tide: '#3ee0c8',
+  tideLight: '#7de7da',
+  plum: '#c77ad8',
+  coral: '#ff7896',
+  dawn: '#ff9e72',
+  violetDeep: '#5b3ea8',
+  violetSoft: '#ece3ff',
 };
 
-// ─── Exported COLORS ──────────────────────────────────────────────────────────
 export const COLORS = {
   // Backgrounds
-  bg:           '#0e0e18',
-  bgDeep:       '#0a0a12',
-  bgCard:       '#14141f',
-  bgElevated:   '#1a1a28',
+  bg: COSMOS.base,
+  bgDeep: COSMOS.deep,
+  bgCard: 'rgba(255,255,255,0.09)',
+  bgElevated: 'rgba(255,255,255,0.14)',
+  bgMuted: 'rgba(255,255,255,0.09)',
+  bgInkCard: 'rgba(10,11,31,0.82)',
+  bgInkCardSoft: 'rgba(21,23,54,0.74)',
 
-  // Glass
-  glassBg:           WHITE.w04,
-  glassBgMid:        WHITE.w07,
-  glassBorder:       WHITE.w12,
-  glassBorderBright: WHITE.w22,
-  glassHighlight:    WHITE.w12,
+  // Glass surfaces — always translucent-white on a dark base
+  glassBg: 'rgba(255,255,255,0.09)',
+  glassBgMid: 'rgba(255,255,255,0.14)',
+  glassBorder: 'rgba(255,255,255,0.22)',
+  glassBorderBright: 'rgba(241,183,79,0.44)',
+  glassHighlight: 'rgba(255,255,255,0.14)',
+  rule: 'rgba(255,255,255,0.18)',
+  ruleLight: 'rgba(255,255,255,0.12)',
 
-  // Text
-  textPrimary:   WHITE.true,
-  textSecondary: WHITE.w65,
-  textMuted:     'rgba(255,255,255,0.52)',  // raised from 0.42 — passes WCAG AA at 12px+
+  // Text on dark
+  textPrimary: CREAM[200],
+  textSecondary: 'rgba(255,245,230,0.80)',
+  textMuted: 'rgba(255,245,230,0.64)',
+  ink: CREAM[200],
+  inkMid: 'rgba(255,245,230,0.86)',
+  inkSoft: 'rgba(255,245,230,0.72)',
 
-  // Metals
-  silver:        SILVER.bright,
-  silverMid:     SILVER.mid,
-  silverDim:     SILVER.dim,
-  white:         WHITE.true,
-  gold:          GOLD.bright,
-  goldMid:       GOLD.mid,
-  starGold:      GOLD.bright,
-  starGoldDeep:  GOLD.dim,
+  // Neutrals
+  white: '#ffffff',
+  silver: '#f3edf7',
+  silverMid: '#d8d0e4',
+  silverDim: '#b8b1c8',
+  gold: ACCENT.gold,
+  goldMid: ACCENT.goldDeep,
+  starGold: ACCENT.gold,
+  starGoldDeep: ACCENT.goldDeep,
 
-  // System accents
-  western:       ACCENT.western,
-  vedic:         ACCENT.vedic,
-  chinese:       ACCENT.chinese,
-  kp:            ACCENT.kp,
+  // System accents — brightened for dark backgrounds
+  western: ACCENT.iris,
+  vedic: ACCENT.dawn,
+  chinese: ACCENT.coral,
+  kp: ACCENT.tide,
+  iris: ACCENT.iris,
+  tide: ACCENT.tide,
+  plum: ACCENT.plum,
+  coral: ACCENT.coral,
 
-  // Legacy aliases
-  violet:        ACCENT.western,
-  violetLight:   '#A89EFF',
-  violetBright:  '#A89EFF',
-  teal:          ACCENT.kp,
-  tealLight:     '#55F5E8',
-  deepSpace:     BLACK.true,
-  nebula:        BLACK[800],
-  cosmic:        BLACK[700],
-  aurora:        ACCENT.kp,
+  violet: ACCENT.iris,
+  violetLight: ACCENT.irisBright,
+  violetBright: '#d1cbff',
+  violetDeep: ACCENT.violetDeep,
+  violetSoft: ACCENT.violetSoft,
+  teal: ACCENT.tide,
+  tealLight: ACCENT.tideLight,
+  deepSpace: COSMOS.deep,
+  nebula: COSMOS.base,
+  cosmic: COSMOS.mid,
+  aurora: '#ffc888',
 
-  // Status
-  success: '#00E09A',
-  warning: GOLD.bright,
-  error:   '#FF3A5C',
+  // Feedback
+  success: '#6fd596',
+  warning: ACCENT.gold,
+  error: '#ff7878',
 
-  // System colors (extra)
-  sunOrange:  ACCENT.vedic,
-  moonSilver: SILVER.bright,
+  sunOrange: ACCENT.dawn,
+  moonSilver: '#f4efe6',
 
   // Gradients
-  gradientBg:        ['#000000', '#050508', '#000000'] as const,
-  gradientCard:      ['rgba(255,255,255,0.10)', 'rgba(255,255,255,0.02)'] as const,
-  gradientPrimary:   [ACCENT.western, ACCENT.kp] as const,
-  gradientGold:      [GOLD.dim, GOLD.bright] as const,
-  gradientSilver:    ['rgba(220,220,240,0.22)', 'rgba(140,140,160,0.05)'] as const,
-  gradientChrome:    ['rgba(255,255,255,0.18)', 'rgba(180,180,200,0.04)'] as const,
-  gradientWestern:   ['#3D35CC', ACCENT.western] as const,
-  gradientVedic:     ['#CC3A10', ACCENT.vedic] as const,
-  gradientChinese:   ['#CC0030', ACCENT.chinese] as const,
-  gradientKP:        ['#007A72', ACCENT.kp] as const,
-  gradientMystic:    [ACCENT.western, ACCENT.kp] as const,
-  gradientCompatibility: ['#CC0030', ACCENT.vedic, GOLD.dim] as const,
+  gradientBg: [COSMOS.deep, COSMOS.base, COSMOS.mid] as const,
+  gradientCard: ['rgba(255,255,255,0.09)', 'rgba(255,255,255,0.03)'] as const,
+  gradientInk: [COSMOS.base, COSMOS.mid, COSMOS.horizon] as const,
+  gradientInkSoft: [COSMOS.mid, COSMOS.horizon] as const,
+  gradientDawn: ['#3b1f4a', '#662848', '#9a4450'] as const,
+  gradientSunset: ['#2d1338', '#4a1760', '#1a2d60'] as const,
+  gradientPrimary: [ACCENT.gold, ACCENT.dawn] as const,
+  gradientGold: ['#ffe0a2', ACCENT.gold] as const,
+  gradientSilver: ['rgba(255,255,255,0.14)', 'rgba(255,255,255,0.04)'] as const,
+  gradientChrome: ['rgba(255,255,255,0.10)', 'rgba(255,255,255,0.03)'] as const,
+  gradientWestern: ['rgba(155,145,255,0.32)', 'rgba(155,145,255,0.08)'] as const,
+  gradientVedic: ['rgba(255,158,114,0.30)', 'rgba(255,158,114,0.08)'] as const,
+  gradientChinese: ['rgba(255,120,150,0.30)', 'rgba(255,120,150,0.08)'] as const,
+  gradientKP: ['rgba(62,224,200,0.28)', 'rgba(62,224,200,0.08)'] as const,
+  gradientMystic: ['rgba(155,145,255,0.14)', 'rgba(62,224,200,0.10)'] as const,
+  gradientCompatibility: [
+    'rgba(255,120,150,0.20)',
+    'rgba(255,158,114,0.20)',
+    'rgba(155,145,255,0.18)',
+  ] as const,
 };
 
-// ─── Typography ───────────────────────────────────────────────────────────────
 export const FONTS = {
-  display: 'Cinzel_900Black',   // hero titles — Roman capitals
-  heading: 'Cinzel_700Bold',    // section heads
-  accent:  'Cinzel_400Regular', // labels, badges
-  body:    'System',
+  display: 'PlayfairDisplay_900Black',
+  heading: 'PlayfairDisplay_700Bold',
+  accent: 'Cinzel_400Regular',
+  accentBold: 'Cinzel_700Bold',
+  body: 'System',
 };
 
-// ─── Type Scale (minimum 11px everywhere) ────────────────────────────────────
+/**
+ * Type scale — editorial rhythm.
+ * Use these exclusively; avoid one-off fontSize values.
+ */
 export const TYPE = {
-  hero:    { fontSize: 42, letterSpacing: 4 },
-  title:   { fontSize: 28, letterSpacing: 3 },
-  heading: { fontSize: 20, letterSpacing: 1 },
-  subhead: { fontSize: 16, letterSpacing: 0.4 },
-  body:    { fontSize: 14, letterSpacing: 0 },
-  caption: { fontSize: 12, letterSpacing: 0.3 },
-  label:   { fontSize: 11, letterSpacing: 2 },   // minimum size for Cinzel all-caps labels
-  micro:   { fontSize: 11, letterSpacing: 1.5 }, // was 9px — now safe minimum
+  hero: { fontSize: 42, lineHeight: 48, letterSpacing: -0.8 },
+  title: { fontSize: 30, lineHeight: 36, letterSpacing: -0.4 },
+  heading: { fontSize: 22, lineHeight: 28, letterSpacing: -0.2 },
+  subhead: { fontSize: 17, lineHeight: 24, letterSpacing: 0 },
+  body: { fontSize: 15, lineHeight: 22, letterSpacing: 0 },
+  bodySmall: { fontSize: 14, lineHeight: 20, letterSpacing: 0 },
+  caption: { fontSize: 13, lineHeight: 18, letterSpacing: 0.1 },
+  label: { fontSize: 11, lineHeight: 14, letterSpacing: 1.6 },
+  micro: { fontSize: 11, lineHeight: 14, letterSpacing: 0.2 },
 };
 
-// ─── 8px base spacing grid ────────────────────────────────────────────────────
 export const SPACING = {
-  xs:  4,
-  sm:  8,
-  md:  16,
-  lg:  24,
-  xl:  32,
+  xs: 4,
+  sm: 8,
+  md: 16,
+  lg: 24,
+  xl: 32,
   xxl: 48,
 };
 
-// ─── Border radius ────────────────────────────────────────────────────────────
 export const BORDER_RADIUS = {
-  sm:   8,
-  md:   14,
-  lg:   20,
-  xl:   26,
-  xxl:  34,
+  sm: 8,
+  md: 14,
+  lg: 16,
+  xl: 24,
+  xxl: 30,
   full: 9999,
 };
 
-// ─── Shadows (3D depth system) ────────────────────────────────────────────────
 export const SHADOWS = {
-  // Floating card — white top glow + deep black drop
   card: {
-    shadowColor: '#000000',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.8,
-    shadowRadius: 24,
-    elevation: 16,
-  },
-  // Subtle glass elevation
-  glass: {
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.6,
-    shadowRadius: 18,
-    elevation: 10,
-  },
-  // Bold floating — hero elements
-  deep: {
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.9,
-    shadowRadius: 36,
-    elevation: 24,
-  },
-  // White inner glow (for accent elements)
-  glow: {
-    shadowColor: '#ffffff',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.20,
-    shadowRadius: 16,
+    shadowOpacity: 0.36,
+    shadowRadius: 22,
     elevation: 8,
   },
-  // Gold accent glow
+  glass: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.28,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  deep: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.44,
+    shadowRadius: 30,
+    elevation: 12,
+  },
+  glow: {
+    shadowColor: ACCENT.iris,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.42,
+    shadowRadius: 22,
+    elevation: 6,
+  },
   glowGold: {
-    shadowColor: GOLD.bright,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.50,
-    shadowRadius: 14,
-    elevation: 10,
+    shadowColor: ACCENT.gold,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.38,
+    shadowRadius: 20,
+    elevation: 6,
   },
 };
